@@ -26,7 +26,7 @@ Mọi tài liệu trong dự án được tổ chức chặt chẽ theo 3 nhóm 
 [Nhóm 1: Module README] (Cục bộ tại thư mục mã nguồn: src/features/<feature>/README.md, src/core/<module>/README.md)
        │
        ▼
-[Nhóm 2: Kế hoạch & Runbook] (Triển khai & nghiệm thu trên máy thật: docs/specs/ hoặc docs/plans/)
+[Nhóm 2: Kế hoạch & Runbook] (Triển khai & nghiệm thu trên máy thật: docs/plans/*.md)
        │
        ▼
 [Nhóm 3: Đặc tả Kiến trúc & ADR] (Toàn cục: docs/ARCHITECTURE_PROPOSAL_PRODUCTION.md, docs/specs/*.md)
@@ -50,7 +50,7 @@ Mọi tài liệu trong dự án được tổ chức chặt chẽ theo 3 nhóm 
 
 ### 📋 Nhóm 2: Tài liệu Kế hoạch Triển khai & Kỹ thuật (Execution Plan & Hardware Runbook)
 
-- **Vị trí**: `docs/specs/*-runbook.md` hoặc `docs/plans/*.md`.
+- **Vị trí**: `docs/plans/*.md` (VD: `docs/plans/identification-runbook.md`).
 - **Mục đích**: Hướng dẫn quy trình từng bước (Step-by-step) để cài đặt, kết nối thiết bị y tế và nghiệm thu trên phần cứng thật (Kiosk Sumi/Sunmi mini K2, InBody 260S, Máy đo huyết áp).
 - **Bố cục tiêu chuẩn bắt buộc**:
   1. `Phần Đầu trang (Header Metadata)`:
@@ -115,11 +115,14 @@ Mọi code mới hoặc refactor cần đặt đúng vào phân lớp tương �
 [Layer 4: src/shared/] (Design System UI, Virtual Numpad, Countdown Timer, Axios Client, Types, Utils, Constants)
 ```
 
-### Quy tắc Phụ thuộc (Boundary Rules):
+### Quy tắc Phụ thuộc (Boundary Rules) & Tệp Barrel Index (`index.ts`):
 
 1. `src/core/` **TUYỆT ĐỐI CẤM** import từ `src/features/` hoặc `src/app/`.
 2. `src/shared/` **TUYỆT ĐỐI CẤM** import từ `src/core/`, `src/features/`, hoặc `src/app/`.
-3. Callers bên ngoài module **chỉ được phép import qua Barrel File (`index.ts`)** của module đó.
+3. **Bắt buộc dùng Tệp Barrel (`index.ts`) ở 2 cấp (Subfolder & Feature Root Barrels)**:
+   - **Cấp thư mục con (Subfolder Barrels)**: Tất cả các thư mục con trong một feature (`components/`, `api/`, `validations/`, `types/`, `constants/`, `utils/`) **BẮT BUỘC có tệp `index.ts`** để gom và re-export toàn bộ tài nguyên bên trong (VD: `export * from './identification.schema'`).
+   - **Cấp Root Feature (`index.ts`)**: Tệp `src/features/<feature>/index.ts` chỉ re-export gọn gàng qua các subfolder barrels (VD: `export * from './components'`, `export * from './validations'`, `export * from './api'`).
+   - **Quy tắc Import từ Bên ngoài**: Callers bên ngoài module **chỉ được phép import qua Barrel File (`index.ts`)** của module đó. **TUYỆT ĐỐI CẤM** import đường dẫn lắt nhắt trỏ trực tiếp đến tệp sâu trong thư mục con (VD: cấm `import { ... } from '@/features/identification/validations/identification.schema'`).
 
 ---
 
@@ -135,7 +138,7 @@ Mọi code mới hoặc refactor cần đặt đúng vào phân lớp tương �
 - **Đặt tên file Route tĩnh sạch sẽ**:
   - Đặt tên route rõ ràng theo từng bước của Kiosk:
     - `/kiosk/home` (Bước 1: Trạng thái chờ / Home)
-    - `/kiosk/identification` (Bước 2: Màn hình Định danh SĐT / CCCD)
+    - `/kiosk/identification` (Bước 2: Màn hình / Popup Định danh Họ tên & Số CCCD 12 số)
     - `/kiosk/service-selection` (Bước 3: Màn hình Chọn dịch vụ)
     - `/kiosk/measure-inbody` (Bước 4: Đo chỉ số cơ thể InBody 260S)
     - `/kiosk/measure-bp` (Bước 5: Đo huyết áp tự động)
@@ -186,11 +189,15 @@ Tuân thủ nghiêm ngặt nguyên tắc phạm vi 3 cấp cho Types và Interfa
 - **Bắt buộc dùng `react-hook-form`**:
   - Mọi luồng nhập liệu biểu mẫu (nhập SĐT, CCCD, thông tin tuổi, giới tính, thông số tùy chỉnh) **BẮT BUỘC sử dụng `react-hook-form`** kết hợp với `@hookform/resolvers`.
   - **TUYỆT ĐỐI CẤM** quản lý form state thủ công bằng nhiều biến `useState` rời rạc trong component.
-- **Tách biệt Schema Validation**:
+- **Tách biệt Schema Validation & Tree-Shaking Named Imports**:
   - Toàn bộ validation schema (sử dụng **`valibot`**) phải được tách thành file riêng biệt và đặt trong thư mục **`validations/`** của feature đó:
     - `src/features/<feature>/validations/<form-name>.schema.ts` (VD: `src/features/identification/validations/identification.schema.ts`).
+  - **Bắt buộc dùng Named Imports cho `valibot` (Tree-Shaking Standard)**:
+    - BẮT BUỘC dùng named imports: `import { object, pipe, string, minLength, regex, type InferOutput } from 'valibot'`.
+    - **TUYỆT ĐỐI CẤM** sử dụng wildcard import (`import * as v from 'valibot'`) để đảm bảo tối ưu bundle size và bộ nhớ RAM Kiosk theo chuẩn Vercel React Best Practices.
   - **Type Inference từ Schema**:
     - Sử dụng `InferOutput<typeof formSchema>` hoặc `InferInput<typeof formSchema>` để suy luận Type của Form, **CẤM viết interface thủ công trùng lặp**.
+
 - **Hiển thị lỗi thân thiện trên Kiosk**:
   - Thông báo lỗi validation phải hiển thị rõ ràng bên dưới trường nhập liệu với kích thước chữ lớn, độ tương phản cao, hỗ trợ cả phản hồi âm thanh hoặc rung (haptics) nếu nhập sai định dạng.
 

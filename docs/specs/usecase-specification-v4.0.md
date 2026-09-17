@@ -27,7 +27,7 @@ graph TD
     subgraph "Hệ thống Kiosk ProMedi V4.0 (Màn hình dọc Portrait)"
         UC00["UC-00: Kích hoạt Kiosk (Admin Activation - BẮT BUỘC)"]
         UC01["UC-01: Khởi tạo phiên khám (Idle Video Loop & Touch Start)"]
-        UC02["UC-02: Nhập thông tin định danh (Họ tên + SĐT/CCCD)"]
+        UC02["UC-02: Nhập thông tin định danh (Họ tên + Số CCCD 12 số)"]
         UC03["UC-03: Chọn dịch vụ khám (Service Selection: InBody / Huyết áp / Tất cả)"]
         UC04["UC-04: Thực hiện đo Huyết áp & Nhịp tim (BPBIO 750)"]
         UC05["UC-05: Thực hiện phân tích cơ thể (InBody 270/380)"]
@@ -54,17 +54,17 @@ graph TD
 
 ## 2. QUY TẮC NGHIỆP VỤ CHUNG (SYSTEM BUSINESS RULES)
 
-| Mã BR             | Tên quy tắc                 | Mô tả chi tiết                                                                                                                                                                                                         |
-| :---------------- | :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **BR-ACT-01**     | Kích hoạt bắt buộc          | Kiosk **BẮT BUỘC** được kích hoạt thành công (Màn 0) mới được khởi chạy vào ứng dụng. Trạng thái kích hoạt lưu vào MMKV/SQLite local storage.                                                                          |
-| **BR-LAYOUT-01**  | Giao diện dọc Portrait      | Giao diện tối ưu theo chiều dọc (1080x1920 Kiosk Portrait). Cấu trúc 4 phần: Top Header (Logo & Step Progress) $\rightarrow$ Video/Image Guide $\rightarrow$ Status & Progress Control $\rightarrow$ Footer Banner QR. |
-| **BR-VOICE-01**   | Chính sách im lặng          | Màn 0 (Kích hoạt), Màn 1 (Video chờ) và Màn 2 (Nhập thông tin) **tuyệt đối không phát âm thanh** (Silent Mode) để giữ yên tĩnh phòng khám.                                                                             |
-| **BR-VOICE-02**   | Giọng nói hướng dẫn         | Từ Màn 3 đến Màn 6, chỉ phát giọng nói khi: (1) Bắt đầu chọn dịch vụ / bước đo, (2) Phát hiện lỗi/cảnh báo cảm biến, (3) Hoàn tất bước đo/chuyển bước, (4) Nhắc nhở hết giờ (Timeout).                                 |
-| **BR-IDENT-01**   | Định danh 2 trường          | Người dùng nhập **Họ và tên** (Bắt buộc) và **SĐT (10 số) HOẶC CCCD (12 số)** (1 trong 2). Sai định dạng $\rightarrow$ Viền đỏ, khóa nút "Xác nhận".                                                                   |
-| **BR-FLOW-01**    | Luồng tối đa 3 bước         | Quy trình tuyến tính gọn tối đa 3 bước chính: **Bước 1: Chọn dịch vụ** $\rightarrow$ **Bước 2: Thực hiện đo** (InBody / Huyết áp theo dịch vụ đã chọn) $\rightarrow$ **Bước 3: Kết quả tổng hợp**.                     |
-| **BR-MED-01**     | Tính toán Huyết áp          | Áp lực mạch Pulse Pressure = $SYS - DIA$. Áp lực tưới máu trung bình $MAP = DIA + \frac{1}{3}(SYS - DIA)$.                                                                                                             |
-| **BR-MED-02**     | Cảnh báo Phù nề             | Đánh giá $ECW / TBW$. Ngưỡng bình thường: $0.360 - 0.390$. Nếu $ECW / TBW > 0.400$ $\rightarrow$ Gắn cờ Cảnh báo nguy cơ giữ nước/phù nề.                                                                              |
-| **BR-PRIVACY-01** | Đếm ngược 60s & Xóa dữ liệu | Màn 6 đếm ngược 60s. Mọi thao tác chạm đều reset về 60s. Khi đếm về 0s hoặc bấm "KẾT THÚC" $\rightarrow$ Xóa toàn bộ data tạm trên màn hình, quay về Màn 1.                                                            |
+| Mã BR             | Tên quy tắc                                         | Mô tả chi tiết                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| :---------------- | :-------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BR-ACT-01**     | Kích hoạt thiết bị độc lập (Pure Device Activation) | Kiosk **BẮT BUỘC** được kích hoạt thành công (Màn 0) mới được khởi chạy vào ứng dụng. Khi kích hoạt thành công (`DEVICE_ACTIVATED`), hệ thống tự động lưu thông tin thiết bị và bộ đôi `accessToken` & `refreshToken` vào MMKV storage. Kiosk vận hành độc lập theo phiên thiết bị, **không yêu cầu đăng nhập tài khoản nhân viên**. Khi khởi động lại hoặc khôi phục mạng, `appMachine` tự động gọi actor `refreshTokenFlow` để làm mới token hoặc khôi phục phiên offline. |
+| **BR-LAYOUT-01**  | Giao diện dọc Portrait                              | Giao diện tối ưu theo chiều dọc (1080x1920 Kiosk Portrait). Cấu trúc 4 phần: Top Header (Logo & Step Progress) $\rightarrow$ Video/Image Guide $\rightarrow$ Status & Progress Control $\rightarrow$ Footer Banner QR.                                                                                                                                                                                                                                                       |
+| **BR-VOICE-01**   | Chính sách im lặng                                  | Màn 0 (Kích hoạt), Màn 1 (Video chờ) và Màn 2 (Nhập thông tin) **tuyệt đối không phát âm thanh** (Silent Mode) để giữ yên tĩnh phòng khám.                                                                                                                                                                                                                                                                                                                                   |
+| **BR-VOICE-02**   | Giọng nói hướng dẫn                                 | Từ Màn 3 đến Màn 6, chỉ phát giọng nói khi: (1) Bắt đầu chọn dịch vụ / bước đo, (2) Phát hiện lỗi/cảnh báo cảm biến, (3) Hoàn tất bước đo/chuyển bước, (4) Nhắc nhở hết giờ (Timeout).                                                                                                                                                                                                                                                                                       |
+| **BR-IDENT-01**   | Định danh 2 trường bắt buộc                         | Người dùng bắt buộc nhập **Họ và tên** và **Số Căn cước công dân (CCCD 12 chữ số)**. Sai định dạng $\rightarrow$ Viền đỏ, khóa nút xác nhận.                                                                                                                                                                                                                                                                                                                                 |
+| **BR-FLOW-01**    | Luồng tối đa 3 bước                                 | Quy trình tuyến tính gọn tối đa 3 bước chính: **Bước 1: Chọn dịch vụ** $\rightarrow$ **Bước 2: Thực hiện đo** (InBody / Huyết áp theo dịch vụ đã chọn) $\rightarrow$ **Bước 3: Kết quả tổng hợp**.                                                                                                                                                                                                                                                                           |
+| **BR-MED-01**     | Tính toán Huyết áp                                  | Áp lực mạch Pulse Pressure = $SYS - DIA$. Áp lực tưới máu trung bình $MAP = DIA + \frac{1}{3}(SYS - DIA)$.                                                                                                                                                                                                                                                                                                                                                                   |
+| **BR-MED-02**     | Cảnh báo Phù nề                                     | Đánh giá $ECW / TBW$. Ngưỡng bình thường: $0.360 - 0.390$. Nếu $ECW / TBW > 0.400$ $\rightarrow$ Gắn cờ Cảnh báo nguy cơ giữ nước/phù nề.                                                                                                                                                                                                                                                                                                                                    |
+| **BR-PRIVACY-01** | Đếm ngược 60s & Xóa dữ liệu                         | Màn 6 đếm ngược 60s. Mọi thao tác chạm đều reset về 60s. Khi đếm về 0s hoặc bấm "KẾT THÚC" $\rightarrow$ Xóa toàn bộ data tạm trên màn hình, quay về Màn 1.                                                                                                                                                                                                                                                                                                                  |
 
 ---
 
@@ -80,13 +80,8 @@ graph TD
 - **Tác nhân phụ**: Backend Server
 - **Mô tả**: Yêu cầu bắt buộc khi cài đặt ứng dụng lần đầu trên Kiosk Sunmi K2 mini. Khóa toàn bộ tính năng khám nếu chưa kích hoạt.
 - **Điều kiện tiền đề**: Ứng dụng khởi chạy lần đầu hoặc chưa lưu thông tin kích hoạt hợp lệ trong bộ nhớ cục bộ.
-- **Điều kiện hậu đề**: Lưu mã kích hoạt & thông tin cơ sở y tế vào bộ nhớ (MMKV/SQLite) và tự động mở khóa chuyển sang Màn hình chờ (Màn 1).
+  - Nếu **Đã kích hoạt**: Tự động bỏ qua Màn 0, chuyển ngay sang **Màn hình 1 (Video chờ)**.
 
-#### Luồng sự kiện chính (Basic Flow):
-
-1. Khởi chạy ứng dụng Kiosk. Hệ thống kiểm tra cờ kích hoạt trong bộ nhớ local:
-   - Nếu **Chưa kích hoạt**: Hiển thị Màn hình 0 (Nhập Mã kích hoạt Kiosk). (Giọng nói: Im lặng).
-   - Nếu **Đã kích hoạt**: Tự động bỏ qua Màn 0, chuyển ngay sang **Màn hình 1 (Video chờ)**.
 2. Quản trị viên nhập Mã kích hoạt bằng bàn phím cảm ứng trên màn hình.
 3. Quản trị viên nhấn nút **"Kích hoạt"**.
 4. Hệ thống gửi mã xác thực đến Backend Server.
@@ -122,26 +117,25 @@ graph TD
 ### UC-02: NHẬP THÔNG TIN ĐỊNH DANH (IDENTIFICATION)
 
 - **Mã Use Case**: `UC-02`
-- **Tên Use Case**: Nhập Họ tên và SĐT/CCCD để định danh
+- **Tên Use Case**: Nhập Họ tên và Số CCCD 12 số để định danh
 - **Tác nhân chính**: Khách hàng / Người khám
 - **Tác nhân phụ**: Backend DB / SQLite Local Storage
-- **Mô tả**: Khách hàng nhập **Họ và tên** cùng với **Số điện thoại (10 số) HOẶC Căn cước công dân (12 số)** trên giao diện dọc.
-- **Điều kiện tiền đề**: Hệ thống đang ở Màn hình 2, đã có `session_id`.
-- **Điều kiện hậu đề**: Lưu thông tin Họ tên, SĐT/CCCD vào phiên khám.
+- **Mô tả**: Khách hàng nhập bắt buộc cả 2 trường **Họ và tên** cùng với **Số Căn cước công dân (CCCD - 12 chữ số)** trên Popup `"NHẬP THÔNG TIN CÁ NHÂN"`.
+- **Điều kiện tiền đề**: Hệ thống đang ở Màn hình 1/2, đã có `session_id`.
+- **Điều kiện hậu đề**: Lưu thông tin Họ tên, Số CCCD vào phiên khám.
 
 #### Luồng sự kiện chính (Basic Flow):
 
-1. Hệ thống hiển thị Màn hình 2 dạng dọc:
-   - Ô nhập 1: **Họ và tên** (Bàn phím QWERTY chữ tiếng Việt cảm ứng).
-   - Ô nhập 2: **Số điện thoại (10 số) hoặc CCCD (12 số)** (Phím Numpad số lớn).
-   - Nút **"Xác nhận"** (Khóa ban đầu).
+1. Hệ thống hiển thị Popup Modal `"NHẬP THÔNG TIN CÁ NHÂN"`:
+   - Ô nhập 1 (\*): **Họ và tên** (Bàn phím cảm ứng).
+   - Ô nhập 2 (\*): **Số CCCD (đúng 12 chữ số)** (Phím Virtual Numpad số lớn).
+   - Nút hành động: **"Bắt đầu kiểm tra sức khỏe"**.
    - _(Giọng nói: Im lặng theo BR-VOICE-01)_.
-2. Khách hàng nhập Họ tên và Chuỗi định danh (SĐT hoặc CCCD).
-3. Hệ thống validate dữ liệu thực thời:
+2. Khách hàng nhập Họ tên và Số CCCD 12 chữ số.
+3. Hệ thống validate dữ liệu thực thời khi bấm xác nhận:
    - Họ tên không được để trống.
-   - Định danh đủ 10 số (tự hiểu là SĐT) hoặc 12 số (tự hiểu là CCCD).
-   - Khi cả 2 trường hợp lệ $\rightarrow$ Mở khóa nút **"Xác nhận"**.
-4. Khách hàng bấm **"Xác nhận"**.
+   - Số CCCD phải đúng 12 chữ số.
+4. Khách hàng bấm **"Bắt đầu kiểm tra sức khỏe"**.
 5. Hệ thống tra cứu thông tin khách hàng từ Backend DB / Cache:
    - Nếu là khách mới $\rightarrow$ Mở Quick Popup cho khách chọn Chiều cao (cm) và Giới tính (Nam/Nữ) rồi nhấn Lưu.
 6. Hệ thống chuyển sang **Màn hình 3 (Chọn dịch vụ cần đo)**.
@@ -149,7 +143,7 @@ graph TD
 #### Luồng ngoại lệ (Exception Flows):
 
 - **E02.1 - Dữ liệu không hợp lệ (`INVALID_IDENTITY_FORMAT`)**:
-  - Nếu Họ tên trống hoặc SĐT/CCCD khác 10/12 số $\rightarrow$ Nhấp nháy viền đỏ trường nhập liệu tương ứng, nút "Xác nhận" tiếp tục bị khóa.
+  - Nếu Họ tên trống hoặc Số CCCD $\neq 12$ chữ số $\rightarrow$ Hiển thị thông báo lỗi bên dưới trường tương ứng.
 
 ---
 
@@ -296,21 +290,21 @@ graph TD
 
 ## 4. BẢNG MA TRẬN GIỌNG NÓI & SỰ KIỆN MÃ LỖI (VOICE & EXCEPTION MATRIX)
 
-| Màn hình   | Tên sự kiện / Mã lỗi      | Điều kiện kích hoạt                      | Trạng thái UI Kiosk (Màn hình dọc)               | Giọng nói hướng dẫn (Voice Prompt Script)                                                                       |
-| :--------- | :------------------------ | :--------------------------------------- | :----------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
-| **Màn 0**  | `ADMIN_ACTIVATION`        | Chưa kích hoạt ứng dụng                  | Ô nhập Mã kích hoạt Kiosk                        | _(Không phát - Silent Mode)_                                                                                    |
-| **Màn 1**  | `IDLE_SCREEN`             | Kiosk rảnh rỗi                           | Video loop hướng dẫn toàn màn hình               | _(Không phát - Silent Mode)_                                                                                    |
-| **Màn 2**  | `INVALID_IDENTITY_FORMAT` | Họ tên trống hoặc SĐT/CCCD $\neq 10, 12$ | Viền đỏ ô nhập, khóa nút Xác nhận                | _(Không phát - Silent Mode)_                                                                                    |
-| **Màn 3**  | `SERVICE_SELECTION`       | Chuyển sang Màn hình chọn dịch vụ        | Thẻ chọn InBody, Huyết áp, Chọn tất cả           | _"Mời quý khách chọn các dịch vụ cần đo và nhấn Bắt đầu đo."_                                                   |
-| **Màn 4a** | `BP_START`                | Bắt đầu đo Huyết áp                      | Header icon BP active + Video guide + Bar 0%     | _"Đo huyết áp và nhịp tim. Quý khách vui lòng luồn tay vào vòng đo, tỳ cùi chỏ vào cảm biến và giữ yên."_       |
-| **Màn 4b** | `BP_ELBOW_OFF`            | Cùi chỏ rời cảm biến / Cử động           | Nhấp nháy viền đỏ video hướng dẫn                | _"Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến. Quý khách vui lòng đẩy tay sâu hơn và ngồi yên."_                |
-| **Màn 4c** | `BP_COMPLETE`             | BPBIO 750 hoàn tất đo                    | Bar 100% + Chỉ số SYS/DIA + Nút Tiếp tục         | _"Đã đo xong huyết áp. Mời bạn nhấn Tiếp tục."_                                                                 |
-| **Màn 5a** | `INBODY_START`            | Bắt đầu đo InBody                        | Header icon InBody active + Video guide + Bar 0% | _"Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày, đứng lên máy InBody và cầm hai tay nắm."_              |
-| **Màn 5b** | `INBODY_CONTACT_ERROR`    | Điện cực chưa tiếp xúc đủ                | Nhấp nháy cảnh báo bàn tay/bàn chân              | _"Cảnh báo: Chưa nhận đủ tiếp xúc điện cực. Quý khách vui lòng cầm chắc thanh nắm và đứng yên."_                |
-| **Màn 5c** | `INBODY_COMPLETE`         | InBody hoàn tất phân tích BIA            | Bar 100% + Tóm tắt InBody Score + Nút Tiếp tục   | _"Đã phân tích xong chỉ số cơ thể. Mời bạn nhấn Tiếp tục để xem tổng hợp kết quả."_                             |
-| **Màn 6a** | `SUMMARY_START`           | Vào Màn hình Tổng hợp Kết quả            | Dashboard 3 khối + Mã QR + Count 60s             | _"Quá trình khám sức khỏe đã hoàn tất. Quý khách có thể xem kết quả trên màn hình hoặc quét mã QR để lưu lại."_ |
-| **Màn 6b** | `SUMMARY_TIMEOUT_10S`     | Đồng hồ đếm lùi còn 10s                  | Thanh đếm lùi nhấp nháy đỏ                       | _"Màn hình sẽ đóng sau 10 giây nữa. Quý khách có thể chạm vào màn hình nếu cần xem thêm."_                      |
-| **Màn 6c** | `SESSION_TERMINATED`      | Bấm KẾT THÚC hoặc hết 60s                | Xóa sạch phiên khám $\rightarrow$ Quay về Màn 1  | _"Cảm ơn quý khách đã sử dụng dịch vụ. Chúc bạn một ngày tốt lành."_                                            |
+| Màn hình   | Tên sự kiện / Mã lỗi      | Điều kiện kích hoạt                    | Trạng thái UI Kiosk (Màn hình dọc)               | Giọng nói hướng dẫn (Voice Prompt Script)                                                                       |
+| :--------- | :------------------------ | :------------------------------------- | :----------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| **Màn 0**  | `ADMIN_ACTIVATION`        | Chưa kích hoạt ứng dụng                | Ô nhập Mã kích hoạt Kiosk                        | _(Không phát - Silent Mode)_                                                                                    |
+| **Màn 1**  | `IDLE_SCREEN`             | Kiosk rảnh rỗi                         | Video loop hướng dẫn toàn màn hình               | _(Không phát - Silent Mode)_                                                                                    |
+| **Màn 2**  | `INVALID_IDENTITY_FORMAT` | Họ tên trống hoặc Số CCCD $\neq 12$ số | Viền đỏ ô nhập, hiển thị thông báo lỗi           | _(Không phát - Silent Mode)_                                                                                    |
+| **Màn 3**  | `SERVICE_SELECTION`       | Chuyển sang Màn hình chọn dịch vụ      | Thẻ chọn InBody, Huyết áp, Chọn tất cả           | _"Mời quý khách chọn các dịch vụ cần đo và nhấn Bắt đầu đo."_                                                   |
+| **Màn 4a** | `BP_START`                | Bắt đầu đo Huyết áp                    | Header icon BP active + Video guide + Bar 0%     | _"Đo huyết áp và nhịp tim. Quý khách vui lòng luồn tay vào vòng đo, tỳ cùi chỏ vào cảm biến và giữ yên."_       |
+| **Màn 4b** | `BP_ELBOW_OFF`            | Cùi chỏ rời cảm biến / Cử động         | Nhấp nháy viền đỏ video hướng dẫn                | _"Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến. Quý khách vui lòng đẩy tay sâu hơn và ngồi yên."_                |
+| **Màn 4c** | `BP_COMPLETE`             | BPBIO 750 hoàn tất đo                  | Bar 100% + Chỉ số SYS/DIA + Nút Tiếp tục         | _"Đã đo xong huyết áp. Mời bạn nhấn Tiếp tục."_                                                                 |
+| **Màn 5a** | `INBODY_START`            | Bắt đầu đo InBody                      | Header icon InBody active + Video guide + Bar 0% | _"Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày, đứng lên máy InBody và cầm hai tay nắm."_              |
+| **Màn 5b** | `INBODY_CONTACT_ERROR`    | Điện cực chưa tiếp xúc đủ              | Nhấp nháy cảnh báo bàn tay/bàn chân              | _"Cảnh báo: Chưa nhận đủ tiếp xúc điện cực. Quý khách vui lòng cầm chắc thanh nắm và đứng yên."_                |
+| **Màn 5c** | `INBODY_COMPLETE`         | InBody hoàn tất phân tích BIA          | Bar 100% + Tóm tắt InBody Score + Nút Tiếp tục   | _"Đã phân tích xong chỉ số cơ thể. Mời bạn nhấn Tiếp tục để xem tổng hợp kết quả."_                             |
+| **Màn 6a** | `SUMMARY_START`           | Vào Màn hình Tổng hợp Kết quả          | Dashboard 3 khối + Mã QR + Count 60s             | _"Quá trình khám sức khỏe đã hoàn tất. Quý khách có thể xem kết quả trên màn hình hoặc quét mã QR để lưu lại."_ |
+| **Màn 6b** | `SUMMARY_TIMEOUT_10S`     | Đồng hồ đếm lùi còn 10s                | Thanh đếm lùi nhấp nháy đỏ                       | _"Màn hình sẽ đóng sau 10 giây nữa. Quý khách có thể chạm vào màn hình nếu cần xem thêm."_                      |
+| **Màn 6c** | `SESSION_TERMINATED`      | Bấm KẾT THÚC hoặc hết 60s              | Xóa sạch phiên khám $\rightarrow$ Quay về Màn 1  | _"Cảm ơn quý khách đã sử dụng dịch vụ. Chúc bạn một ngày tốt lành."_                                            |
 
 ---
 

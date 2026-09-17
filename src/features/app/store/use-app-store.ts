@@ -10,7 +10,6 @@ const REFRESH_TOKEN_KEY = 'auth-refresh-token'
 interface PersistedAppState {
   device: AppContext['device']
   accessToken: AppContext['accessToken']
-  employee: AppContext['employee']
 }
 
 function loadFromStorage(): PersistedAppState {
@@ -20,14 +19,12 @@ function loadFromStorage(): PersistedAppState {
       return {
         device: null,
         accessToken: null,
-        employee: null,
       }
     return JSON.parse(raw) as PersistedAppState
   } catch {
     return {
       device: null,
       accessToken: null,
-      employee: null,
     }
   }
 }
@@ -57,7 +54,6 @@ function saveToStorage(ctx: AppContext) {
     const toSave: PersistedAppState = {
       device: ctx.device,
       accessToken: ctx.accessToken,
-      employee: ctx.employee,
     }
     storage.set(STORAGE_KEY, JSON.stringify(toSave))
   } catch {}
@@ -88,7 +84,6 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       input: {
         device: persisted.device,
         accessToken: persisted.accessToken,
-        employee: persisted.employee,
       },
     }).start()
 

@@ -1,6 +1,6 @@
 import { colors } from '@\/shared\/theme'
 import React from 'react'
-import Svg, { Circle, Path, Rect } from 'react-native-svg'
+import Svg, { Circle, G, Path, Rect, Text as SvgText } from 'react-native-svg'
 
 interface IconProps {
   size?: number
@@ -10,14 +10,120 @@ interface IconProps {
   className?: string
 }
 
-const DEFAULT_PRIMARY = '#0F172A' // Slate 900
-const DEFAULT_ACCENT = '#2563EB' // Vibrant Electric Blue
+const DEFAULT_PRIMARY = colors.primary.default
+const DEFAULT_ACCENT = colors.yellow.deep
+
+/**
+ * Main Institution Brand Logo (BMU - BUON MA THUOT MEDICAL UNIVERSITY)
+ * Supports dynamic primary color (red) and accent color (gold), defaulting to theme tokens, plus optional withText layout
+ */
+export interface SvgBMULogoProps {
+  size?: number
+  primaryColor?: string
+  accentColor?: string
+  withText?: boolean
+}
+
+export const SvgBMULogo: React.FC<SvgBMULogoProps> = ({
+  size = 48,
+  primaryColor = colors.primary.default,
+  accentColor = colors.background.headerGradient.end || '#FDAC41',
+  withText = false,
+}) => {
+  if (withText) {
+    return (
+      <Svg width={size * 2.8} height={size} viewBox="0 0 280 100" fill="none">
+        <G>
+          {/* Logo Emblem Left */}
+          <G transform="translate(0, 0)">
+            <Path
+              d="M 22 28 C 12 45 14 68 30 82 C 48 97 74 95 88 74 C 92 68 94 62 94 62 C 94 62 88 74 72 84 C 54 94 32 90 20 74 C 10 60 12 40 22 28 Z"
+              fill={accentColor}
+            />
+            <Path
+              d="M 26 70 C 38 88 64 94 86 82 C 92 78 95 72 95 72 C 95 72 88 82 72 88 C 50 96 28 88 18 74 C 20 73 24 71 26 70 Z"
+              fill={primaryColor}
+            />
+            <G fill={primaryColor}>
+              <Path d="M 46 14 C 50 14 60 10 62 10 C 64 25 64 45 66 54 C 74 65 80 72 82 74 C 74 81 66 84 60 84 C 55 75 48 64 48 54 C 48 42 46 26 46 14 Z" />
+              <Path d="M 44 48 C 52 56 56 60 56 60 C 48 70 38 80 34 84 C 28 78 24 74 24 74 C 32 64 40 54 44 48 Z" />
+              <Path d="M 26 42 L 40 32 L 44 48 L 30 58 Z" />
+              <Path d="M 64 34 L 80 24 L 84 40 L 68 50 Z" />
+              <Path d="M 66 52 L 82 44 L 86 60 L 70 68 Z" />
+            </G>
+          </G>
+
+          {/* BMU Typography Right */}
+          <G transform="translate(108, 0)">
+            <SvgText
+              x="0"
+              y="40"
+              fill={primaryColor}
+              fontSize="40"
+              fontWeight="900"
+              letterSpacing="1"
+            >
+              BMU
+            </SvgText>
+            <SvgText
+              x="0"
+              y="62"
+              fill={primaryColor}
+              fontSize="14"
+              fontWeight="800"
+              letterSpacing="1.8"
+            >
+              BUON MA THUOT
+            </SvgText>
+            <SvgText
+              x="0"
+              y="82"
+              fill={accentColor}
+              fontSize="13"
+              fontWeight="800"
+              letterSpacing="1.5"
+            >
+              MEDICAL UNIVERSITY
+            </SvgText>
+          </G>
+        </G>
+      </Svg>
+    )
+  }
+
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100" fill="none">
+      <G>
+        <Path
+          d="M 22 28 C 12 45 14 68 30 82 C 48 97 74 95 88 74 C 92 68 94 62 94 62 C 94 62 88 74 72 84 C 54 94 32 90 20 74 C 10 60 12 40 22 28 Z"
+          fill={accentColor}
+        />
+        <Path
+          d="M 26 70 C 38 88 64 94 86 82 C 92 78 95 72 95 72 C 95 72 88 82 72 88 C 50 96 28 88 18 74 C 20 73 24 71 26 70 Z"
+          fill={primaryColor}
+        />
+        <G fill={primaryColor}>
+          <Path d="M 46 14 C 50 14 60 10 62 10 C 64 25 64 45 66 54 C 74 65 80 72 82 74 C 74 81 66 84 60 84 C 55 75 48 64 48 54 C 48 42 46 26 46 14 Z" />
+          <Path d="M 44 48 C 52 56 56 60 56 60 C 48 70 38 80 34 84 C 28 78 24 74 24 74 C 32 64 40 54 44 48 Z" />
+          <Path d="M 26 42 L 40 32 L 44 48 L 30 58 Z" />
+          <Path d="M 64 34 L 80 24 L 84 40 L 68 50 Z" />
+          <Path d="M 66 52 L 82 44 L 86 60 L 70 68 Z" />
+        </G>
+      </G>
+    </Svg>
+  )
+}
+SvgBMULogo.displayName = 'SvgBMULogo'
+
+export const SvgMainLogo = SvgBMULogo
+export const SvgProMediLogo = SvgBMULogo
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PREMIUM BOTTOM TAB NAVIGATION ICONS
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+
  * Tab Icon: Trang chủ (Home - Sleek Modern Dashboard House)
  */
 export const SvgHomeTabIcon: React.FC<IconProps> = ({ size = 22, color = colors.neutral[500] }) => {
@@ -1142,3 +1248,201 @@ export const SvgBatteryIcon: React.FC<IconProps> = ({
   )
 }
 SvgBatteryIcon.displayName = 'SvgBatteryIcon'
+
+/**
+ * Icon: ProMedi Health Heart & Shield SVG Illustration
+ * Matches 3D/Vector illustration with hands holding a red heart, ECG pulse line, and green shield
+ */
+export interface SvgHealthHeartShieldProps {
+  size?: number
+  primaryColor?: string
+  accentColor?: string
+  pulseColor?: string
+  skinColor?: string
+}
+
+export const SvgHealthHeartShield: React.FC<SvgHealthHeartShieldProps> = ({
+  size = 220,
+  primaryColor = colors.primary.default,
+  accentColor = colors.success.default,
+  pulseColor = colors.text.primary.white,
+  skinColor = '#FCA5A5',
+}) => {
+  return (
+    <Svg width={size} height={size * 0.88} viewBox="0 0 240 210" fill="none">
+      <G>
+        {/* 1. VIBRANT RED HEART */}
+        <Path
+          d="M120 155 C90 135 40 100 40 65 C40 40 60 22 86 22 C102 22 114 31 120 40 C126 31 138 22 154 22 C180 22 200 40 200 65 C200 100 150 135 120 155 Z"
+          fill={primaryColor}
+        />
+        <Path
+          d="M120 148 C95 130 48 97 48 65 C48 44 64 30 86 30 C99 30 110 37 115 47 L120 55 L125 47 C130 37 141 30 154 30 C176 30 192 44 192 65 C192 97 145 130 120 148 Z"
+          fill="#FFFFFF"
+          opacity="0.25"
+        />
+
+        {/* 2. WHITE ECG HEARTBEAT PULSE WAVE */}
+        <Path
+          d="M62 92 H90 L98 68 L114 116 L126 78 L134 94 H178"
+          stroke={pulseColor}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* 3. TWO CARING HANDS CRADLING THE HEART */}
+        {/* Left Sleeve */}
+        <Rect x="70" y="168" width="40" height="26" rx="7" fill={accentColor} />
+        <Rect
+          x="70"
+          y="168"
+          width="40"
+          height="7"
+          rx="3.5"
+          fill={colors.success.container || '#ECFDF3'}
+        />
+        {/* Right Sleeve */}
+        <Rect x="130" y="168" width="40" height="26" rx="7" fill={accentColor} />
+        <Rect
+          x="130"
+          y="168"
+          width="40"
+          height="7"
+          rx="3.5"
+          fill={colors.success.container || '#ECFDF3'}
+        />
+
+        {/* Left Hand Fingers */}
+        <Path
+          d="M56 102 C52 117 60 142 74 158 L83 170 H108 L100 142 C98 132 104 119 112 109 C114 107 110 101 104 103 C94 107 88 117 84 125 C82 112 88 99 94 92 C96 90 92 85 86 88 C78 93 72 105 70 117 C68 102 74 89 80 83 C82 81 78 77 72 80 C62 87 56 97 56 102 Z"
+          fill={skinColor}
+        />
+        <Path
+          d="M66 112 C64 127 72 146 83 162"
+          stroke="#F87171"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        {/* Right Hand Fingers */}
+        <Path
+          d="M184 102 C188 117 180 142 166 158 L157 170 H132 L140 142 C142 132 136 119 128 109 C126 107 130 101 136 103 C146 107 152 117 156 125 C158 112 152 99 146 92 C144 90 148 85 154 88 C162 93 168 105 170 117 C172 102 166 89 160 83 C158 81 162 77 168 80 C178 87 184 97 184 102 Z"
+          fill={skinColor}
+        />
+        <Path
+          d="M174 112 C176 127 168 146 157 162"
+          stroke="#F87171"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        {/* 4. GREEN SHIELD BADGE WITH CHECKMARK AT TOP RIGHT */}
+        <G transform="translate(142, 8)">
+          <Path
+            d="M30 4 C44 4 56 12 56 12 V32 C56 50 30 64 30 64 C30 64 4 50 4 32 V12 C4 12 16 4 30 4 Z"
+            fill={accentColor}
+            stroke="#047857"
+            strokeWidth="3"
+          />
+          <Path
+            d="M30 9 C40 9 50 16 50 16 V31 C50 45 30 57 30 57 C30 57 10 45 10 31 V16 C10 16 20 9 30 9 Z"
+            fill="#ECFDF5"
+          />
+          <Path
+            d="M20 31 L26 37 L40 23"
+            stroke="#059669"
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </G>
+      </G>
+    </Svg>
+  )
+}
+SvgHealthHeartShield.displayName = 'SvgHealthHeartShield'
+
+/**
+ * Icon: ProMedi Touch Tap / Hand Press SVG Icon
+ * Custom design matching ProMedi design system for Kiosk touch CTA
+ */
+export interface SvgTouchTapIconProps {
+  size?: number
+  primaryColor?: string
+  accentColor?: string
+  color?: string
+}
+
+export const SvgTouchTapIcon: React.FC<SvgTouchTapIconProps> = ({
+  size = 28,
+  primaryColor = colors.primary.default,
+  accentColor = colors.yellow.deep,
+  color = '#FFFFFF',
+}) => {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100" fill="none">
+      <G>
+        {/* Target Ripple Rings */}
+        <Circle
+          cx="50"
+          cy="28"
+          r="22"
+          stroke={accentColor}
+          strokeWidth="4"
+          opacity="0.5"
+          strokeDasharray="4 4"
+        />
+        <Circle cx="50" cy="28" r="14" stroke={color} strokeWidth="4" opacity="0.8" />
+        <Circle cx="50" cy="28" r="5" fill={color} />
+
+        {/* Hand Index Finger Tapping Upwards */}
+        <Path
+          d="M 44 38 L 44 24 C 44 20 56 20 56 24 L 56 48 C 56 44 64 44 64 48 L 64 52 C 64 48 72 48 72 52 L 72 60 C 72 56 80 56 80 60 L 80 72 C 80 86 68 94 52 94 C 36 94 28 82 28 70 L 28 58 C 28 52 38 46 44 38 Z"
+          fill={primaryColor}
+          stroke={color}
+          strokeWidth="4"
+          strokeLinejoin="round"
+        />
+      </G>
+    </Svg>
+  )
+}
+SvgTouchTapIcon.displayName = 'SvgTouchTapIcon'
+
+/**
+ * Icon: ProMedi Numpad Backspace / Delete SVG Icon
+ * Supports dynamic color (defaulting to colors.error.default)
+ */
+export interface SvgDeleteIconProps {
+  size?: number
+  color?: string
+  primaryColor?: string
+}
+
+export const SvgDeleteIcon: React.FC<SvgDeleteIconProps> = ({
+  size = 28,
+  color,
+  primaryColor = colors.error.default,
+}) => {
+  const strokeColor = color || primaryColor
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 4H8L1 12L8 20H21C21.5523 20 22 19.5523 22 19V5C22 4.44772 21.5523 4 21 4Z"
+        stroke={strokeColor}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M18 9L12 15M12 9L18 15"
+        stroke={strokeColor}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  )
+}
+SvgDeleteIcon.displayName = 'SvgDeleteIcon'

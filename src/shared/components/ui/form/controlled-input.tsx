@@ -44,7 +44,7 @@ export function ControlledInput<T extends FieldValues>({
         </Text>
       ) : null}
       <Input
-        value={value}
+        value={value ?? ''}
         onBlur={onBlur}
         onChangeText={onChange}
         error={!!errorMessage}

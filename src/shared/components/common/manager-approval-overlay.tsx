@@ -3,14 +3,14 @@ import { valibotResolver } from '@hookform/resolvers/valibot'
 import React, { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { StyleSheet, Text, View } from 'react-native'
-import * as v from 'valibot'
+import { minLength, object, pipe, string, type InferOutput } from 'valibot'
 
-export const managerApprovalSchema = v.object({
-  employeeCode: v.pipe(v.string(), v.minLength(1, 'Mã quản lý là bắt buộc')),
-  pin: v.pipe(v.string(), v.minLength(1, 'PIN là bắt buộc')),
+export const managerApprovalSchema = object({
+  employeeCode: pipe(string(), minLength(1, 'Mã quản lý là bắt buộc')),
+  pin: pipe(string(), minLength(1, 'PIN là bắt buộc')),
 })
 
-export type ManagerApprovalFormData = v.InferOutput<typeof managerApprovalSchema>
+export type ManagerApprovalFormData = InferOutput<typeof managerApprovalSchema>
 
 export interface ManagerApprovalOverlayProps {
   visible: boolean

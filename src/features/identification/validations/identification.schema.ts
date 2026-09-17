@@ -1,19 +1,13 @@
-import * as v from 'valibot'
+import { minLength, object, pipe, regex, string, trim, type InferOutput } from 'valibot'
 
-export const identificationSchema = v.pipe(
-  v.string(),
-  v.nonEmpty('Vui lòng nhập số điện thoại hoặc CCCD'),
-  v.regex(/^\d+$/, 'Chỉ được nhập các chữ số'),
-  v.check(
-    (val) => val.length === 10 || val.length === 12,
-    'Độ dài phải đúng 10 số (SĐT) hoặc 12 số (CCCD)',
+export const identificationFormSchema = object({
+  fullName: pipe(string('Họ và tên không hợp lệ'), trim(), minLength(1, 'Vui lòng nhập Họ và tên')),
+  identityCode: pipe(
+    string('Số CCCD không hợp lệ'),
+    trim(),
+    minLength(1, 'Vui lòng nhập số căn cước công dân'),
+    regex(/^\d{12}$/, 'Số căn cước công dân phải đúng 12 chữ số'),
   ),
-)
+})
 
-export type IdentificationInput = v.InferOutput<typeof identificationSchema>
-
-export function getIdentityType(value: string): 'PHONE' | 'CCCD' | null {
-  if (value.length === 10) return 'PHONE'
-  if (value.length === 12) return 'CCCD'
-  return null
-}
+export type IdentificationFormData = InferOutput<typeof identificationFormSchema>

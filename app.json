@@ -57,7 +57,8 @@
         {
           "launchMode": "most-recent"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

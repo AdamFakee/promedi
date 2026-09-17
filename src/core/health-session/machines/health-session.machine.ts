@@ -1,0 +1,147 @@
+import { assign, setup } from 'xstate'
+import type { HealthSessionContext, HealthSessionEvent } from '../types'
+
+const DEFAULT_CONTEXT: HealthSessionContext = {
+  sessionId: null,
+  customer: null,
+  selectedServices: ['ALL'],
+  bpResults: null,
+  inBodyResults: null,
+  secondsRemaining: 60,
+  error: null,
+}
+
+export const healthSessionMachine = setup({
+  types: {
+    context: {} as HealthSessionContext,
+    events: {} as HealthSessionEvent,
+  },
+  actions: {
+    resetContext: assign(() => DEFAULT_CONTEXT),
+    setCustomer: assign(({ event }) => {
+      if (event.type !== 'SUBMIT_IDENTIFICATION') return {}
+      return {
+        sessionId: event.payload.sessionId ?? null,
+        customer: {
+          fullName: event.payload.fullName,
+          identityCode: event.payload.identityCode,
+        },
+      }
+    }),
+    setServices: assign(({ event }) => {
+      if (event.type !== 'SELECT_SERVICES') return {}
+      return {
+        selectedServices: event.payload,
+      }
+    }),
+    saveBpResults: assign(({ event }) => {
+      if (event.type !== 'BP_COMPLETED') return {}
+      return {
+        bpResults: event.payload,
+      }
+    }),
+    saveInBodyResults: assign(({ event }) => {
+      if (event.type !== 'INBODY_COMPLETED') return {}
+      return {
+        inBodyResults: event.payload,
+      }
+    }),
+    resetTimeout: assign(() => ({ secondsRemaining: 60 })),
+    decrementTimeout: assign(({ context }) => ({
+      secondsRemaining: Math.max(0, context.secondsRemaining - 1),
+    })),
+  },
+}).createMachine({
+  id: 'healthSession',
+  initial: 'idle',
+  context: DEFAULT_CONTEXT,
+  states: {
+    idle: {
+      on: {
+        START_SESSION: {
+          target: 'identification',
+        },
+        SUBMIT_IDENTIFICATION: {
+          target: 'serviceSelection',
+          actions: 'setCustomer',
+        },
+      },
+    },
+    identification: {
+      on: {
+        SUBMIT_IDENTIFICATION: {
+          target: 'serviceSelection',
+          actions: 'setCustomer',
+        },
+        RESET_SESSION: {
+          target: 'idle',
+          actions: 'resetContext',
+        },
+      },
+    },
+    serviceSelection: {
+      on: {
+        SELECT_SERVICES: {
+          target: 'measureBp',
+          actions: 'setServices',
+        },
+        RESET_SESSION: {
+          target: 'idle',
+          actions: 'resetContext',
+        },
+      },
+    },
+    measureBp: {
+      on: {
+        BP_COMPLETED: {
+          target: 'measureInBody',
+          actions: 'saveBpResults',
+        },
+        SKIP_CURRENT_MEASUREMENT: {
+          target: 'measureInBody',
+        },
+        RESET_SESSION: {
+          target: 'idle',
+          actions: 'resetContext',
+        },
+      },
+    },
+    measureInBody: {
+      on: {
+        INBODY_COMPLETED: {
+          target: 'summary',
+          actions: 'saveInBodyResults',
+        },
+        SKIP_CURRENT_MEASUREMENT: {
+          target: 'summary',
+        },
+        RESET_SESSION: {
+          target: 'idle',
+          actions: 'resetContext',
+        },
+      },
+    },
+    summary: {
+      entry: 'resetTimeout',
+      on: {
+        TOUCH_INTERACTION: {
+          actions: 'resetTimeout',
+        },
+        TICK_TIMEOUT: [
+          {
+            guard: ({ context }) => context.secondsRemaining <= 1,
+            target: 'idle',
+            actions: 'resetContext',
+          },
+          {
+            actions: 'decrementTimeout',
+          },
+        ],
+        RESET_SESSION: {
+          target: 'idle',
+          actions: 'resetContext',
+        },
+      },
+    },
+  },
+})

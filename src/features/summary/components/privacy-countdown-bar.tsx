@@ -1,4 +1,4 @@
-import { Clock } from 'lucide-react-native'
+import { SvgClockIcon } from '@/shared/components/ui'
 import React from 'react'
 import { Text, View } from 'react-native'
 
@@ -13,12 +13,12 @@ export function PrivacyCountdownBar({ secondsRemaining }: PrivacyCountdownBarPro
   return (
     <View
       className={`w-full overflow-hidden rounded-2xl border p-4 shadow-sm ${
-        isWarning ? 'border-error-400 bg-error-50' : 'border-primary-200 bg-primary-50'
+        isWarning ? 'border-red-400 bg-red-50' : 'border-red-200 bg-red-50/50'
       }`}
     >
       <View className="mb-2 flex-row items-center justify-between">
         <View className="flex-row items-center gap-2">
-          <Clock size={24} color={isWarning ? '#DC2626' : '#2563EB'} />
+          <SvgClockIcon size={24} color={isWarning ? '#DC2626' : '#E11D48'} />
           <Text
             className={`font-bold text-lg ${isWarning ? 'text-error-700' : 'text-primary-800'}`}
           >
