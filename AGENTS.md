@@ -10,6 +10,9 @@ Tệp này chứa các chỉ dẫn quan trọng mà các AI Agent (Antigravity, 
   - [usecase-specification-v4.0.md](./docs/specs/usecase-specification-v4.0.md) — **Đặc tả Use Case Nghiệp vụ V4.0** (User Flow Màn 0-5, BPBIO 750, InBody 270/380, Silent Mode & Voice Matrix, Exception Code Handler).
   - [ARCHITECTURE_PROPOSAL_PRODUCTION.md](./docs/ARCHITECTURE_PROPOSAL_PRODUCTION.md) — Kiến trúc 4 lớp, Deep Engines, HAL.
   - [CODING_STANDARDS.md](./docs/CODING_STANDARDS.md) — Tiêu chuẩn viết code sạch và nhất quán.
+  - **Phân loại Task & Quy tắc Đọc Docs Phần cứng**: Khi làm việc với các task liên quan đến phần cứng (Lưu ý: Hệ thống kết nối đa dạng loại phần cứng như InBody 260S/270/380, Máy đo huyết áp BPBIO 750 / Omron, Máy in Sunmi K2, Đầu đọc CCCD/QR Code, Voice Engine..., không chỉ riêng InBody), Agent **BẮT BUỘC phân loại và đọc docs tương ứng**:
+    1. **Trường hợp 1 (Sử dụng module phần cứng đã xây dựng)**: Đọc `src/core/hardware/README.md` và `docs/hard-ware/` để nắm vững Interface contracts, luồng gọi và cách truyền dữ liệu.
+    2. **Trường hợp 2 (Tự build module mới hoặc fix bug/refactor phần cứng)**: BẮT BUỘC vào [`docs/hard-ware/`](./docs/hard-ware/) đọc lại và đối chiếu kỹ tài liệu đặc tả kỹ thuật/giao thức phần cứng (khung truyền Hex/ASCII, byte parsing, baudrate, error handling...) trước khi chỉnh sửa hoặc viết code.
 - **Tham khảo Bộ Skills Tối Ưu Hiệu Năng & Kiến Trúc Tổng Thể (Vercel Standards)**:
   - Khi phân tích, thiết kế kiến trúc hoặc tối ưu hiệu năng hiển thị / native, **BẮT BUỘC tham khảo 2 bộ skills sau**:
     1. [vercel-react-best-practices](file:///d:/promedi/.agents/skills/vercel-react-best-practices/SKILL.md): Tối ưu hiệu năng React, chống re-render thừa, triệt tiêu Async Waterfalls, tối ưu bundle size và client data fetching.
@@ -256,6 +259,7 @@ Tuân thủ nghiêm ngặt các nguyên tắc từ bộ kỹ năng `vercel-react
 > - **Kiến trúc FSM 2 Lớp (Session Orchestrator & Device Adapter)**: [fsm-2-layer-architecture.md](./docs/specs/fsm-2-layer-architecture.md) _(Quy định 2 lớp tách biệt, Registry, Config & Enforce rules)_.
 > - **Đặc tả Use Case Nghiệp vụ V4.0**: [usecase-specification-v4.0.md](./docs/specs/usecase-specification-v4.0.md) _(Bao gồm User Flow Màn 0-6, InBody 270/380, BPBIO 750, Silent Mode, Voice Matrix & Exception Handlers)_.
 > - **Kiến trúc Sản xuất Production**: [ARCHITECTURE_PROPOSAL_PRODUCTION.md](./docs/ARCHITECTURE_PROPOSAL_PRODUCTION.md) _(Bao gồm Deep Engines, HAL, WatermelonDB Schema)_.
+> - **Đặc tả & Giao thức Phần cứng**: [docs/hard-ware/](./docs/hard-ware/) _(Tài liệu đặc tả toàn bộ các thiết bị phần cứng tích hợp: InBody 260S, Máy đo huyết áp, Máy in Sunmi, Đầu đọc CCCD, Voice Engine, v.v.)_.
 
 ---
 
