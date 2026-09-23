@@ -5,9 +5,10 @@ import { Text, View, ViewProps } from 'react-native'
 interface PlaceholderProps extends ViewProps {
   text?: string
   className?: string
+  textColor?: string
 }
 
-export const Placeholder = ({ text, className, style, ...props }: PlaceholderProps) => {
+export const Placeholder = ({ text, className, style, textColor, ...props }: PlaceholderProps) => {
   return (
     <View
       className={cn('h-full w-full items-center justify-center bg-gray-800', className)}
@@ -17,7 +18,7 @@ export const Placeholder = ({ text, className, style, ...props }: PlaceholderPro
       {text && (
         <Text
           style={{
-            color: 'white',
+            color: textColor ?? 'white',
             fontWeight: 'bold',
             fontSize: 24,
             textAlign: 'center',

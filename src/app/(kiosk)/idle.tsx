@@ -5,6 +5,8 @@ import {
   type IdentificationModalRef,
 } from '@/features/identification'
 import { Button, SvgBMULogo } from '@/shared/components/ui'
+import { useAppNavigation } from '@/shared/hooks'
+import { useIsFocused } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import React, { useEffect, useRef } from 'react'
@@ -14,8 +16,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 const videoSource = require('@/assets/video-intro.mp4')
 
 export default function KioskIdleRoute() {
+  const isFocused = useIsFocused()
   const identModalRef = useRef<IdentificationModalRef>(null)
   const { startSession, submitIdentification } = useHealthSession()
+  const { navigateTo } = useAppNavigation()
 
   const player = useVideoPlayer(videoSource, (p) => {
     p.loop = true
@@ -23,8 +27,12 @@ export default function KioskIdleRoute() {
   })
 
   useEffect(() => {
-    player.play()
-  }, [player])
+    if (isFocused) {
+      player.play()
+    } else {
+      player.pause()
+    }
+  }, [player, isFocused])
 
   const handleStartSession = () => {
     startSession()
@@ -37,20 +45,25 @@ export default function KioskIdleRoute() {
       fullName: data.fullName,
       identityCode: data.identityCode,
     })
+    setTimeout(() => {
+      navigateTo('KIOSK_MEASURE')
+    }, 120)
   }
 
   return (
     <View className="flex-1 bg-black">
-      {/* Fullscreen Looping Video Background */}
-      <VideoView
-        player={player}
-        style={StyleSheet.absoluteFillObject}
-        contentFit="cover"
-        nativeControls={false}
-        allowsFullscreen={false}
-        surfaceType="textureView"
-        useExoShutter={false}
-      />
+      {/* Fullscreen Looping Video Background (Only rendered when screen is focused) */}
+      {isFocused && (
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFillObject}
+          contentFit="cover"
+          nativeControls={false}
+          allowsFullscreen={false}
+          surfaceType="textureView"
+          useExoShutter={false}
+        />
+      )}
 
       {/* Subtle Vignette Overlay */}
       <LinearGradient
@@ -72,7 +85,7 @@ export default function KioskIdleRoute() {
 
         {/* Center Main Action - Hướng dẫn khám */}
         <View className="pointer-events-auto my-auto w-full max-w-xl items-center self-center">
-          <Button label="Đăng Ký Khám" variant="primary" size="lg" onPress={handleStartSession} />
+          <Button label="Bắt đầu Khám" variant="primary" size="xl" onPress={handleStartSession} />
         </View>
 
         {/* Footer - GHD & BMU */}

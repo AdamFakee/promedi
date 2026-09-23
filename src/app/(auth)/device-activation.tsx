@@ -3,10 +3,10 @@ import {
   useActivateDevice,
   type ActivateDeviceFormData,
 } from '@/features/activation'
-import { SvgBMULogo } from '@/shared/components/ui'
+import { SvgBMULogo, WaveBackground } from '@/shared/components/ui'
 import { LinearGradient } from 'expo-linear-gradient'
 import React from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function DeviceActivationRoute() {
@@ -17,13 +17,26 @@ export default function DeviceActivationRoute() {
   }
 
   return (
-    <LinearGradient
-      colors={['#FFFFFF', '#FFFFFF', '#FFF1F1', '#FEE2E2', '#800000']}
-      locations={[0, 0.35, 0.65, 0.88, 1]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
-      className="flex-1"
-    >
+    <View className="relative flex-1 bg-white">
+      {/* 1. Base Gradient Background */}
+      <LinearGradient
+        colors={['#FFFFFF', '#FFFFFF', '#FFF1F1', '#FEE2E2', '#800000']}
+        locations={[0, 0.35, 0.65, 0.88, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* 2. Wave Background Layer (Positioned behind content at same layer as gradient) */}
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+        <WaveBackground
+          strokeColor="rgba(220, 38, 38, 0.16)"
+          lineCount={95}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </View>
+
+      {/* 3. Foreground Content */}
       <SafeAreaView className="flex-1">
         <ScrollView
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingVertical: 20 }}
@@ -52,6 +65,6 @@ export default function DeviceActivationRoute() {
           </View>
         </ScrollView>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   )
 }

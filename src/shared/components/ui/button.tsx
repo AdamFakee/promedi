@@ -9,7 +9,7 @@ type IconType = React.ComponentType<any>
 interface ButtonProps extends PressableProps {
   label: string
   variant?: 'primary' | 'outline' | 'secondary' | 'destructive'
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
   loading?: boolean
   className?: string
   textClassName?: string
@@ -29,18 +29,21 @@ const sizeStyles = {
   sm: 'h-10 px-4 rounded-xl border',
   md: 'h-12 px-6 rounded-full border',
   lg: 'h-14 px-8 rounded-full border',
+  xl: 'h-16 px-10 rounded-full border-2',
 }
 
 const textSizeStyles = {
   sm: 'text-xs font-bold',
   md: 'text-sm font-semibold',
   lg: 'text-base font-bold',
+  xl: 'text-lg font-black uppercase tracking-wider',
 }
 
 const defaultIconSizes = {
   sm: 16,
   md: 20,
   lg: 22,
+  xl: 26,
 }
 
 export const Button = ({

@@ -13,6 +13,7 @@ export const ROUTES = {
   KIOSK_MEASURE_BP: { path: () => '/(kiosk)/measure-bp' as Href, params: {} as never },
   KIOSK_MEASURE_INBODY: { path: () => '/(kiosk)/measure-inbody' as Href, params: {} as never },
   KIOSK_SUMMARY: { path: () => '/(kiosk)/result-summary' as Href, params: {} as never },
+  KIOSK_MEASURE: { path: () => '/(kiosk)/measure' as Href, params: {} as never },
 } as const
 
 export type RouteName = keyof typeof ROUTES

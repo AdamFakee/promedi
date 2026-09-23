@@ -1,5 +1,6 @@
-import { colors } from '@\/shared\/theme'
+import { colors } from '@/shared/theme'
 import React from 'react'
+import QRCode from 'react-native-qrcode-svg'
 import Svg, { Circle, G, Path, Rect, Text as SvgText } from 'react-native-svg'
 
 interface IconProps {
@@ -116,7 +117,77 @@ export const SvgBMULogo: React.FC<SvgBMULogoProps> = ({
 SvgBMULogo.displayName = 'SvgBMULogo'
 
 export const SvgMainLogo = SvgBMULogo
-export const SvgProMediLogo = SvgBMULogo
+
+export interface SvgProMediLogoProps {
+  size?: number
+}
+
+export const SvgProMediLogo: React.FC<SvgProMediLogoProps> = ({ size = 36 }) => {
+  return (
+    <Svg width={size * 3.2} height={size} viewBox="0 0 150 42" fill="none">
+      <G>
+        {/* Emblem: 4-Arm Rounded Medical Cross with Athletic Human Figure at Center */}
+        <G transform="translate(1, 1)">
+          {/* Top & Left Red Half */}
+          <G fill="#C8232A">
+            {/* Top Arm */}
+            <Rect x="13" y="2" width="14" height="20" rx="7" />
+            {/* Left Arm */}
+            <Rect x="2" y="13" width="20" height="14" rx="7" />
+          </G>
+
+          {/* Bottom & Right Gold Half */}
+          <G fill="#C5A059">
+            {/* Right Arm */}
+            <Rect x="18" y="13" width="20" height="14" rx="7" />
+            {/* Bottom Arm */}
+            <Rect x="13" y="18" width="14" height="20" rx="7" />
+          </G>
+
+          {/* Red Top-Left Diagonal Fill for Seamless Split */}
+          <Path
+            d="M 2 20 C 2 16.1 5.1 13 9 13 L 20 13 L 20 27 L 13 27 C 9.1 27 6 23.9 6 20 Z"
+            fill="#C8232A"
+          />
+
+          {/* Athletic / Healthy Human Silhouette in Center (White) */}
+          {/* Head Circle */}
+          <Circle cx="20" cy="9.5" r="3.2" fill="#FFFFFF" />
+
+          {/* V-Victory Athletic Body Pose */}
+          <Path
+            d="M 12 15
+               C 15 14 18 17 20 18
+               C 22 17 25 14 28 15
+               C 26 19 23.5 21 23 26
+               L 17 26
+               C 16.5 21 14 19 12 15 Z"
+            fill="#FFFFFF"
+          />
+        </G>
+
+        {/* ProMedi GHD Typography */}
+        <G transform="translate(44, -1)">
+          {/* "Pro" in Khaki Gold */}
+          <SvgText x="0" y="26" fill="#C5A059" fontSize="23" fontWeight="700" letterSpacing="-0.2">
+            Pro
+          </SvgText>
+
+          {/* "Medi" in Burgundy Red */}
+          <SvgText x="39" y="26" fill="#7A0016" fontSize="23" fontWeight="900" letterSpacing="-0.2">
+            Medi
+          </SvgText>
+
+          {/* "GHD" in Dark Slate Gray right under "Medi" */}
+          <SvgText x="52" y="39" fill="#334155" fontSize="10" fontWeight="800" letterSpacing="0.8">
+            GHD
+          </SvgText>
+        </G>
+      </G>
+    </Svg>
+  )
+}
+SvgProMediLogo.displayName = 'SvgProMediLogo'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PREMIUM BOTTOM TAB NAVIGATION ICONS
@@ -1446,3 +1517,23 @@ export const SvgDeleteIcon: React.FC<SvgDeleteIconProps> = ({
   )
 }
 SvgDeleteIcon.displayName = 'SvgDeleteIcon'
+
+/**
+ * Icon: Premium Vector SVG QR Code for Kiosk Result Lookup using react-native-qrcode-svg
+ */
+export interface SvgQrCodeProps {
+  value?: string
+  size?: number
+  color?: string
+  backgroundColor?: string
+}
+
+export const SvgQrCode: React.FC<SvgQrCodeProps> = ({
+  value = 'https://promedi.vn/results/PROMEDI-8892',
+  size = 100,
+  color = '#0F172A',
+  backgroundColor = '#FFFFFF',
+}) => {
+  return <QRCode value={value} size={size} color={color} backgroundColor={backgroundColor} />
+}
+SvgQrCode.displayName = 'SvgQrCode'
