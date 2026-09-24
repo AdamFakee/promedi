@@ -1,4 +1,4 @@
-package com.anonymous.learningexpo
+package com.anonymous.promedi
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

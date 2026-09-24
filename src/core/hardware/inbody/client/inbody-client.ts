@@ -13,7 +13,8 @@ import {
   buildSetTimeCommand,
 } from '../protocol/commands'
 import { mapResultFields } from '../protocol/result-mapper'
-import type { DeviceTransport, TransportConfig } from '../transport/transport.interface'
+import type { DeviceTransport, TransportConfig } from '../../transport'
+
 import type { PatientInfo, InBodyResult, InBodyStatus } from '../types/inbody.types'
 
 export class InBodyClient {

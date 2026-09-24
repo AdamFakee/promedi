@@ -3,10 +3,11 @@
  * @module src/core/hardware/inbody/device/inbody.device.ts
  */
 
+import { createTransport } from '../../transport/transport-factory'
+import type { DeviceTransport, TransportConfig } from '../../transport/transport.interface'
+import type { IMeasurementDevice } from '../../types/measurement-device.interface'
 import { InBodyClient } from '../client/inbody-client'
-import { TcpTransport } from '../transport/tcp-transport'
-import type { PatientInfo, InBodyResult } from '../types/inbody.types'
-import type { TransportConfig, DeviceTransport } from '../transport/transport.interface'
+import type { InBodyResult, PatientInfo } from '../types/inbody.types'
 
 export type DeviceStatusState =
   | 'IDLE'
@@ -16,27 +17,26 @@ export type DeviceStatusState =
   | 'COMPLETED'
   | 'ERROR'
 
-export interface IMeasurementDevice {
-  readonly id: string
-  connect(config: TransportConfig): Promise<void>
-  disconnect(): Promise<void>
-  startMeasurement(patient: PatientInfo): Promise<void>
-  getResult(): Promise<InBodyResult | null>
-  reset(): Promise<void>
-}
-
-export class InBodyDevice implements IMeasurementDevice {
+export class InBodyDevice implements IMeasurementDevice<InBodyResult | null, PatientInfo> {
   readonly id = 'inbody-260s' as const
   private client: InBodyClient
   private currentResult: InBodyResult | null = null
 
-  constructor(transport: DeviceTransport = new TcpTransport()) {
-    this.client = new InBodyClient(transport)
+  constructor(
+    private transportConfig?: TransportConfig,
+    transport?: DeviceTransport,
+  ) {
+    const activeTransport = transport ?? createTransport(transportConfig?.type ?? 'tcp')
+    this.client = new InBodyClient(activeTransport)
   }
 
-  /** Mở kết nối Socket TCP tới InBody */
-  async connect(config: TransportConfig): Promise<void> {
-    await this.client.connect(config)
+  /** Mở kết nối Socket TCP / USB Serial tới InBody */
+  async connect(config?: TransportConfig): Promise<void> {
+    const targetConfig = config ?? this.transportConfig
+    if (!targetConfig) {
+      throw new Error('Chưa cung cấp TransportConfig cho InBodyDevice')
+    }
+    await this.client.connect(targetConfig)
   }
 
   /** Đóng kết nối */

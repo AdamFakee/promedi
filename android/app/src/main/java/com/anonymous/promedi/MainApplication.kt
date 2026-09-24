@@ -1,4 +1,4 @@
-package com.anonymous.learningexpo
+package com.anonymous.promedi
 
 import android.app.Application
 import android.content.res.Configuration
