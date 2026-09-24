@@ -4,13 +4,12 @@ import {
   type IdentificationFormData,
   type IdentificationModalRef,
 } from '@/features/identification'
-import { Button, SvgBMULogo } from '@/shared/components/ui'
 import { useAppNavigation } from '@/shared/hooks'
 import { useIsFocused } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import React, { useEffect, useRef } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 const videoSource = require('@/assets/video-intro.mp4')
@@ -65,34 +64,39 @@ export default function KioskIdleRoute() {
         />
       )}
 
-      {/* Subtle Vignette Overlay */}
+      {/* Vignette Gradient Overlay */}
       <LinearGradient
-        colors={['rgba(0, 0, 0, 0.6)', 'transparent', 'rgba(0, 0, 0, 0.75)']}
-        locations={[0, 0.4, 1]}
+        colors={['rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.3)', 'rgba(0, 0, 0, 0.6)']}
+        locations={[0, 0.5, 1]}
         className="absolute inset-0"
       />
 
-      {/* Touchable Backdrop to open popup via ref */}
+      {/* Fullscreen Touchable Backdrop to start session on tap anywhere */}
       <Pressable className="absolute inset-0" onPress={handleStartSession} />
 
-      <SafeAreaView className="pointer-events-box-none flex-1 justify-between px-8 py-6">
-        {/* Header - Bệnh viện BMU */}
-        <View className="pointer-events-auto items-start">
-          <View className="h-14 items-center justify-center rounded-2xl border border-red-200 bg-white/95 px-4 py-1.5 shadow-lg">
-            <SvgBMULogo size={38} withText={true} />
+      {/* Bottom Action Bar - Light Frosted Glassmorphism (20% Larger) */}
+      <SafeAreaView edges={['bottom']} className="pointer-events-box-none flex-1 justify-end">
+        <View className="pointer-events-auto w-full bg-white/20 px-12 py-11 backdrop-blur-3xl">
+          <View className="flex-row items-center justify-between">
+            {/* Title & Subtitle on Left */}
+            <View className="flex-1 pr-10">
+              <Text className="text-5xl font-extrabold tracking-wide text-white drop-shadow-lg">
+                ProMedi
+              </Text>
+              <Text className="mt-3 font-semibold text-xl leading-relaxed text-white/95 drop-shadow-md">
+                Giải pháp kiểm tra sức khỏe tự động toàn diện
+              </Text>
+            </View>
+
+            {/* Pill Button 'Bắt đầu' on Right - 20% Larger */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={handleStartSession}
+              className="rounded-full bg-[#E91E63] px-16 py-6 shadow-2xl shadow-pink-600/60"
+            >
+              <Text className="text-3xl font-black tracking-wider text-white">Bắt đầu</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Center Main Action - Hướng dẫn khám */}
-        <View className="pointer-events-auto my-auto w-full max-w-xl items-center self-center">
-          <Button label="Bắt đầu Khám" variant="primary" size="xl" onPress={handleStartSession} />
-        </View>
-
-        {/* Footer - GHD & BMU */}
-        <View className="pointer-events-none items-center border-t border-white/20 pt-4">
-          <Text className="text-center font-medium text-xs text-white/90">
-            Công ty CP Đầu tư và Công nghệ GHD • Bệnh viện Đại học Y Dược Buôn Ma Thuột (BMU)
-          </Text>
         </View>
       </SafeAreaView>
 
