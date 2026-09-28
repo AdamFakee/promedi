@@ -9,10 +9,10 @@
  * @module src/core/hardware/bpbio/client/bpbio-client.ts
  */
 
-import { BpbioFrameCodec, type BpbioDataFrame } from '../protocol/frame-codec'
+import type { DeviceTransport, TransportConfig } from '../../transport/transport.interface'
 import { buildBpbioCommandFrame } from '../protocol/commands'
 import { COMMANDS } from '../protocol/constants'
-import type { DeviceTransport, TransportConfig } from '../../transport/transport.interface'
+import { BpbioFrameCodec, type BpbioDataFrame } from '../protocol/frame-codec'
 import type { BloodPressureResult } from '../types/bpbio.types'
 
 export class BpbioClient {

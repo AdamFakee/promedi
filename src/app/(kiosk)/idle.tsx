@@ -4,11 +4,12 @@ import {
   type IdentificationFormData,
   type IdentificationModalRef,
 } from '@/features/identification'
+import { HardwareTestModal } from '@/shared/components/common'
 import { useAppNavigation } from '@/shared/hooks'
 import { useIsFocused } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useVideoPlayer, VideoView } from 'expo-video'
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
@@ -19,6 +20,7 @@ export default function KioskIdleRoute() {
   const identModalRef = useRef<IdentificationModalRef>(null)
   const { startSession, submitIdentification } = useHealthSession()
   const { navigateTo } = useAppNavigation()
+  const [testModalVisible, setTestModalVisible] = useState(false)
 
   const player = useVideoPlayer(videoSource, (p) => {
     p.loop = true
@@ -71,6 +73,15 @@ export default function KioskIdleRoute() {
         className="absolute inset-0"
       />
 
+      {/* Floating Dev Hardware Test Button on Idle Screen */}
+      <Pressable
+        onPress={() => setTestModalVisible(true)}
+        style={styles.floatingDevBtn}
+        hitSlop={10}
+      >
+        <Text style={styles.floatingDevBtnText}>🛠 TEST HARDWARE (15 UCs)</Text>
+      </Pressable>
+
       {/* Fullscreen Touchable Backdrop to start session on tap anywhere */}
       <Pressable className="absolute inset-0" onPress={handleStartSession} />
 
@@ -102,6 +113,34 @@ export default function KioskIdleRoute() {
 
       {/* Imperative Ref-controlled Identification Popup Modal */}
       <IdentificationModal ref={identModalRef} onSubmit={handleIdentificationSubmit} />
+
+      {/* Detailed Hardware & Network Usecase Test Modal */}
+      <HardwareTestModal visible={testModalVisible} onClose={() => setTestModalVisible(false)} />
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  floatingDevBtn: {
+    backgroundColor: '#0F172A',
+    borderColor: '#38BDF8',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    elevation: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    position: 'absolute',
+    right: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    top: 24,
+    zIndex: 999,
+  },
+  floatingDevBtnText: {
+    color: '#38BDF8',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+})

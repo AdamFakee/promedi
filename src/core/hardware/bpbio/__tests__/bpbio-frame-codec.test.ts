@@ -1,5 +1,5 @@
+import { ETX, SOH, STX, SYN } from '../protocol/constants'
 import { BpbioFrameCodec } from '../protocol/frame-codec'
-import { SYN, SOH, STX, ETX } from '../protocol/constants'
 
 describe('BpbioFrameCodec', () => {
   let codec: BpbioFrameCodec
@@ -77,5 +77,27 @@ describe('BpbioFrameCodec', () => {
 
     const result = codec.feed(frame)
     expect(result).toHaveLength(0)
+  })
+})
+
+describe('parseBpbioEventPayload', () => {
+  it('correctly distinguishes uppercase ELB (Inserted) and lowercase elb (Removed)', () => {
+    const { parseBpbioEventPayload } = require('../protocol/event-parser')
+
+    const evIn = parseBpbioEventPayload('ELB', 'ELB', 'ELB')
+    expect(evIn.type).toBe('ELBOW_INSERTED')
+    expect(evIn.id).toBe(6)
+
+    const evOut = parseBpbioEventPayload('elb', 'elb', 'elb')
+    expect(evOut.type).toBe('ELBOW_REMOVED')
+    expect(evOut.id).toBe(7)
+  })
+
+  it('correctly parses AWK as PRESENCE_DETECTED', () => {
+    const { parseBpbioEventPayload } = require('../protocol/event-parser')
+
+    const ev = parseBpbioEventPayload('AWK', 'AWK', 'AWK')
+    expect(ev.type).toBe('PRESENCE_DETECTED')
+    expect(ev.id).toBe(5)
   })
 })

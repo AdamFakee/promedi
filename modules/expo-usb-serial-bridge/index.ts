@@ -1,4 +1,4 @@
-import { requireNativeModule, EventEmitter } from 'expo-modules-core'
+import { EventEmitter, requireNativeModule } from 'expo-modules-core'
 
 export interface UsbDeviceCandidate {
   deviceKey: string
@@ -21,4 +21,4 @@ export type UsbSerialBridgeEvents = {
 const UsbSerialBridge = requireNativeModule('UsbSerialBridge')
 const emitter = new EventEmitter<UsbSerialBridgeEvents>(UsbSerialBridge)
 
-export { UsbSerialBridge, emitter }
+export { emitter, UsbSerialBridge }

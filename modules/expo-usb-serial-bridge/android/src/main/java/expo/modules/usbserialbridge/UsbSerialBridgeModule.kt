@@ -232,15 +232,17 @@ class UsbSerialBridgeModule : Module() {
      * @param portId Định danh logic cổng.
      * @param bytes Mảng byte dữ liệu cần gửi.
      */
-    AsyncFunction("write") { portId: String, bytes: ByteArray, promise: Promise ->
+    AsyncFunction("write") { portId: String, bytes: IntArray, promise: Promise ->
       val openPort = openPorts[portId]
       if (openPort == null) {
         promise.reject("WRITE_FAILED", "Port '$portId' chưa mở hoặc đã bị đóng", null)
         return@AsyncFunction
       }
       try {
+        // Chuyển mảng số IntArray từ JS [2, 115, 3] sang ByteArray chuẩn Android Serial
+        val byteArray = bytes.map { it.toByte() }.toByteArray()
         // Ghi mảng byte ra cổng Serial với timeout tối đa 1000ms
-        openPort.port.write(bytes, 1000)
+        openPort.port.write(byteArray, 1000)
         promise.resolve(null)
       } catch (e: Exception) {
         promise.reject("WRITE_FAILED", e.message ?: "Ghi dữ liệu thất bại", e)

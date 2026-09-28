@@ -1,5 +1,5 @@
 /**
- * Định nghĩa các hằng số byte giao thức cho máy đo huyết áp BPBIO750.
+ * Định nghĩa các hằng số byte giao thức cho máy đo huyết áp BPBIO320/750.
  *
  * @module src/core/hardware/bpbio/protocol/constants.ts
  */
@@ -19,6 +19,35 @@ export const DATA_FRAME_LEN = 16
 export const CMD_FRAME_LEN = 9
 /** Cửa sổ quét ETX tối đa (16 Byte) */
 export const MAX_FRAME_LEN = 16
+/** Độ dài khung broadcast sự kiện cố định (64 Byte) theo Protocol Spec V4.0 */
+export const EVENT_FRAME_LEN = 64
+
+/** Các hằng số vị trí Index (Offset) byte trong gói broadcast 64 Byte */
+export const FRAME_64_OFFSETS = {
+  STX: 5,
+  S_IDENTIFIER: 33,
+  S_PAYLOAD_START: 34,
+  D_IDENTIFIER: 43,
+  D_PAYLOAD_START: 44,
+  P_IDENTIFIER: 48,
+  P_PAYLOAD_START: 49,
+  ETX: 62,
+  BCC: 63,
+} as const
+
+/** Chuỗi payload sự kiện tiêu chuẩn trích xuất tại 3 trường S, D, P */
+export const EVENT_PAYLOADS = {
+  START: 'STA',
+  STOP: 'STP',
+  ERROR_HEADER: 'Err',
+  ERROR_FOOTER: 'rrr',
+  AWAKE: 'AWK',
+  ELBOW_IN: 'ELB',
+  ELBOW_OUT: 'elb',
+  CONFIRM: 'CON',
+  LOCK: 'LCK',
+  RELEASE: 'RLS',
+} as const
 
 /** Ký tự định danh loại gói dữ liệu kết quả */
 export const IDENTIFIER = {
@@ -30,7 +59,7 @@ export const IDENTIFIER = {
   PULSE: 'P',
 } as const
 
-/** Mã lệnh gửi xuống máy đo BPBIO750 */
+/** Mã lệnh gửi xuống máy đo BPBIO750 / Huyết áp */
 export const COMMANDS = {
   /** Yêu cầu rút kết quả đo (Lệnh 0x43) */
   REQUEST_RESULT: 0x43,
@@ -40,4 +69,16 @@ export const COMMANDS = {
   LOCK: 0x4c,
   /** Mở khóa máy đo (Lệnh 0x72) */
   UNLOCK: 0x72,
+  /** Yêu cầu rút kết quả đo gần nhất (Khung 10 byte: 0x52 0x42 "RB") */
+  REQUEST_RECENT_RESULT_FRAME: [0x52, 0x42],
+  /** Bắt đầu bơm hơi đo lường (Khung 10 byte: 0x52 0x43 "RC") */
+  START_MEASURE_FRAME: [0x52, 0x43],
+  /** Dừng đo lường khẩn cấp (Khung 10 byte: 0x52 0x46 "RF") */
+  STOP_MEASURE_FRAME: [0x52, 0x46],
+  /** Xác nhận kết nối (Khung 10 byte: 0x52 0x45 "RE") -> Phản hồi "CON" */
+  CONFIRM_CONNECT_FRAME: [0x52, 0x45],
+  /** Khóa nút bấm vật lý Start/Stop (Khung 10 byte: 0x52 0x4C "RL") -> Phản hồi "LCK" */
+  LOCK_BUTTON_FRAME: [0x52, 0x4c],
+  /** Mở khóa nút bấm vật lý Start/Stop (Khung 10 byte: 0x52 0x72 "Rr") -> Phản hồi "RLS" */
+  UNLOCK_BUTTON_FRAME: [0x52, 0x72],
 } as const
