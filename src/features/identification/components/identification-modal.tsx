@@ -3,12 +3,14 @@ import {
   ControlledInput,
   IconButton,
   ModalBase,
+  SegmentedControl,
   SvgBMULogo,
   SvgCloseIcon,
 } from '@/shared/components/ui'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import React, { forwardRef, useCallback, useImperativeHandle, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { Text, View } from 'react-native'
 import {
   identificationFormSchema,
@@ -41,6 +43,7 @@ export const IdentificationModal = forwardRef<IdentificationModalRef, Identifica
       defaultValues: {
         fullName: '',
         identityCode: '',
+        gender: 'M',
       },
     })
 
@@ -113,6 +116,49 @@ export const IdentificationModal = forwardRef<IdentificationModalRef, Identifica
               editable={!isLoading}
               autoCapitalize="words"
             />
+
+            {/* Gender Selection: Nam / Nữ bằng Base Component SegmentedControl */}
+            <View className="gap-1.5">
+              <Text className="font-bold text-sm text-slate-800">
+                Giới tính <Text className="text-primary">*</Text>
+              </Text>
+              <Controller
+                control={control}
+                name="gender"
+                render={({ field: { value, onChange } }) => (
+                  <SegmentedControl
+                    options={[
+                      {
+                        label: 'NAM',
+                        value: 'M' as const,
+                        icon: (
+                          <MaterialCommunityIcons
+                            name="gender-male"
+                            size={22}
+                            color={value === 'M' ? '#FFFFFF' : '#64748B'}
+                          />
+                        ),
+                      },
+                      {
+                        label: 'NỮ',
+                        value: 'F' as const,
+                        icon: (
+                          <MaterialCommunityIcons
+                            name="gender-female"
+                            size={22}
+                            color={value === 'F' ? '#FFFFFF' : '#64748B'}
+                          />
+                        ),
+                      },
+                    ]}
+                    value={value}
+                    onChange={onChange}
+                    className="rounded-2xl border-0 border-none bg-transparent"
+                    textClassName="text-base font-black tracking-wider"
+                  />
+                )}
+              />
+            </View>
 
             <ControlledInput
               control={control}

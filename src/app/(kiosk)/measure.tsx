@@ -1,4 +1,4 @@
-import { useHealthSession, useVoiceGuidance } from '@/core'
+import { useHealthSession, useVoiceGuidance, voicePlayerService } from '@/core'
 import {
   BpInstruction,
   InBodyInstruction,
@@ -12,15 +12,23 @@ import {
   KioskStepper,
   WaveBackground,
 } from '@/shared/components/ui'
-import { LinearGradient } from 'expo-linear-gradient'
+import { useAppNavigation } from '@/shared/hooks'
 import { useIsFocused } from '@react-navigation/native'
+import { LinearGradient } from 'expo-linear-gradient'
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+const STEP_DURATIONS: Record<number, number> = {
+  0: 60, // Bước 0: Huyết áp (60s)
+  1: 90, // Bước 1: InBody (90s)
+  2: 90, // Bước 2: Bảng kết quả (90s)
+}
+
 export default function KioskMeasureRoute() {
   const isFocused = useIsFocused()
-  const { state, context } = useHealthSession()
+  const { replaceTo } = useAppNavigation()
+  const { state, resetSession } = useHealthSession()
   const [overrideStep, setOverrideStep] = React.useState<number | null>(null)
 
   const activeMeasureStep =
@@ -42,6 +50,52 @@ export default function KioskMeasureRoute() {
   const inbodyState = useInBodyMeasurement(
     isFocused && currentStep === 1 && state === 'measureInBody',
   )
+
+  // Kiểm tra trạng thái đang đo để tạm dừng bộ đếm (Chỉ dừng ở step 0 và step 1, step 2 không dừng)
+  const isMeasuring =
+    (currentStep === 0 && bpState.status === 'measuring') ||
+    (currentStep === 1 && inbodyState.status === 'measuring')
+
+  // Bộ đếm đếm ngược độc lập cho từng step
+  const [secondsRemaining, setSecondsRemaining] = React.useState<number>(
+    STEP_DURATIONS[currentStep] ?? 60,
+  )
+
+  // Reset bộ đếm khi chuyển step
+  React.useEffect(() => {
+    setSecondsRemaining(STEP_DURATIONS[currentStep] ?? 60)
+  }, [currentStep])
+
+  // Xử lý khi hết thời gian đếm ngược
+  const handleTimeout = React.useCallback(() => {
+    voicePlayerService.stop()
+    if (currentStep === 2) {
+      voicePlayerService.speak('SESSION_TERMINATED')
+    }
+    resetSession()
+    replaceTo('HOME')
+  }, [currentStep, resetSession, replaceTo])
+
+  // Quản lý interval đếm ngược với cleanup kiểm soát isFocused và isMounted
+  React.useEffect(() => {
+    if (!isFocused) return
+    if (isMeasuring) return
+
+    const timer = setInterval(() => {
+      setSecondsRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          handleTimeout()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => {
+      clearInterval(timer)
+    }
+  }, [isFocused, currentStep, isMeasuring, handleTimeout])
 
   return (
     <View className="relative flex-1 bg-white">
@@ -92,13 +146,16 @@ export default function KioskMeasureRoute() {
             )}
           </View>
 
-          {/* 4. FSM Bound Countdown Control Bar (No Buttons, Clean Timer Only) */}
-          <View className="w-full items-center justify-center px-4">
-            <KioskCountdownTimer
-              secondsRemaining={context.secondsRemaining}
-              currentStep={currentStep}
-            />
-          </View>
+          {/* 4. FSM Bound Countdown Control Bar (No Buttons, Clean Timer Only) - Ẩn khi đang đo */}
+          {!isMeasuring && (
+            <View className="w-full items-center justify-center px-4">
+              <KioskCountdownTimer
+                secondsRemaining={secondsRemaining}
+                totalSeconds={STEP_DURATIONS[currentStep] ?? 60}
+                currentStep={currentStep}
+              />
+            </View>
+          )}
         </View>
       </SafeAreaView>
     </View>

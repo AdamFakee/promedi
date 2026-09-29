@@ -82,7 +82,7 @@ export default function KioskIdleRoute() {
       identityCode: data.identityCode,
       age: 30,
       heightCm: 165.0,
-      gender: 'M',
+      gender: data.gender || 'M',
     })
     setTimeout(() => {
       navigateTo('KIOSK_MEASURE')
@@ -112,13 +112,13 @@ export default function KioskIdleRoute() {
       />
 
       {/* Floating Dev Hardware Test Button on Idle Screen */}
-      <Pressable
+      {/* <Pressable
         onPress={() => setTestModalVisible(true)}
         style={styles.floatingDevBtn}
         hitSlop={10}
       >
         <Text style={styles.floatingDevBtnText}>🛠 TEST HARDWARE (15 UCs)</Text>
-      </Pressable>
+      </Pressable> */}
 
       {/* Fullscreen Touchable Backdrop to start session on tap anywhere */}
       <Pressable className="absolute inset-0" onPress={handleStartSession} />

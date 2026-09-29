@@ -22,19 +22,20 @@ Mô-đun quản lý giao diện Popup Modal nhập thông tin định danh bện
 
 ## 1. Đang có gì (Bảng danh mục tệp)
 
-| Tệp                                                                                                                           | Trách nhiệm                                     | Chạm Vào/Ra (I/O)             |
-| :---------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------- | :---------------------------- |
-| [`index.ts`](file:///d:/promedi/src/features/identification/index.ts)                                                         | Barrel File xuất ra Public API cho mô-đun       | ❌ Logic thuần                |
-| [`components/identification-modal.tsx`](file:///d:/promedi/src/features/identification/components/identification-modal.tsx)   | Form Popup căn giữa nhập Họ tên & Số CCCD       | 🌐 UI / State React Hook Form |
-| [`components/virtual-numpad.tsx`](file:///d:/promedi/src/features/identification/components/virtual-numpad.tsx)               | Bàn phím số ảo tích hợp phím Xóa                | ⚠️ Native Haptics Feedback    |
-| [`validations/identification.schema.ts`](file:///d:/promedi/src/features/identification/validations/identification.schema.ts) | Valibot validation schema cho 2 trường bắt buộc | ❌ Logic thuần                |
+| Tệp                                                                                                                           | Trách nhiệm                                            | Chạm Vào/Ra (I/O)             |
+| :---------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :---------------------------- |
+| [`index.ts`](file:///d:/promedi/src/features/identification/index.ts)                                                         | Barrel File xuất ra Public API cho mô-đun              | ❌ Logic thuần                |
+| [`components/identification-modal.tsx`](file:///d:/promedi/src/features/identification/components/identification-modal.tsx)   | Form Popup căn giữa nhập Họ tên, Giới tính & Số CCCD   | 🌐 UI / State React Hook Form |
+| [`components/virtual-numpad.tsx`](file:///d:/promedi/src/features/identification/components/virtual-numpad.tsx)               | Bàn phím số ảo tích hợp phím Xóa                       | ⚠️ Native Haptics Feedback    |
+| [`validations/identification.schema.ts`](file:///d:/promedi/src/features/identification/validations/identification.schema.ts) | Valibot validation schema cho Họ tên, CCCD & Giới tính | ❌ Logic thuần                |
 
 ---
 
 ## 2. Các quyết định đã chốt & Lý giải kỹ thuật (HOW & WHY)
 
-1. **Ràng buộc Định danh Bắt buộc (Mandatory Both Fields)**:
-   - Cả 2 trường **Họ và tên** (không trống) và **Số CCCD** (đúng 12 chữ số `/^\d{12}$/`) đều là **bắt buộc**.
+1. **Ràng buộc Định danh Bắt buộc (Mandatory Identification Fields)**:
+   - Các trường **Họ và tên** (không trống), **Số CCCD** (đúng 12 chữ số `/^\d{12}$/`) và **Giới tính** (`'M' | 'F'`) đều là **bắt buộc**.
+   - Lựa chọn giới tính sử dụng Base Component `SegmentedControl` kết hợp Controller từ `react-hook-form` để đảm bảo UI chuẩn Kiosk Touch và phục vụ chính xác thuật toán đo cơ/mỡ InBody.
    - Sử dụng Valibot Schema kết hợp `react-hook-form` với `mode: 'onSubmit'` để chỉ validate khi người dùng bấm "Bắt đầu kiểm tra sức khỏe".
 
 2. **Tối ưu Hiệu năng Bấm phím 60fps (Zero Waterfalls & Re-render Elimination)**:

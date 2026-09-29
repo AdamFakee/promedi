@@ -5,14 +5,16 @@ import { Pressable, Text, View } from 'react-native'
 export interface SegmentedControlOption<T> {
   label: string
   value: T
+  icon?: React.ReactNode
 }
 
 interface SegmentedControlProps<T> {
   options: SegmentedControlOption<T>[]
-  value: T
+  value?: T
   onChange: (value: T) => void
   className?: string
   textClassName?: string
+  itemClassName?: string
 }
 
 export function SegmentedControl<T>({
@@ -21,9 +23,15 @@ export function SegmentedControl<T>({
   onChange,
   className,
   textClassName,
+  itemClassName,
 }: SegmentedControlProps<T>) {
   return (
-    <View className={cn('flex-row rounded-md bg-slate-100', className)}>
+    <View
+      className={cn(
+        'flex-row items-center gap-2.5 rounded-2xl border border-slate-200/60 bg-slate-100/90',
+        className,
+      )}
+    >
       {options.map((option) => {
         const isActive = option.value === value
         return (
@@ -31,14 +39,18 @@ export function SegmentedControl<T>({
             key={String(option.value)}
             onPress={() => onChange(option.value)}
             className={cn(
-              'flex-1 items-center justify-center rounded-md py-3',
-              isActive ? 'bg-primary' : 'bg-transparent',
+              'flex-1 flex-row items-center justify-center gap-2 rounded-xl px-3 py-3 transition-all',
+              isActive
+                ? 'border border-primary bg-primary'
+                : 'border border-slate-200/80 bg-white active:bg-slate-50',
+              itemClassName,
             )}
           >
+            {option.icon}
             <Text
               className={cn(
-                'font-semibold text-xs',
-                isActive ? 'font-bold text-white' : 'text-slate-500',
+                'text-center font-bold text-sm',
+                isActive ? 'font-black text-white' : 'text-slate-700',
                 textClassName,
               )}
               numberOfLines={1}

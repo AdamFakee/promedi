@@ -50,7 +50,7 @@ export const BpInstruction = ({ className, style, status = 'idle' }: BpInstructi
     transform: [{ scale: scale.value }],
   }))
 
-  if (status === 'measuring') {
+  if (status === 'measuring' || status === 'completed') {
     return (
       <View
         className={cn('w-full flex-1 items-center justify-center gap-6 p-4', className)}
@@ -90,32 +90,15 @@ export const BpInstruction = ({ className, style, status = 'idle' }: BpInstructi
     )
   }
 
-  if (status === 'completed') {
-    return (
-      <View
-        className={cn('w-full flex-1 items-center justify-center gap-6 p-4', className)}
-        style={style}
-      >
-        <View className="items-center justify-center rounded-full border-4 border-emerald-500/20 bg-emerald-50 p-8">
-          <MaterialCommunityIcons name="check-circle-outline" size={80} color="#10B981" />
-        </View>
-        <Text className="text-2xl font-black text-slate-800">Đã đo xong huyết áp</Text>
-        <Text className="text-center font-bold text-base text-slate-500">
-          Đang chuyển sang bước tiếp theo...
-        </Text>
-      </View>
-    )
-  }
-
   // Mặc định (idle) hiển thị hướng dẫn tư thế ban đầu
   return (
     <View
-      className={cn('w-full flex-1 flex-col justify-center gap-3 p-1', className)}
+      className={cn('w-full flex-1 flex-col justify-center gap-4 p-1', className)}
       style={style}
     >
       {/* Hàng 1: Bước 1 (Ảnh bên trái ── Chữ bên phải) */}
-      <View className="flex-row items-center gap-4 overflow-hidden rounded-2xl border border-red-100/60 bg-white/85 p-3.5 backdrop-blur-md">
-        <View className="h-28 w-36 overflow-hidden rounded-xl bg-slate-100">
+      <View className="flex-row items-center gap-5 overflow-hidden rounded-3xl border border-red-100/80 bg-white/90 p-4 shadow-sm backdrop-blur-md">
+        <View className="shadow-inner h-36 w-44 overflow-hidden rounded-2xl bg-slate-100">
           <Image
             source={bpGuide}
             style={{ width: '100%', height: '100%' }}
@@ -125,23 +108,21 @@ export const BpInstruction = ({ className, style, status = 'idle' }: BpInstructi
         </View>
 
         <View className="flex-1 justify-center">
-          <View className="mb-1.5 self-start rounded-md bg-red-600 px-2.5 py-0.5">
-            <Text className="text-[11px] font-black uppercase tracking-wider text-white">
-              BƯỚC 1
-            </Text>
+          <View className="mb-2 self-start rounded-lg bg-red-600 px-3.5 py-1 shadow-sm">
+            <Text className="text-xs font-black uppercase tracking-wider text-white">BƯỚC 1</Text>
           </View>
-          <Text className="mb-1 text-base font-black tracking-tight text-slate-900">
+          <Text className="mb-1.5 text-2xl font-black tracking-tight text-slate-900">
             XỎ TAY VÀO VÒNG ĐO
           </Text>
-          <Text className="font-bold text-xs leading-relaxed text-slate-600">
+          <Text className="font-bold text-lg leading-snug text-slate-700">
             Cho tay trái vào vòng ôm, đặt cùi chỏ lên thảm đệm và ngồi thẳng lưng thư giãn.
           </Text>
         </View>
       </View>
 
       {/* Hàng 2: Bước 2 (Ảnh bên trái ── Chữ bên phải) */}
-      <View className="flex-row items-center gap-4 overflow-hidden rounded-2xl border border-red-100/60 bg-white/85 p-3.5 backdrop-blur-md">
-        <View className="h-28 w-36 overflow-hidden rounded-xl bg-slate-100">
+      <View className="flex-row items-center gap-5 overflow-hidden rounded-3xl border border-red-100/80 bg-white/90 p-4 shadow-sm backdrop-blur-md">
+        <View className="shadow-inner h-36 w-44 overflow-hidden rounded-2xl bg-slate-100">
           <Image
             source={bpGuide}
             style={{ width: '100%', height: '100%' }}
@@ -151,15 +132,13 @@ export const BpInstruction = ({ className, style, status = 'idle' }: BpInstructi
         </View>
 
         <View className="flex-1 justify-center">
-          <View className="mb-1.5 self-start rounded-md bg-red-600 px-2.5 py-0.5">
-            <Text className="text-[11px] font-black uppercase tracking-wider text-white">
-              BƯỚC 2
-            </Text>
+          <View className="mb-2 self-start rounded-lg bg-red-600 px-3.5 py-1 shadow-sm">
+            <Text className="text-xs font-black uppercase tracking-wider text-white">BƯỚC 2</Text>
           </View>
-          <Text className="mb-1 text-base font-black tracking-tight text-slate-900">
+          <Text className="mb-1.5 text-2xl font-black tracking-tight text-slate-900">
             THẢ LỎNG & GIỮ YÊN
           </Text>
-          <Text className="font-bold text-xs leading-relaxed text-slate-600">
+          <Text className="font-bold text-lg leading-snug text-slate-700">
             Giữ nguyên tư thế, không cử động hoặc nói chuyện trong suốt quá trình máy đo.
           </Text>
         </View>

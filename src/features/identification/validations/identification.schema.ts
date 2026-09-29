@@ -1,4 +1,4 @@
-import { minLength, object, pipe, regex, string, trim, type InferOutput } from 'valibot'
+import { minLength, object, picklist, pipe, regex, string, trim, type InferOutput } from 'valibot'
 
 export const identificationFormSchema = object({
   fullName: pipe(string('Họ và tên không hợp lệ'), trim(), minLength(1, 'Vui lòng nhập Họ và tên')),
@@ -8,6 +8,7 @@ export const identificationFormSchema = object({
     minLength(1, 'Vui lòng nhập số căn cước công dân'),
     regex(/^\d{12}$/, 'Số căn cước công dân phải đúng 12 chữ số'),
   ),
+  gender: picklist(['M', 'F'], 'Vui lòng chọn giới tính'),
 })
 
 export type IdentificationFormData = InferOutput<typeof identificationFormSchema>

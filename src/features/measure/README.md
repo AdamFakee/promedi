@@ -22,28 +22,35 @@ Mô-đun quản lý giao diện hiển thị 3 bước đo sức khỏe tuyến 
 
 ## 1. Bảng Danh mục Tệp (Directory Catalog)
 
-| Tệp                                 | Trách nhiệm                                                                                                                                      | Chạm Vào/Ra (I/O)            |
-| :---------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------- |
-| `components/bp-instruction.tsx`     | Hiển thị màn hình hướng dẫn, trạng thái đang đo và hoàn tất đo huyết áp tự động.                                                                 | 🌐 React UI & Audio Guidance |
-| `components/inbody-instruction.tsx` | Hiển thị màn hình hướng dẫn tư thế đứng đo phân tích chỉ số cơ thể (`inbody_guide_male.webp`) kèm overlay đo và báo lỗi.                         | 🌐 React UI & Image Loader   |
-| `components/result-summary.tsx`     | Hiển thị bảng tổng hợp kết quả 6 chỉ số, biểu đồ cơ thể chi tiết (`SvgDetailedBody`), mã QR lookup (`react-native-qrcode-svg`) và đếm ngược 60s. | 🌐 React UI & Session Reset  |
-| `components/svg-detailed-body.tsx`  | Component SVG minh họa cấu trúc cơ thể người với các điểm chỉ báo phân tích vùng cơ và mỡ.                                                       | ❌ Pure SVG Rendering        |
-| `hooks/use-bp-measurement.ts`       | Hook cầu nối `bpbioSessionMachine` XState v5, quản lý lifecycle kết nối Serial và chuyển bước.                                                   | ⚠️ Hardware & FSM Bridge     |
-| `hooks/use-inbody-measurement.ts`   | Hook cầu nối `inbodySessionMachine` XState v5, quản lý kết nối USB Serial và nạp thông tin khách hàng.                                           | ⚠️ Hardware & FSM Bridge     |
-| `components/index.ts`               | Barrel File gom và re-export toàn bộ components đo đạc.                                                                                          | ❌ Barrel Re-export          |
-| `hooks/index.ts`                    | Barrel File gom và re-export toàn bộ measurement hooks.                                                                                          | ❌ Barrel Re-export          |
-| `index.ts`                          | Root Feature Barrel File re-export cho callers ngoài feature.                                                                                    | ❌ Barrel Re-export          |
+| Tệp                                 | Trách nhiệm                                                                                                                                     | Chạm Vào/Ra (I/O)            |
+| :---------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------- |
+| `components/bp-instruction.tsx`     | Hiển thị màn hình hướng dẫn với chữ phóng to 100%, trạng thái đang đo pulse nhịp tim và hoàn tất đo huyết áp tự động.                           | 🌐 React UI & Audio Guidance |
+| `components/inbody-instruction.tsx` | Hiển thị màn hình hướng dẫn tư thế đứng InBody kèm màn hình scan sinh học tia laser chạy dọc trên mô hình `SvgDetailedBody`.                    | 🌐 React UI & Reanimated     |
+| `components/result-summary.tsx`     | Hiển thị bảng tổng hợp kết quả 6 chỉ số, biểu đồ cơ thể chi tiết (`SvgDetailedBody`), mã QR lookup (`react-native-qrcode-svg`) và nút Hoàn tất. | 🌐 React UI & Session Reset  |
+| `components/svg-detailed-body.tsx`  | Component SVG minh họa cấu trúc cơ thể người với các điểm chỉ báo phân tích vùng cơ và mỡ.                                                      | ❌ Pure SVG Rendering        |
+| `hooks/use-bp-measurement.ts`       | Hook cầu nối `bpbioSessionMachine` XState v5, quản lý lifecycle kết nối Serial và chuyển bước.                                                  | ⚠️ Hardware & FSM Bridge     |
+| `hooks/use-inbody-measurement.ts`   | Hook cầu nối `inbodySessionMachine` XState v5, quản lý kết nối USB Serial và nạp thông tin khách hàng.                                          | ⚠️ Hardware & FSM Bridge     |
+| `components/index.ts`               | Barrel File gom và re-export toàn bộ components đo đạc.                                                                                         | ❌ Barrel Re-export          |
+| `hooks/index.ts`                    | Barrel File gom và re-export toàn bộ measurement hooks.                                                                                         | ❌ Barrel Re-export          |
+| `index.ts`                          | Root Feature Barrel File re-export cho callers ngoài feature.                                                                                   | ❌ Barrel Re-export          |
 
 ---
 
 ## 2. Các Quyết Định Đã Chốt & Lý Giải Kỹ Thuật (HOW & WHY)
 
-1. **Hiển thị Mã QR Không Viền Khung Rườm Rà:**
+1. **Bộ Đếm Thời Gian Độc Lập Cho Từng Bước (Per-Step Countdown Timers):**
+   - **Bước 0 (Huyết áp)**: `60s`
+   - **Bước 1 (InBody)**: `90s`
+   - **Bước 2 (Kết quả)**: `90s`
+   - Khi thiết bị bắt đầu đo (`status === 'measuring'`), bộ đếm đếm ngược tự động **tạm dừng và ẩn đi** để tránh gây áp lực cho người khám. Ở bước Kết quả, bộ đếm chạy liên tục 90s để đảm bảo quyền riêng tư và tự động dọn dẹp dữ liệu về màn hình chờ.
+2. **Màn Hình Quét Sinh Học InBody (Laser Scan over SvgDetailedBody):**
+   - Thay thế overlay cũ bằng màn hình quét sinh học chuyên biệt: Mô hình người `SvgDetailedBody` kết hợp tia laser đỏ `LinearGradient` chạy quét lên xuống liên tục bằng GPU Reanimated.
+3. **Phóng To Cỡ Chữ Chuẩn Kiosk Touch (+100%):**
+   - Toàn bộ tiêu đề bước (`text-2xl font-black`) và mô tả thao tác (`text-lg font-bold`) được tăng gấp đôi kích thước giúp người dùng đọc rõ ràng từ khoảng cách đứng khám 1m.
+4. **Hiển thị Mã QR Không Viền Khung Rườm Rà:**
    - Mã QR kết quả truy xuất phiên khám sử dụng `react-native-qrcode-svg` (`SvgQrCode`) đặt trong ô nền trắng `rounded-xl`, hỗ trợ quét nhanh bằng Camera điện thoại, Zalo hoặc VNeID.
-2. **Loại Bỏ Lỗi Android SVG Arrowhead Marker Crash:**
+5. **Loại Bỏ Lỗi Android SVG Arrowhead Marker Crash:**
    - Không dùng `marker-end` hay `orient="auto-start-reverse"` của SVG (gây lỗi `java.lang.NumberFormatException` trên Android Native SVG). Toàn bộ đường chỉ dẫn vùng cơ mỡ sử dụng các thẻ `<Line>` tọa độ chuẩn.
-3. **Quản lý Hết Giờ & Bảo Mật Privacy 60s:**
-   - Màn hình kết quả liên kết với bộ đếm ngược 60 giây. Khi bấm **HOÀN TẤT**, hệ thống tự động xóa sạch dữ liệu tạm (`resetSession()`) và phát âm thanh cảm ơn trước khi quay về màn hình chờ (`idle`).
 
 ---
 
