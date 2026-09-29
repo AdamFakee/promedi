@@ -8,7 +8,7 @@ import { useMachine } from '@xstate/react'
 import { useEffect, useMemo } from 'react'
 
 export function useBpMeasurement(isActive: boolean) {
-  const { completeBp } = useHealthSession()
+  const { completeBp, resetSession } = useHealthSession()
   const { replaceTo } = useAppNavigation()
 
   // Khởi tạo BpbioClient và machine đồng bộ (synchronously)
@@ -44,6 +44,7 @@ export function useBpMeasurement(isActive: boolean) {
           }
         },
         onConnectionError: ({ context }) => {
+          resetSession()
           // 3. Nếu kết nối thất bại -> Đá qua màn hình lỗi
           const errMsg = context.errorMessage || 'Lỗi kết nối máy huyết áp không rõ nguyên nhân.'
           replaceTo('KIOSK_HARDWARE_ERROR', {

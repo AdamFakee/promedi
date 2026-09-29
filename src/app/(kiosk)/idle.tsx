@@ -19,7 +19,7 @@ const videoSource = require('@/assets/video-intro.mp4')
 export default function KioskIdleRoute() {
   const isFocused = useIsFocused()
   const identModalRef = useRef<IdentificationModalRef>(null)
-  const { startSession, submitIdentification } = useHealthSession()
+  const { startSession, submitIdentification, resetSession } = useHealthSession()
   const { navigateTo } = useAppNavigation()
   const [testModalVisible, setTestModalVisible] = useState(false)
 
@@ -31,10 +31,11 @@ export default function KioskIdleRoute() {
   useEffect(() => {
     if (isFocused) {
       player.play()
+      resetSession()
     } else {
       player.pause()
     }
-  }, [player, isFocused])
+  }, [player, isFocused, resetSession])
 
   // Lắng nghe sự kiện quẹt thẻ NFC tại màn hình Idle (Chờ)
   useEffect(() => {
@@ -140,7 +141,7 @@ export default function KioskIdleRoute() {
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={handleStartSession}
-              className="rounded-full bg-[#E91E63] px-16 py-6 shadow-2xl shadow-pink-600/60"
+              className="rounded-full bg-primary px-16 py-6 shadow-2xl shadow-pink-600/60"
             >
               <Text className="text-3xl font-black tracking-wider text-white">Bắt đầu</Text>
             </TouchableOpacity>

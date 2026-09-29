@@ -13,24 +13,35 @@ import {
   WaveBackground,
 } from '@/shared/components/ui'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useIsFocused } from '@react-navigation/native'
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function KioskMeasureRoute() {
+  const isFocused = useIsFocused()
   const { state, context } = useHealthSession()
   const [overrideStep, setOverrideStep] = React.useState<number | null>(null)
 
-  const currentStep = overrideStep ?? (state === 'measureInBody' ? 1 : state === 'summary' ? 2 : 0)
+  const activeMeasureStep =
+    state === 'measureBp' ? 0 : state === 'measureInBody' ? 1 : state === 'summary' ? 2 : null
 
-  // Automatically trigger Voice Guidance prompt when navigating/stepping through measurement workflow
-  useVoiceGuidance({ currentStep })
+  const currentStep = overrideStep ?? activeMeasureStep ?? 0
+  const isMeasuringActive = isFocused && activeMeasureStep !== null
 
-  // Khởi tạo logic đo Huyết áp khi ở Step 0
-  const bpState = useBpMeasurement(currentStep === 0)
+  // Automatically trigger Voice Guidance prompt only when active on measurement screen and not in idle
+  useVoiceGuidance({
+    currentStep: activeMeasureStep !== null ? currentStep : undefined,
+    enabled: isMeasuringActive,
+  })
 
-  // Khởi tạo logic đo InBody khi ở Step 1
-  const inbodyState = useInBodyMeasurement(currentStep === 1)
+  // Khởi tạo logic đo Huyết áp khi ở Step 0 VÀ state thực sự là measureBp
+  const bpState = useBpMeasurement(isFocused && currentStep === 0 && state === 'measureBp')
+
+  // Khởi tạo logic đo InBody khi ở Step 1 VÀ state thực sự là measureInBody
+  const inbodyState = useInBodyMeasurement(
+    isFocused && currentStep === 1 && state === 'measureInBody',
+  )
 
   return (
     <View className="relative flex-1 bg-white">

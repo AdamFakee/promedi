@@ -17,7 +17,15 @@ export const healthSessionMachine = setup({
     events: {} as HealthSessionEvent,
   },
   actions: {
-    resetContext: assign(() => DEFAULT_CONTEXT),
+    resetContext: assign(() => ({
+      sessionId: null,
+      customer: null,
+      selectedServices: ['ALL'] as HealthSessionContext['selectedServices'],
+      bpResults: null,
+      inBodyResults: null,
+      secondsRemaining: 60,
+      error: null,
+    })),
     setCustomer: assign(({ event }) => {
       if (event.type !== 'SUBMIT_IDENTIFICATION') return {}
       return {
@@ -29,6 +37,10 @@ export const healthSessionMachine = setup({
           heightCm: event.payload.heightCm,
           gender: event.payload.gender,
         },
+        bpResults: null,
+        inBodyResults: null,
+        secondsRemaining: 60,
+        error: null,
       }
     }),
     setServices: assign(({ event }) => {
@@ -58,11 +70,27 @@ export const healthSessionMachine = setup({
   id: 'healthSession',
   initial: 'idle',
   context: DEFAULT_CONTEXT,
+  on: {
+    RESET_SESSION: {
+      target: '.idle',
+      actions: 'resetContext',
+    },
+    START_SESSION: {
+      target: '.identification',
+      actions: 'resetContext',
+    },
+    SUBMIT_IDENTIFICATION: {
+      target: '.measureBp',
+      actions: 'setCustomer',
+    },
+  },
   states: {
     idle: {
+      entry: 'resetContext',
       on: {
         START_SESSION: {
           target: 'identification',
+          actions: 'resetContext',
         },
         SUBMIT_IDENTIFICATION: {
           target: 'measureBp',

@@ -73,10 +73,11 @@ export class FrameCodec {
       // Chuyển đổi byte data sang chuỗi ASCII
       const rawString = dataBytes.map((b) => String.fromCharCode(b)).join('')
 
-      // Cắt mảng trường dữ liệu theo ký tự phân cách 0x1B (ESC)
+      // Cắt mảng trường dữ liệu theo ký tự phân cách 0x1B (ESC) hoặc 0x00 (NULL)
       const fields = rawString
-        .split(String.fromCharCode(ESC))
+        .split(/[\x1B\x00]/)
         .filter((f, idx, arr) => idx < arr.length - 1 || f.length > 0)
+        .map((f) => f.replace(/\0/g, '').trim())
 
       frames.push({ command, fields })
 

@@ -9,7 +9,7 @@ import { useMachine } from '@xstate/react'
 import { useEffect, useMemo } from 'react'
 
 export function useInBodyMeasurement(isActive: boolean) {
-  const { context, completeInBody } = useHealthSession()
+  const { context, completeInBody, resetSession } = useHealthSession()
   const { replaceTo } = useAppNavigation()
 
   // Khởi tạo InBodyClient với USB Serial transport (InBody 260S kết nối qua USB Serial 19200 baud)
@@ -39,6 +39,7 @@ export function useInBodyMeasurement(isActive: boolean) {
           voicePlayerService.speak('INBODY_CONTACT_ERROR')
         },
         onConnectionError: ({ context: machineCtx }) => {
+          resetSession()
           // 3. Nếu kết nối thất bại -> Đá qua màn hình lỗi
           replaceTo('KIOSK_HARDWARE_ERROR', {
             error: 'Lỗi kết nối máy InBody: ' + (machineCtx.lastErrorCode || 'UNKNOWN_ERROR'),

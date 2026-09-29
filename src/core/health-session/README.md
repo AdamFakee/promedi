@@ -45,6 +45,10 @@ Mô-đun Core Layer 2 chịu trách nhiệm quản lý Máy trạng thái XState
    - Thời gian chờ 3s cho phép: (1) giọng nói thông báo phát xong, (2) khách hàng nhìn thấy màn hình kết quả trước khi nhảy bước.
 3. **60s Privacy Timeout Auto Reset (BR-PRIVACY-01)**:
    - State `summary` tự động đếm lùi 60s và xóa sạch dữ liệu phiên khám khi rảnh rỗi.
+4. **Root Event Handlers & Tự Phục Hồi (ADR-SESSION-03)**:
+   - Các sự kiện `RESET_SESSION`, `START_SESSION`, `SUBMIT_IDENTIFICATION` được đặt tại cấp Root của `healthSessionMachine`.
+   - Bất kể máy đang ở trạng thái nào (hoàn tất, bị hủy giữa chừng hoặc gặp lỗi phần cứng), khi người dùng mới bắt đầu hoặc quẹt thẻ, FSM tự động dọn sạch rác phiên cũ và đưa về đúng **Bước 0: Đo Huyết Áp (`measureBp`)**, loại bỏ hoàn toàn lỗi kẹt lại bước InBody.
+   - Màn hình `hardware-error.tsx` tuân thủ nguyên tắc **Pure Presentation View** (không can thiệp vào business logic reset).
 
 ---
 

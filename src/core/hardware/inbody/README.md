@@ -49,13 +49,16 @@ Mô-đun này chịu trách nhiệm điều khiển và giao tiếp với máy p
 6. **UNLOCK-first khi vào màn đo (ADR-INBODY-01)**: Khi Kiosk bắt đầu phiên đo mới, state `locking` gửi **UNLOCK `'2'`** (thay vì LOCK `'1'`). Lý do: InBody 260S tự động quay về trạng thái LOCK (`'4'`) sau mỗi lượt đo hoặc khi phiên cũ chưa được dọn dẹp. Gửi UNLOCK trước đảm bảo cảm biến cân hoạt động và khách hàng có thể bước lên. LOCK `'1'` chỉ xảy ra khi rời màn đo (`lockingThenDisconnect`) hoặc sau lỗi (`relockingError`) để bảo mật thiết bị.
 7. **getDeviceKey từ bindingStore**: Machine nhận `getDeviceKey: () => Promise<string | undefined>` thay vì hardcode config — cho phép resolve `deviceKey` USB Serial động từ `BindingStore` (MMKV) lúc runtime, tương tự pattern của `bpbio-session.machine`.
 8. **3s Delay sau khi đo xong**: `onMeasurementCompleted` action trong `use-inbody-measurement.ts` chờ 3 giây trước khi dispatch `completeInBody` để giọng nói hướng dẫn phát xong và khách hàng kịp nhìn thấy màn hình hoàn tất.
+9. **Sequential Async Poller (Tránh Race Condition Mutex)**: Thay thế `setInterval` bằng vòng lặp tuần tự bất đồng bộ `pollLoop` (gọi lệnh kế tiếp qua `setTimeout` sau khi lượt trước đã hoàn tất). Điều này triệt tiêu xung đột Half-Duplex Mutex Lock khi InBody phản hồi chậm (~450-550ms), loại bỏ hoàn toàn lỗi văng sang màn hình lỗi `KIOSK_HARDWARE_ERROR` giả.
+10. **Sanitize NULL Byte (`0x00`) trong FrameCodec**: Gói tin STATUS thực tế từ phần cứng có dạng `02 63 30 00 03`. `FrameCodec` hỗ trợ phân cách trường bằng regex `[\x1B\x00]` và làm sạch ký tự `\0` + `.trim()` để khớp chuẩn với `STATUS_CODE`.
+11. **Safety Guard `MEASURING` trong `waitingForWeight`**: Nếu máy InBody bắt đầu quét BIA sớm trước khi Kiosk kịp chuyển bước, State Machine tự động chuyển thẳng sang state `measuring` và ngắt voice hướng dẫn.
 
 ---
 
 ## 3. Hướng Dẫn Kiểm Thử (Testing Commands)
 
 ```bash
-# Chạy toàn bộ 6 Test Suites (26 Unit Tests) của InBody SDK
+# Chạy toàn bộ 7 Test Suites (30 Unit Tests) của InBody SDK
 npx jest src/core/hardware/inbody/__tests__
 
 # Kiểm tra TypeScript strict mode (0 Errors)

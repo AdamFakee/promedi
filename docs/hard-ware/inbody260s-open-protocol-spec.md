@@ -85,10 +85,10 @@ Mọi gói tin gửi (Request) và nhận (Response) giữa Host và InBody 260S
 
 ### 4.1 Lệnh STATUS (`0x63`)
 
-Dùng để Polling (Dò hỏi định kỳ) trạng thái máy InBody phục vụ điều phối FSM và cập nhật UI Kiosk.
+Dùng để Polling (Dò hỏi định kỳ tuần tự) trạng thái máy InBody phục vụ điều phối FSM và cập nhật UI Kiosk.
 
 - **Request (Host ➔ InBody)**: `02 63 03`
-- **Response (InBody ➔ Host)**: `02 63 [DATA] 1B 03`
+- **Response (InBody ➔ Host)**: `02 63 [DATA] 1B 03` hoặc `02 63 [DATA] 00 03` _(Thực tế phần cứng trả về byte NULL `0x00` kết thúc chuỗi DATA)_
 
 #### Bảng giá trị DATA trả về:
 
@@ -99,9 +99,9 @@ Dùng để Polling (Dò hỏi định kỳ) trạng thái máy InBody phục v�
 |        `32`        |    `'2'`    | Measuring status                            | Máy đang quét dòng điện sinh học BIA. Host hiển thị loading 0-100%.     |
 |        `33`        |    `'3'`    | Measure completed status                    | Phân tích xong. Host dừng polling STATUS và gửi lệnh `RESULT` (`0x64`). |
 |        `34`        |    `'4'`    | Lock status (AutoLock)                      | Máy đang ở chế độ Khóa bàn phím/màn hình.                               |
-|        `35`        |    `'5'`    | Error status                                | Phát sinh lỗi dữ liệu đầu vào. Kèm theo mã lỗi phân cách bởi `1B`.      |
+|        `35`        |    `'5'`    | Error status                                | Phát sinh lỗi dữ liệu đầu vào. Kèm theo mã lỗi phân cách bởi `1B`/`00`. |
 
-#### Các mã lỗi đi kèm STATUS `35` (`02 63 35 1B [ERR] 1B 03`):
+#### Các mã lỗi đi kèm STATUS `35` (`02 63 35 1B [ERR] 1B 03` hoặc `02 63 35 00 [ERR] 00 03`):
 
 - **Lỗi Giới tính (Gender Error - 1)**: `02 63 35 1B 31 1B 03` (Mã ASCII `'1'` = `0x31`)
 - **Lỗi Chiều cao (Height Error - 2)**: `02 63 35 1B 32 1B 03` (Mã ASCII `'2'` = `0x32`)
@@ -322,11 +322,11 @@ sequenceDiagram
 
 ## 🛡️ 6. Xử Lý Ngoại Lệ & Quy Tắc An Toàn (Error & Timeout Handling)
 
-1. **Timeout Polling**: Nếu gửi lệnh Request quá 3 lần (mỗi lần 500ms) mà không nhận được Byte ETX (`0x03`), Host phải tự động kích hoạt ngắt kết nối và phát âm thanh thông báo `"Lỗi kết nối máy đo cơ thể"`.
+1. **Sequential Async Poller & Timeout Polling**: Host thực thi vòng lặp polling bất đồng bộ tuần tự (Sequential Async Loop), chỉ gửi câu lệnh tiếp theo sau khi câu lệnh trước đó đã hoàn tất hoặc timeout. Nếu gửi lệnh Request quá **5 lần liên tiếp** (mỗi lần ~1200ms) mà không nhận được Byte ETX (`0x03`), Host kích hoạt ngắt kết nối và phát âm thanh thông báo `"Lỗi kết nối máy đo cơ thể"`.
 2. **Lỗi Thông Số Đầu Vào (STATUS 35)**:
-   - Nếu nhận `02 63 35 1B 31 1B 03`: Báo lỗi Giới tính không hợp lệ.
-   - Nếu nhận `02 63 35 1B 32 1B 03`: Báo lỗi Chiều cao ngoài dải đo cho phép ($50.0 - 250.0$ cm).
-   - Nếu nhận `02 63 35 1B 33 1B 03`: Báo lỗi Tuổi ngoài dải cho phép ($3 - 99$ tuổi).
+   - Nếu nhận `02 63 35 1B 31 1B 03` (hoặc `35 00 31 00`): Báo lỗi Giới tính không hợp lệ.
+   - Nếu nhận `02 63 35 1B 32 1B 03` (hoặc `35 00 32 00`): Báo lỗi Chiều cao ngoài dải đo cho phép ($50.0 - 250.0$ cm).
+   - Nếu nhận `02 63 35 1B 33 1B 03` (hoặc `35 00 33 00`): Báo lỗi Tuổi ngoài dải cho phép ($3 - 99$ tuổi).
    - **Xử lý**: Host gửi lệnh `SKIP` (`02 73 03`) để làm sạch màn hình lỗi của InBody và đưa người dùng về bước chỉnh sửa thông tin trên Kiosk.
 3. **Mở Khóa An Toàn Khi Thoát**:
    - Khi phiên khám kết thúc hoặc timeout 60s hết giờ, Host **BẮT BUỘC** gửi lệnh Unlock (`02 6C 30 1B 03` hoặc `02 6C 32 1B 03`) để đảm bảo thiết bị không bị treo ở trạng thái khóa cố định cho lượt sử dụng tiếp theo.

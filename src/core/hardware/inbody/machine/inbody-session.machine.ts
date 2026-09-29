@@ -102,7 +102,7 @@ export const inbodySessionMachine = setup({
       },
     ),
 
-    /** Actor Polling STATUS định kỳ 500ms */
+    /** Actor Polling STATUS định kỳ tuần tự (Sequential Async Poller) */
     statusPoller: fromCallback(
       ({
         sendBack,
@@ -111,26 +111,48 @@ export const inbodySessionMachine = setup({
         sendBack: (event: InBodyMachineEvent) => void
         input: { client: InBodyMachineContext['client'] }
       }) => {
+        let isRunning = true
         let noEtxCount = 0
 
-        const interval = setInterval(async () => {
+        const pollLoop = async () => {
+          if (!isRunning) return
+
           try {
             const status = await input.client.pollStatusOnce()
+            if (!isRunning) return
+
             noEtxCount = 0 // Reset đếm lỗi khi nhận thành công
             sendBack({
               type: 'STATUS_UPDATE',
               status: status.code,
               errorCode: status.errorCode,
             })
-          } catch {
-            noEtxCount++
-            if (noEtxCount >= 3) {
-              sendBack({ type: 'TRANSPORT_TIMEOUT' })
+          } catch (err: unknown) {
+            if (!isRunning) return
+
+            const errorMessage = err instanceof Error ? err.message : String(err)
+            const isMutexError = errorMessage.includes('bận xử lý')
+
+            // Bỏ qua lỗi Mutex lock tạm thời nếu có
+            if (!isMutexError) {
+              noEtxCount++
+              if (noEtxCount >= 5) {
+                sendBack({ type: 'TRANSPORT_TIMEOUT' })
+                return
+              }
             }
           }
-        }, 500)
 
-        return () => clearInterval(interval)
+          if (isRunning) {
+            setTimeout(pollLoop, 500)
+          }
+        }
+
+        pollLoop()
+
+        return () => {
+          isRunning = false
+        }
       },
     ),
   },
@@ -217,6 +239,11 @@ export const inbodySessionMachine = setup({
           {
             guard: ({ event }) => event.status === STATUS_CODE.WEIGHT_DONE_INPUT_INFO,
             target: 'sendingInfo',
+          },
+          {
+            guard: ({ event }) => event.status === STATUS_CODE.MEASURING,
+            target: 'measuring',
+            actions: 'onMeasuringStart',
           },
           {
             guard: ({ event }) => event.status === STATUS_CODE.ERROR,

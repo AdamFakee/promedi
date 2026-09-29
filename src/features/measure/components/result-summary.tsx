@@ -13,14 +13,14 @@ export interface ResultSummaryProps {
 }
 
 export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
-  const { context, resetSession } = useHealthSession()
-  const { navigateTo } = useAppNavigation()
+  const { context } = useHealthSession()
+  const { replaceTo } = useAppNavigation()
 
   const handleFinish = React.useCallback(() => {
+    voicePlayerService.stop()
     voicePlayerService.speak('SESSION_TERMINATED')
-    resetSession()
-    navigateTo('KIOSK_IDLE')
-  }, [resetSession, navigateTo])
+    replaceTo('HOME')
+  }, [replaceTo])
 
   const [countdown, setCountdown] = React.useState(60)
 

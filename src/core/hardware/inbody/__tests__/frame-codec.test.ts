@@ -80,5 +80,15 @@ describe('FrameCodec', () => {
       expect(frames).toHaveLength(1)
       expect(frames[0].command).toBe(0x63)
     })
+
+    it('bóc tách chính xác frame chứa byte NULL (0x00) từ InBody thực tế', () => {
+      // Thực tế InBody trả về STATUS '0': [0x02, 0x63, 0x30, 0x00, 0x03]
+      const chunk = new Uint8Array([STX, 0x63, 0x30, 0x00, ETX])
+      const frames = codec.feed(chunk)
+
+      expect(frames).toHaveLength(1)
+      expect(frames[0].command).toBe(0x63)
+      expect(frames[0].fields).toEqual(['0'])
+    })
   })
 })

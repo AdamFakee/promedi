@@ -207,9 +207,9 @@ graph TD
 - **E04.1 - Lỗi cùi chỏ / Cử động (`BP_ELBOW_OFF` / `BP_MOTION`)**:
   - Nhấp nháy cảnh báo đỏ trên màn hình.
   - _Voice prompt_: **"Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến. Quý khách vui lòng đẩy tay sâu hơn và ngồi yên."**
-- **E04.2 - Lỗi mất kết nối cổng COM / Timeout quá 3 lần (`CONNECTION_ERROR`)**:
-  - Hệ thống tự động chuyển sang **Màn hình Lỗi Kết Nối (Hardware Error)** để không kẹt luồng.
-  - Kích hoạt đếm ngược 30s tự động quay về Màn hình 1 (Home).
+- **E04.2 - Lỗi mất kết nối cổng COM / Timeout (`CONNECTION_ERROR`)**:
+  - Hook đo đạc tự động gọi `resetSession()` để xóa phiên tạm, sau đó chuyển sang **Màn hình Lỗi Kết Nối (Hardware Error)**.
+  - Màn hình lỗi tuân thủ nguyên tắc Pure Presentation UI: Đếm ngược 30s hoặc bấm "Trở Về" thì `replaceTo('HOME')`.
   - **Kiosk Admin Gesture**: Kỹ thuật viên dùng 3 ngón tay chạm liên tiếp 3 lần vào màn hình để hiển thị log lỗi chi tiết (bình thường ẩn để tối giản UI cho người dùng).
 
 ---
@@ -226,13 +226,13 @@ graph TD
 
 #### Luồng sự kiện chính (Basic Flow - Auto-pilot Protocol):
 
-1. Hệ thống tự động thiết lập kết nối TCP Socket tới máy InBody, gửi lệnh **Dọn dẹp (SKIP)** để ép máy thoát khỏi các màn hình lỗi cũ (nếu có), sau đó gửi lệnh **Khóa máy (LOCK)** để vô hiệu hóa phím bấm cứng.
+1. Hệ thống tự động thiết lập kết nối USB Serial/TCP Socket tới máy InBody, gửi lệnh **Dọn dẹp (SKIP)** để ép máy thoát khỏi các màn hình lỗi cũ (nếu có), sau đó gửi lệnh **Mở khóa (UNLOCK '2')** để cảm biến cân nhận diện người bước lên.
 2. Màn hình dọc Kiosk hiển thị giao diện đo InBody:
    - **Header Top**: Icon các bước đo (InBody đang active sáng đèn).
    - **Khung Video & Chữ hướng dẫn**: Video đứng InBody + Chữ lưu ý gọn: _"Lưu ý: Tháo giày/vớ, đứng khớp điện cực chân, cầm 2 tay nắm dang 15 độ, giữ thả lỏng."_
 3. Hệ thống phát giọng nói hướng dẫn (`INBODY_START`):
    - _Voice prompt_: **"Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày, đứng lên máy InBody và cầm hai tay nắm."**
-4. Kiosk liên tục **Polling trạng thái (STATUS 500ms)** ngầm. Khi khách bước lên cân, InBody chốt cân nặng (Status `1`), Kiosk lập tức **tự động đẩy gói Thông tin Định danh (INFO)** xuống máy mà không cần khách thao tác.
+4. Kiosk liên tục **Polling trạng thái tuần tự bất đồng bộ (Sequential Async Polling)** ngầm. Khi khách bước lên cân, InBody chốt cân nặng (Status `1`), Kiosk lập tức **tự động đẩy gói Thông tin Định danh (INFO)** xuống máy mà không cần khách thao tác.
 5. InBody tiến hành quét BIA (Status `2`). Kiosk tự động **ngắt mọi âm thanh hướng dẫn trước đó** để không đè âm báo tít tít của máy vật lý, UI hiển thị progress "Đang đo...".
 6. InBody báo đo xong (Status `3`), Kiosk tự động gửi lệnh **Rút dữ liệu (RESULT)**. UI nhảy 100% progress.
 7. Màn hình hiển thị tóm tắt chỉ số InBody Score, Cơ, Mỡ.
@@ -244,7 +244,7 @@ graph TD
   - Nhấp nháy cảnh báo trên khung hướng dẫn.
   - _Voice prompt_: **"Cảnh báo: Chưa nhận đủ tiếp xúc điện cực. Quý khách vui lòng cầm chắc thanh nắm và đứng yên."**
 - **E05.2 - Lỗi mất kết nối cổng COM / Timeout (`CONNECTION_ERROR`)**:
-  - Tương tự E04.2, hệ thống chuyển sang **Màn hình Lỗi Kết Nối**. Hỗ trợ đếm ngược 30s về Home và Kiosk Admin Gesture.
+  - Tương tự E04.2, tự động gọi `resetSession()` và chuyển sang **Màn hình Lỗi Kết Nối**. Hỗ trợ đếm ngược 30s về Home và Kiosk Admin Gesture.
 
 ---
 
@@ -286,9 +286,8 @@ graph TD
 1. Kích hoạt đếm lùi 60s tại Màn 6.
 2. Nếu chạm bất kỳ điểm nào trên màn hình $\rightarrow$ Reset timer về **60 giây**.
 3. Nếu chạm nút **"KẾT THÚC"** hoặc đếm về **0s**:
-   - _Voice prompt_: **"Cảm ơn quý khách đã sử dụng dịch vụ. Chúc bạn một ngày tốt lành."**
-   - Xóa toàn bộ dữ liệu tạm thời của phiên.
-   - Chuyển lập tức về **Màn hình 1 (Video chờ)**.
+   - Dừng mọi voice cue cũ đang phát, phát _Voice prompt_: **"Cảm ơn quý khách đã sử dụng dịch vụ. Chúc bạn một ngày tốt lành."** (`SESSION_TERMINATED`).
+   - Chuyển lập tức về **Màn hình 1 (Video chờ)** bằng `replaceTo('HOME')`. Màn hình Idle khi focus tự động kích hoạt `resetSession()`.
 
 ---
 

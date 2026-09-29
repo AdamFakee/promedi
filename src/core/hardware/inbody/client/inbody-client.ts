@@ -58,9 +58,9 @@ export class InBodyClient {
    * Hỏi trạng thái thiết bị 1 lần (dùng cho Polling Actor).
    */
   async pollStatusOnce(): Promise<InBodyStatus> {
-    const frame = await this.sendAndWaitFrame(buildStatusCommand(this.codec), 800)
-    const code = frame.fields[0] ?? ''
-    const errorCode = frame.fields[1]
+    const frame = await this.sendAndWaitFrame(buildStatusCommand(this.codec), 1200)
+    const code = (frame.fields[0] ?? '').replace(/\0/g, '').trim()
+    const errorCode = frame.fields[1] ? frame.fields[1].replace(/\0/g, '').trim() : undefined
     return { code, errorCode }
   }
 
@@ -68,7 +68,7 @@ export class InBodyClient {
    * Rút mảng dữ liệu kết quả đo BIA và parse sang InBodyResult.
    */
   async requestResult(): Promise<InBodyResult> {
-    const frame = await this.sendAndWaitFrame(buildResultCommand(this.codec), 2500)
+    const frame = await this.sendAndWaitFrame(buildResultCommand(this.codec), 5000)
     return mapResultFields(frame.fields)
   }
 
