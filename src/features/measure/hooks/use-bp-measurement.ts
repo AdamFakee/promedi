@@ -1,0 +1,94 @@
+import { useEffect, useMemo } from 'react'
+import { useMachine } from '@xstate/react'
+import { BpbioClient, bpbioSessionMachine } from '@/core/hardware/bpbio'
+import { createTransport } from '@/core/hardware/transport/transport-factory'
+import { useHealthSession } from '@/core/health-session/hooks/use-health-session'
+import { voicePlayerService } from '@/core/voice-engine/voice-player.service'
+import { useAppNavigation } from '@/shared/hooks/use-app-navigation'
+import { bindingStore } from '@/core/hardware/resolver'
+
+export function useBpMeasurement(isActive: boolean) {
+  const { completeBp } = useHealthSession()
+  const { replaceTo } = useAppNavigation()
+
+  // Khởi tạo BpbioClient và machine đồng bộ (synchronously)
+  const client = useMemo(() => {
+    const transport = createTransport('usb-serial')
+    return new BpbioClient(transport)
+  }, [])
+
+  const [state, send] = useMachine(
+    bpbioSessionMachine.provide({
+      actions: {
+        onListeningStart: () => {
+          voicePlayerService.speak('BP_START')
+        },
+        onMeasuringStart: () => {
+          // 1. Khi máy bắt đầu đo -> Ngắt ngay voice hướng dẫn nếu đang phát
+          voicePlayerService.stop()
+        },
+        onMeasurementCompleted: ({ context }) => {
+          voicePlayerService.speak('BP_COMPLETE')
+          // 2. Khi máy đo xong -> Lưu kết quả vào HealthSession
+          if (context.result) {
+            completeBp({
+              systolic: context.result.systolic!,
+              diastolic: context.result.diastolic!,
+              pulse: context.result.pulse!,
+            })
+          }
+        },
+        onErrorAlert: ({ event }) => {
+          // Nếu thiết bị báo lỗi nhúc nhích tay / rụt cùi chỏ
+          if (event.type === 'BP_EVENT' && event.payload.type === 'DEVICE_ERROR') {
+            voicePlayerService.speak('BP_ELBOW_OFF')
+          }
+        },
+        onConnectionError: ({ context }) => {
+          // 3. Nếu kết nối thất bại -> Đá qua màn hình lỗi
+          const errMsg = context.errorMessage || 'Lỗi kết nối máy huyết áp không rõ nguyên nhân.'
+          replaceTo('KIOSK_HARDWARE_ERROR', {
+            error: errMsg,
+            device: 'bpbio',
+          })
+        },
+      },
+    }),
+    {
+      input: {
+        client,
+        getDeviceKey: async () => {
+          const bindings = await bindingStore.getAll()
+          return bindings.find((b) => b.role === 'bpbio')?.deviceKey
+        },
+      },
+    },
+  )
+
+  // Quản lý lifecycle kết nối Serial dựa theo prop isActive
+  useEffect(() => {
+    if (!isActive) return
+
+    let mounted = true
+    send({ type: 'START' })
+
+    return () => {
+      mounted = false
+      client.disconnect()
+    }
+  }, [isActive, client, send])
+
+  const handleReset = () => {
+    send({ type: 'RESET' })
+  }
+
+  let status: 'idle' | 'measuring' | 'error' | 'completed' = 'idle'
+  if (state.matches({ active: 'measuring' })) status = 'measuring'
+  if (state.matches({ active: 'error' })) status = 'error'
+  if (state.matches({ active: 'completed' })) status = 'completed'
+
+  return {
+    status,
+    handleReset,
+  }
+}

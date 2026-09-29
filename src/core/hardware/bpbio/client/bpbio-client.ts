@@ -13,7 +13,7 @@ import type { DeviceTransport, TransportConfig } from '../../transport/transport
 import { buildBpbioCommandFrame } from '../protocol/commands'
 import { COMMANDS } from '../protocol/constants'
 import { BpbioFrameCodec, type BpbioDataFrame } from '../protocol/frame-codec'
-import type { BloodPressureResult } from '../types/bpbio.types'
+import type { BloodPressureResult, BpbioEvent } from '../types/bpbio.types'
 
 export class BpbioClient {
   /** Frame Codec riêng của BPBIO750, không dùng chung với InBody */
@@ -22,16 +22,21 @@ export class BpbioClient {
   private pending: Partial<BloodPressureResult> = {}
   /** Tập hợp các callback lắng nghe gói dữ liệu mới */
   private onFrameCallbacks = new Set<(frame: BpbioDataFrame) => void>()
+  /** Tập hợp các callback lắng nghe sự kiện Broadcast 64-byte */
+  private onEventCallbacks = new Set<(event: BpbioEvent) => void>()
   /** Unsubscribe listener từ transport */
   private unsubscribeTransportData: (() => void) | null = null
 
   constructor(private transport: DeviceTransport) {
     // Đăng ký lắng nghe luồng byte từ Transport và đẩy vào FrameCodec
     this.unsubscribeTransportData = this.transport.onData((chunk) => {
-      const frames = this.codec.feed(chunk)
+      const { frames, events } = this.codec.feedWithEvents(chunk)
       for (const frame of frames) {
         this.applyFrame(frame)
         this.onFrameCallbacks.forEach((cb) => cb(frame))
+      }
+      for (const event of events) {
+        this.onEventCallbacks.forEach((cb) => cb(event))
       }
     })
   }
@@ -77,6 +82,16 @@ export class BpbioClient {
     this.onFrameCallbacks.add(cb)
     return () => {
       this.onFrameCallbacks.delete(cb)
+    }
+  }
+
+  /**
+   * Đăng ký callback lắng nghe sự kiện Broadcast 64-byte từ máy đo.
+   */
+  onEvent(cb: (event: BpbioEvent) => void): () => void {
+    this.onEventCallbacks.add(cb)
+    return () => {
+      this.onEventCallbacks.delete(cb)
     }
   }
 

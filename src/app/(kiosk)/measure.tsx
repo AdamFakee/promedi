@@ -1,5 +1,10 @@
 import { useHealthSession, useVoiceGuidance } from '@/core'
-import { BpInstruction, InBodyInstruction, ResultSummary } from '@/features/measure'
+import {
+  BpInstruction,
+  InBodyInstruction,
+  ResultSummary,
+  useBpMeasurement,
+} from '@/features/measure'
 import {
   KioskCountdownTimer,
   KioskHeader,
@@ -19,6 +24,9 @@ export default function KioskMeasureRoute() {
 
   // Automatically trigger Voice Guidance prompt when navigating/stepping through measurement workflow
   useVoiceGuidance({ currentStep })
+
+  // Khởi tạo logic đo Huyết áp khi ở Step 0
+  const bpState = useBpMeasurement(currentStep === 0)
 
   return (
     <View className="relative flex-1 bg-white">
@@ -57,7 +65,7 @@ export default function KioskMeasureRoute() {
           {/* 3. Dynamic Measurement Instruction Area */}
           <View className="w-full flex-1 overflow-hidden px-2">
             {currentStep === 0 ? (
-              <BpInstruction />
+              <BpInstruction status={bpState.status} onReset={bpState.handleReset} />
             ) : currentStep === 1 ? (
               <InBodyInstruction />
             ) : (

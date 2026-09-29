@@ -207,6 +207,10 @@ graph TD
 - **E04.1 - Lỗi cùi chỏ / Cử động (`BP_ELBOW_OFF` / `BP_MOTION`)**:
   - Nhấp nháy cảnh báo đỏ trên màn hình.
   - _Voice prompt_: **"Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến. Quý khách vui lòng đẩy tay sâu hơn và ngồi yên."**
+- **E04.2 - Lỗi mất kết nối cổng COM / Timeout quá 3 lần (`CONNECTION_ERROR`)**:
+  - Hệ thống tự động chuyển sang **Màn hình Lỗi Kết Nối (Hardware Error)** để không kẹt luồng.
+  - Kích hoạt đếm ngược 30s tự động quay về Màn hình 1 (Home).
+  - **Kiosk Admin Gesture**: Kỹ thuật viên dùng 3 ngón tay chạm liên tiếp 3 lần vào màn hình để hiển thị log lỗi chi tiết (bình thường ẩn để tối giản UI cho người dùng).
 
 ---
 
@@ -241,6 +245,8 @@ graph TD
 - **E05.1 - Lỗi tiếp xúc / Bàn cân lắc (`INBODY_CONTACT_ERROR` / `INBODY_UNSTABLE`)**:
   - Nhấp nháy cảnh báo trên khung hướng dẫn.
   - _Voice prompt_: **"Cảnh báo: Chưa nhận đủ tiếp xúc điện cực. Quý khách vui lòng cầm chắc thanh nắm và đứng yên."**
+- **E05.2 - Lỗi mất kết nối cổng COM / Timeout (`CONNECTION_ERROR`)**:
+  - Tương tự E04.2, hệ thống chuyển sang **Màn hình Lỗi Kết Nối**. Hỗ trợ đếm ngược 30s về Home và Kiosk Admin Gesture.
 
 ---
 
@@ -290,21 +296,22 @@ graph TD
 
 ## 4. BẢNG MA TRẬN GIỌNG NÓI & SỰ KIỆN MÃ LỖI (VOICE & EXCEPTION MATRIX)
 
-| Màn hình   | Tên sự kiện / Mã lỗi      | Điều kiện kích hoạt                    | Trạng thái UI Kiosk (Màn hình dọc)               | Giọng nói hướng dẫn (Voice Prompt Script)                                                                       |
-| :--------- | :------------------------ | :------------------------------------- | :----------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
-| **Màn 0**  | `ADMIN_ACTIVATION`        | Chưa kích hoạt ứng dụng                | Ô nhập Mã kích hoạt Kiosk                        | _(Không phát - Silent Mode)_                                                                                    |
-| **Màn 1**  | `IDLE_SCREEN`             | Kiosk rảnh rỗi                         | Video loop hướng dẫn toàn màn hình               | _(Không phát - Silent Mode)_                                                                                    |
-| **Màn 2**  | `INVALID_IDENTITY_FORMAT` | Họ tên trống hoặc Số CCCD $\neq 12$ số | Viền đỏ ô nhập, hiển thị thông báo lỗi           | _(Không phát - Silent Mode)_                                                                                    |
-| **Màn 3**  | `SERVICE_SELECTION`       | Chuyển sang Màn hình chọn dịch vụ      | Thẻ chọn InBody, Huyết áp, Chọn tất cả           | _"Mời quý khách chọn các dịch vụ cần đo và nhấn Bắt đầu đo."_                                                   |
-| **Màn 4a** | `BP_START`                | Bắt đầu đo Huyết áp                    | Header icon BP active + Video guide + Bar 0%     | _"Đo huyết áp và nhịp tim. Quý khách vui lòng luồn tay vào vòng đo, tỳ cùi chỏ vào cảm biến và giữ yên."_       |
-| **Màn 4b** | `BP_ELBOW_OFF`            | Cùi chỏ rời cảm biến / Cử động         | Nhấp nháy viền đỏ video hướng dẫn                | _"Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến. Quý khách vui lòng đẩy tay sâu hơn và ngồi yên."_                |
-| **Màn 4c** | `BP_COMPLETE`             | BPBIO 750 hoàn tất đo                  | Bar 100% + Chỉ số SYS/DIA + Nút Tiếp tục         | _"Đã đo xong huyết áp. Mời bạn nhấn Tiếp tục."_                                                                 |
-| **Màn 5a** | `INBODY_START`            | Bắt đầu đo InBody                      | Header icon InBody active + Video guide + Bar 0% | _"Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày, đứng lên máy InBody và cầm hai tay nắm."_              |
-| **Màn 5b** | `INBODY_CONTACT_ERROR`    | Điện cực chưa tiếp xúc đủ              | Nhấp nháy cảnh báo bàn tay/bàn chân              | _"Cảnh báo: Chưa nhận đủ tiếp xúc điện cực. Quý khách vui lòng cầm chắc thanh nắm và đứng yên."_                |
-| **Màn 5c** | `INBODY_COMPLETE`         | InBody hoàn tất phân tích BIA          | Bar 100% + Tóm tắt InBody Score + Nút Tiếp tục   | _"Đã phân tích xong chỉ số cơ thể. Mời bạn nhấn Tiếp tục để xem tổng hợp kết quả."_                             |
-| **Màn 6a** | `SUMMARY_START`           | Vào Màn hình Tổng hợp Kết quả          | Dashboard 3 khối + Mã QR + Count 60s             | _"Quá trình khám sức khỏe đã hoàn tất. Quý khách có thể xem kết quả trên màn hình hoặc quét mã QR để lưu lại."_ |
-| **Màn 6b** | `SUMMARY_TIMEOUT_10S`     | Đồng hồ đếm lùi còn 10s                | Thanh đếm lùi nhấp nháy đỏ                       | _"Màn hình sẽ đóng sau 10 giây nữa. Quý khách có thể chạm vào màn hình nếu cần xem thêm."_                      |
-| **Màn 6c** | `SESSION_TERMINATED`      | Bấm KẾT THÚC hoặc hết 60s              | Xóa sạch phiên khám $\rightarrow$ Quay về Màn 1  | _"Cảm ơn quý khách đã sử dụng dịch vụ. Chúc bạn một ngày tốt lành."_                                            |
+| Màn hình    | Tên sự kiện / Mã lỗi        | Điều kiện kích hoạt                    | Trạng thái UI Kiosk (Màn hình dọc)               | Giọng nói hướng dẫn (Voice Prompt Script)                                                                       |
+| :---------- | :-------------------------- | :------------------------------------- | :----------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| **Màn 0**   | `ADMIN_ACTIVATION`          | Chưa kích hoạt ứng dụng                | Ô nhập Mã kích hoạt Kiosk                        | _(Không phát - Silent Mode)_                                                                                    |
+| **Màn 1**   | `IDLE_SCREEN`               | Kiosk rảnh rỗi                         | Video loop hướng dẫn toàn màn hình               | _(Không phát - Silent Mode)_                                                                                    |
+| **Màn 2**   | `INVALID_IDENTITY_FORMAT`   | Họ tên trống hoặc Số CCCD $\neq 12$ số | Viền đỏ ô nhập, hiển thị thông báo lỗi           | _(Không phát - Silent Mode)_                                                                                    |
+| **Màn 3**   | `SERVICE_SELECTION`         | Chuyển sang Màn hình chọn dịch vụ      | Thẻ chọn InBody, Huyết áp, Chọn tất cả           | _"Mời quý khách chọn các dịch vụ cần đo và nhấn Bắt đầu đo."_                                                   |
+| **Màn 4a**  | `BP_START`                  | Bắt đầu đo Huyết áp                    | Header icon BP active + Video guide + Bar 0%     | _"Đo huyết áp và nhịp tim. Quý khách vui lòng luồn tay vào vòng đo, tỳ cùi chỏ vào cảm biến và giữ yên."_       |
+| **Màn 4b**  | `BP_ELBOW_OFF`              | Cùi chỏ rời cảm biến / Cử động         | Nhấp nháy viền đỏ video hướng dẫn                | _"Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến. Quý khách vui lòng đẩy tay sâu hơn và ngồi yên."_                |
+| **Màn 4c**  | `BP_COMPLETE`               | BPBIO 750 hoàn tất đo                  | Bar 100% + Chỉ số SYS/DIA + Nút Tiếp tục         | _"Đã đo xong huyết áp. Mời bạn nhấn Tiếp tục."_                                                                 |
+| **Màn 5a**  | `INBODY_START`              | Bắt đầu đo InBody                      | Header icon InBody active + Video guide + Bar 0% | _"Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày, đứng lên máy InBody và cầm hai tay nắm."_              |
+| **Màn 5b**  | `INBODY_CONTACT_ERROR`      | Điện cực chưa tiếp xúc đủ              | Nhấp nháy cảnh báo bàn tay/bàn chân              | _"Cảnh báo: Chưa nhận đủ tiếp xúc điện cực. Quý khách vui lòng cầm chắc thanh nắm và đứng yên."_                |
+| **Màn 5c**  | `INBODY_COMPLETE`           | InBody hoàn tất phân tích BIA          | Bar 100% + Tóm tắt InBody Score + Nút Tiếp tục   | _"Đã phân tích xong chỉ số cơ thể. Mời bạn nhấn Tiếp tục để xem tổng hợp kết quả."_                             |
+| **Màn Lỗi** | `HARDWARE_CONNECTION_ERROR` | Rớt cổng kết nối COM / Timeout 3 lần   | Màn hình tối giản "LỖI KẾT NỐI", đếm ngược 30s   | _(Không phát - Silent Mode)_                                                                                    |
+| **Màn 6a**  | `SUMMARY_START`             | Vào Màn hình Tổng hợp Kết quả          | Dashboard 3 khối + Mã QR + Count 60s             | _"Quá trình khám sức khỏe đã hoàn tất. Quý khách có thể xem kết quả trên màn hình hoặc quét mã QR để lưu lại."_ |
+| **Màn 6b**  | `SUMMARY_TIMEOUT_10S`       | Đồng hồ đếm lùi còn 10s                | Thanh đếm lùi nhấp nháy đỏ                       | _"Màn hình sẽ đóng sau 10 giây nữa. Quý khách có thể chạm vào màn hình nếu cần xem thêm."_                      |
+| **Màn 6c**  | `SESSION_TERMINATED`        | Bấm KẾT THÚC hoặc hết 60s              | Xóa sạch phiên khám $\rightarrow$ Quay về Màn 1  | _"Cảm ơn quý khách đã sử dụng dịch vụ. Chúc bạn một ngày tốt lành."_                                            |
 
 ---
 

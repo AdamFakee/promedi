@@ -1,42 +1,88 @@
 /**
- * XState v5 State Machine quản lý phiên đo huyết áp BPBIO750.
+ * XState v5 State Machine quản lý phiên đo huyết áp BPBIO750 ở chế độ Lắng nghe thụ động (Passive Listen).
  *
  * Chức năng:
- * - Quản lý các trạng thái phiên đo: `disconnected` ➔ `connecting` ➔ `ready` ➔ `collectingResult` ➔ `completed` / `deviceError`.
- * - Tích hợp Timeout thu thập 2000ms (`after: 2000`): Tự động phát hiện lỗi sai tư thế / cử động tay ngắt đo giữa chừng để chuyển `deviceError`.
+ * - Mở cổng Serial và lắng nghe Broadcast Event 64-byte từ máy đo.
+ * - Trạng thái: `disconnected` ➔ `connecting` (auto retry x3) ➔ `active.listening` ➔ `active.measuring` ➔ `active.completed` / `active.error`.
+ * - Hỗ trợ auto-retry khi rớt kết nối (`connection_error`).
+ * - Hỗ trợ thao tác `RESET` để dọn dẹp và đo lại dễ dàng.
  *
  * @module src/core/hardware/bpbio/machine/bpbio-session.machine.ts
  */
 
-import { setup, assign, fromCallback } from 'xstate'
+import { assign, fromCallback, fromPromise, setup } from 'xstate'
 import type { BpbioClient } from '../client/bpbio-client'
-import type { BloodPressureResult } from '../types/bpbio.types'
+import type { BloodPressureResult, BpbioEvent } from '../types/bpbio.types'
 
 interface Context {
   client: BpbioClient
+  getDeviceKey: () => Promise<string | undefined>
   result: BloodPressureResult | null
-  collectStartedAt: number | null
+  retryCount: number
+  errorMessage: string | null
 }
+
+type MachineEvent =
+  | { type: 'START' }
+  | { type: 'RETRY' }
+  | { type: 'BP_EVENT'; payload: BpbioEvent }
+  | { type: 'RESET' }
 
 export const bpbioSessionMachine = setup({
   types: {} as {
     context: Context
-    events:
-      | { type: 'CONNECT' }
-      | { type: 'CONNECTED' }
-      | { type: 'ERROR' }
-      | { type: 'START' }
-      | { type: 'FRAME_RECEIVED' }
-      | { type: 'RESET' }
+    events: MachineEvent
     input: {
       client: BpbioClient
+      getDeviceKey: () => Promise<string | undefined>
     }
   },
+  actions: {
+    // Action placeholders for side-effects (âm thanh, điều hướng, lưu data)
+    onListeningStart: () => {},
+    onMeasuringStart: () => {},
+    onMeasurementCompleted: ({ context }: { context: Context }) => {},
+    onErrorAlert: ({ event }: { event: MachineEvent }) => {},
+    onConnectionError: ({ context }: { context: Context }) => {},
+  },
   actors: {
-    // Actor callback theo dõi gói dữ liệu trả về từ BpbioClient
-    frameWatcher: fromCallback(
+    // Actor chạy Promise để mở kết nối thiết bị Serial
+    connector: fromPromise(
+      async ({
+        input,
+      }: {
+        input: { client: BpbioClient; getDeviceKey: () => Promise<string | undefined> }
+      }) => {
+        const deviceKey = await input.getDeviceKey()
+
+        if (!deviceKey) {
+          throw new Error(
+            'Chưa thiết lập được cổng kết nối tới máy Huyết áp! Vui lòng vào màn hình Test Thiết Bị chạy tính năng Dò cổng để kiểm tra.',
+          )
+        }
+
+        console.log('[BP_MACHINE] Kết nối cổng BPBIO với deviceKey:', deviceKey)
+
+        await input.client.connect({
+          type: 'usb-serial',
+          portId: 'bpbio-port',
+          deviceKey,
+          baudRate: 9600,
+        })
+
+        console.log('[BP_MACHINE] Đã CONNECTED thành công')
+        return true
+      },
+    ),
+
+    // Actor callback theo dõi luồng sự kiện Broadcast 64-byte từ máy đo
+    eventWatcher: fromCallback(
       ({ sendBack, input }: { sendBack: any; input: { client: BpbioClient } }) => {
-        return input.client.onFrame(() => sendBack({ type: 'FRAME_RECEIVED' }))
+        const unsubscribe = input.client.onEvent((event) => {
+          console.log('[BP_MACHINE] Nhận event:', event.type)
+          sendBack({ type: 'BP_EVENT', payload: event })
+        })
+        return () => unsubscribe()
       },
     ),
   },
@@ -45,62 +91,140 @@ export const bpbioSessionMachine = setup({
   initial: 'disconnected',
   context: ({ input }) => ({
     client: input.client,
+    getDeviceKey: input.getDeviceKey,
     result: null,
-    collectStartedAt: null,
+    retryCount: 0,
+    errorMessage: null,
   }),
   states: {
     disconnected: {
-      on: { CONNECT: 'connecting' },
+      on: { START: 'connecting' },
     },
     connecting: {
-      on: {
-        CONNECTED: 'ready',
-        ERROR: 'disconnected',
+      invoke: {
+        src: 'connector',
+        input: ({ context }) => ({ client: context.client, getDeviceKey: context.getDeviceKey }),
+        onDone: {
+          target: 'active',
+          actions: assign({ retryCount: 0, errorMessage: null }),
+        },
+        onError: [
+          {
+            guard: ({ context }) => context.retryCount < 3,
+            target: 'waiting_retry',
+            actions: assign({
+              retryCount: ({ context }) => context.retryCount + 1,
+              errorMessage: ({ event }) =>
+                (event.error as Error)?.message || 'Lỗi kết nối không xác định',
+            }),
+          },
+          {
+            target: 'connection_error',
+            actions: assign({
+              errorMessage: ({ event }) =>
+                (event.error as Error)?.message || 'Lỗi kết nối không xác định',
+            }),
+          },
+        ],
       },
     },
-    ready: {
+    waiting_retry: {
+      after: {
+        1000: 'connecting',
+      },
+    },
+    connection_error: {
+      entry: ['onConnectionError'],
       on: {
-        START: {
-          target: 'collectingResult',
-          actions: ({ context }) => {
-            // Gửi lệnh yêu cầu rút kết quả đo
-            context.client.requestResult().catch(() => {})
-          },
+        RETRY: {
+          target: 'connecting',
+          actions: assign({ retryCount: 0, errorMessage: null }),
         },
       },
     },
-    collectingResult: {
-      entry: assign({ collectStartedAt: () => Date.now() }),
+    active: {
+      // Invoke watcher ở scope cha `active` để duy trì lắng nghe liên tục, không bị ngắt quãng khi chuyển state con.
       invoke: {
-        src: 'frameWatcher',
+        src: 'eventWatcher',
         input: ({ context }) => ({ client: context.client }),
       },
-      on: {
-        FRAME_RECEIVED: {
-          // Chỉ chuyển completed khi đã gom đủ cả 3 gói S, D, P
-          guard: ({ context }) => context.client.isResultComplete(),
-          target: 'completed',
-          actions: assign({
-            result: ({ context }) => context.client.consumeResult(),
-          }),
+      initial: 'listening',
+      states: {
+        listening: {
+          entry: ['onListeningStart'],
+          on: {
+            BP_EVENT: [
+              {
+                guard: ({ event }) => event.payload.type === 'START_MEASUREMENT',
+                target: 'measuring',
+              },
+              {
+                // Trường hợp nhận được kết quả hoàn tất trực tiếp
+                guard: ({ event }) => event.payload.type === 'MEASUREMENT_COMPLETED',
+                target: 'completed',
+                actions: assign({
+                  result: ({ context }) => context.client.consumeResult(),
+                }),
+              },
+              {
+                // Các event lỗi hoặc huỷ
+                guard: ({ event }) =>
+                  event.payload.type === 'DEVICE_ERROR' || event.payload.type === 'MANUAL_CANCEL',
+                target: 'error',
+                actions: ({ context }) => context.client.clearPending(),
+              },
+            ],
+          },
         },
-      },
-      // Timeout 2000ms: Nếu di chuyển tay/sai tư thế khiến máy ngắt đo không đủ 3 gói -> Chuyển deviceError
-      after: {
-        2000: {
-          target: 'deviceError',
-          actions: ({ context }) => {
-            context.client.clearPending()
+        measuring: {
+          entry: ['onMeasuringStart'],
+          on: {
+            BP_EVENT: [
+              {
+                guard: ({ event }) => event.payload.type === 'MEASUREMENT_COMPLETED',
+                target: 'completed',
+                actions: assign({
+                  result: ({ context }) => context.client.consumeResult(),
+                }),
+              },
+              {
+                guard: ({ event }) =>
+                  event.payload.type === 'DEVICE_ERROR' || event.payload.type === 'MANUAL_CANCEL',
+                target: 'error',
+                actions: ({ context }) => context.client.clearPending(),
+              },
+            ],
+            RESET: {
+              target: 'listening',
+              actions: ({ context }) => {
+                context.client.clearPending()
+              },
+            },
+          },
+        },
+        error: {
+          entry: ['onErrorAlert'],
+          on: {
+            RESET: {
+              target: 'listening',
+              actions: ({ context }) => {
+                context.client.clearPending()
+              },
+            },
+          },
+        },
+        completed: {
+          entry: ['onMeasurementCompleted'],
+          on: {
+            RESET: {
+              target: 'listening',
+              actions: assign({
+                result: null,
+              }),
+            },
           },
         },
       },
-    },
-    deviceError: {
-      entry: ({ context }) => context.client.clearPending(),
-      always: 'ready',
-    },
-    completed: {
-      on: { RESET: 'ready' },
     },
   },
 })
