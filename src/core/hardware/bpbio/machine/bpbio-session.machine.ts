@@ -27,6 +27,7 @@ type MachineEvent =
   | { type: 'RETRY' }
   | { type: 'BP_EVENT'; payload: BpbioEvent }
   | { type: 'RESET' }
+  | { type: 'DISCONNECT' }
 
 export const bpbioSessionMachine = setup({
   types: {} as {
@@ -230,6 +231,14 @@ export const bpbioSessionMachine = setup({
                 result: null,
               }),
             },
+          },
+        },
+      },
+      on: {
+        DISCONNECT: {
+          target: 'disconnected',
+          actions: ({ context }) => {
+            context.client.clearPending()
           },
         },
       },

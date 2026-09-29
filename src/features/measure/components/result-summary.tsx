@@ -22,54 +22,47 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
     navigateTo('KIOSK_IDLE')
   }, [resetSession, navigateTo])
 
-  const bpData = context.bpResults ?? {
-    systolic: 118,
-    diastolic: 76,
-    pulse: 72,
-  }
+  const [countdown, setCountdown] = React.useState(60)
 
-  const inBodyData =
-    context.inBodyResults ??
-    ({
-      weight: 68.5,
-      smm: 31.2,
-      pbf: 18.4,
-      inBodyScore: 82,
-      bmi: 23.2,
-      vfl: 4,
-      tbw: 41.5,
-      segmental: {
-        ffmRightArm: 3.2,
-        ffmLeftArm: 3.1,
-        ffmTrunk: 24.5,
-        ffmRightLeg: 8.3,
-        ffmLeftLeg: 8.2,
-        bfmRightArm: 0.8,
-        bfmLeftArm: 0.8,
-        bfmTrunk: 4.2,
-        bfmRightLeg: 1.9,
-        bfmLeftLeg: 1.9,
-      },
-    } as any)
+  React.useEffect(() => {
+    if (countdown <= 0) {
+      handleFinish()
+      return
+    }
 
-  const bmi = inBodyData.bmi?.toFixed(1) ?? '0.0'
-  const bodyAge = context.customer?.age || 28
-  const visceralFat = inBodyData.vfl ?? 0
-  const tbw = inBodyData.tbw ?? 0
+    const timer = setTimeout(() => {
+      setCountdown((prev) => prev - 1)
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [countdown, handleFinish])
+
+  const bpData = context.bpResults
+  const inBodyData = context.inBodyResults
+
+  const bmi = inBodyData?.bmi ? inBodyData.bmi.toFixed(1) : '---'
+  const bodyAge = context.customer?.age ? context.customer.age : '---'
+  const visceralFat = inBodyData?.vfl ?? '---'
+  const tbw = inBodyData?.tbw ? inBodyData.tbw.toFixed(1) : '---'
 
   return (
     <View className={cn('w-full flex-1 flex-col gap-3 p-1', className)} style={style}>
       <View>
-        {/* ==================== THÔNG TIN KHÁCH HÀNG ==================== */}
+        {/* ==================== THÔNG TIN KHÁCH HÀNG & BỘ ĐẾM NGƯỢC 60S ==================== */}
         <View className="mb-2 flex-row items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-          <Text className="font-bold text-sm uppercase tracking-wider text-slate-800">
-            {context.customer ? `KẾT QUẢ: ${context.customer.fullName}` : 'KẾT QUẢ KHÁM TỔNG HỢP'}
-          </Text>
-          {context.customer && (
-            <Text className="font-medium text-sm text-slate-500">
-              CCCD: {context.customer.identityCode}
+          <View className="flex-row items-center gap-3">
+            <Text className="font-bold text-sm uppercase tracking-wider text-slate-800">
+              {context.customer ? `KẾT QUẢ: ${context.customer.fullName}` : 'KẾT QUẢ KHÁM TỔNG HỢP'}
             </Text>
-          )}
+            {context.customer && (
+              <Text className="font-medium text-sm text-slate-500">
+                CCCD: {context.customer.identityCode}
+              </Text>
+            )}
+          </View>
+          <View className="rounded-full border border-red-200 bg-red-50 px-3 py-1">
+            <Text className="font-bold text-xs text-red-600">Tự động kết thúc: {countdown}s</Text>
+          </View>
         </View>
 
         {/* ==================== 1. HUYẾT ÁP & TIM MẠCH ==================== */}
@@ -81,7 +74,9 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
               </Text>
             </View>
             <View className="rounded-full border border-slate-200 bg-white px-3 py-0.5 shadow-sm">
-              <Text className="font-bold text-xs text-slate-700">Trạng thái: Bình thường</Text>
+              <Text className="font-bold text-xs text-slate-700">
+                {bpData ? 'Trạng thái: Bình thường' : 'Trạng thái: Chưa đo'}
+              </Text>
             </View>
           </View>
 
@@ -90,7 +85,7 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
               <Text className="font-bold text-xs uppercase text-slate-500">Tâm Thu</Text>
               <View className="mt-1 flex-row items-baseline gap-1">
                 <Text className="text-2xl font-black tracking-tight text-slate-900">
-                  {bpData.systolic}
+                  {bpData?.systolic ?? '---'}
                 </Text>
                 <Text className="font-bold text-xs text-slate-500">mmHg</Text>
               </View>
@@ -100,7 +95,7 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
               <Text className="font-bold text-xs uppercase text-slate-500">Tâm Trương</Text>
               <View className="mt-1 flex-row items-baseline gap-1">
                 <Text className="text-2xl font-black tracking-tight text-slate-900">
-                  {bpData.diastolic}
+                  {bpData?.diastolic ?? '---'}
                 </Text>
                 <Text className="font-bold text-xs text-slate-500">mmHg</Text>
               </View>
@@ -110,7 +105,7 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
               <Text className="font-bold text-xs uppercase text-slate-500">Nhịp Tim</Text>
               <View className="mt-1 flex-row items-baseline gap-1">
                 <Text className="text-2xl font-black tracking-tight text-primary">
-                  {bpData.pulse}
+                  {bpData?.pulse ?? '---'}
                 </Text>
                 <Text className="font-bold text-xs text-slate-500">bpm</Text>
               </View>
@@ -153,7 +148,7 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                   </Svg>
                   <View className="absolute items-center justify-center">
                     <Text className="text-sm font-black text-slate-900">
-                      {inBodyData.inBodyScore}
+                      {inBodyData?.inBodyScore ?? '---'}
                     </Text>
                   </View>
                 </View>
@@ -166,7 +161,9 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
               <View className="w-1/4 items-center border-r border-slate-200/60 py-1">
                 <Text className="font-bold text-xs uppercase text-slate-500">Cân Nặng</Text>
                 <View className="mt-1.5 flex-row items-baseline gap-0.5">
-                  <Text className="text-xl font-black text-slate-900">{inBodyData.weight}</Text>
+                  <Text className="text-xl font-black text-slate-900">
+                    {inBodyData?.weight ?? '---'}
+                  </Text>
                   <Text className="font-bold text-xs text-slate-500">kg</Text>
                 </View>
               </View>
@@ -175,7 +172,9 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
               <View className="w-1/4 items-center border-r border-slate-200/60 py-1">
                 <Text className="font-bold text-xs uppercase text-slate-500">Khối Lượng Cơ</Text>
                 <View className="mt-1.5 flex-row items-baseline gap-0.5">
-                  <Text className="text-xl font-black text-primary">{inBodyData.smm}</Text>
+                  <Text className="text-xl font-black text-primary">
+                    {inBodyData?.smm ?? '---'}
+                  </Text>
                   <Text className="font-bold text-xs text-slate-500">kg</Text>
                 </View>
               </View>
@@ -184,7 +183,9 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
               <View className="w-1/4 items-center py-1">
                 <Text className="font-bold text-xs uppercase text-slate-500">Tỷ Lệ Mỡ</Text>
                 <View className="mt-1.5 flex-row items-baseline gap-0.5">
-                  <Text className="text-xl font-black text-slate-900">{inBodyData.pbf}</Text>
+                  <Text className="text-xl font-black text-slate-900">
+                    {inBodyData?.pbf ?? '---'}
+                  </Text>
                   <Text className="font-bold text-xs text-slate-500">%</Text>
                 </View>
               </View>
@@ -214,7 +215,9 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
               <View className="w-1/4 items-center border-r border-slate-200/60 py-1">
                 <Text className="font-bold text-xs uppercase text-slate-500">Mỡ Nội Tạng</Text>
                 <View className="mt-1.5 flex-row items-baseline gap-0.5">
-                  <Text className="text-xl font-black text-slate-900">Level {visceralFat}</Text>
+                  <Text className="text-xl font-black text-slate-900">
+                    {visceralFat !== '---' ? `Level ${visceralFat}` : '---'}
+                  </Text>
                 </View>
               </View>
 
@@ -261,10 +264,10 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     Tay Trái
                   </SvgText>
                   <SvgText x="45" y="65" fontSize="13" fontWeight="bold" fill="#DC2626">
-                    Cơ: {inBodyData.segmental.ffmLeftArm?.toFixed(1) ?? '0.0'} kg
+                    Cơ: {inBodyData?.segmental?.ffmLeftArm?.toFixed(1) ?? '---'} kg
                   </SvgText>
                   <SvgText x="45" y="81" fontSize="13" fontWeight="bold" fill="#334155">
-                    Mỡ: {inBodyData.segmental.bfmLeftArm?.toFixed(1) ?? '0.0'} kg
+                    Mỡ: {inBodyData?.segmental?.bfmLeftArm?.toFixed(1) ?? '---'} kg
                   </SvgText>
                 </G>
 
@@ -274,10 +277,10 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     Tay Phải
                   </SvgText>
                   <SvgText x="600" y="55" fontSize="13" fontWeight="bold" fill="#DC2626">
-                    Cơ: {inBodyData.segmental.ffmRightArm?.toFixed(1) ?? '0.0'} kg
+                    Cơ: {inBodyData?.segmental?.ffmRightArm?.toFixed(1) ?? '---'} kg
                   </SvgText>
                   <SvgText x="600" y="71" fontSize="13" fontWeight="bold" fill="#334155">
-                    Mỡ: {inBodyData.segmental.bfmRightArm?.toFixed(1) ?? '0.0'} kg
+                    Mỡ: {inBodyData?.segmental?.bfmRightArm?.toFixed(1) ?? '---'} kg
                   </SvgText>
                 </G>
 
@@ -287,10 +290,10 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     Thân Người
                   </SvgText>
                   <SvgText x="600" y="225" fontSize="13" fontWeight="bold" fill="#DC2626">
-                    Cơ: {inBodyData.segmental.ffmTrunk?.toFixed(1) ?? '0.0'} kg
+                    Cơ: {inBodyData?.segmental?.ffmTrunk?.toFixed(1) ?? '---'} kg
                   </SvgText>
                   <SvgText x="600" y="241" fontSize="13" fontWeight="bold" fill="#334155">
-                    Mỡ: {inBodyData.segmental.bfmTrunk?.toFixed(1) ?? '0.0'} kg
+                    Mỡ: {inBodyData?.segmental?.bfmTrunk?.toFixed(1) ?? '---'} kg
                   </SvgText>
                 </G>
 
@@ -300,10 +303,10 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     Chân Trái
                   </SvgText>
                   <SvgText x="45" y="375" fontSize="13" fontWeight="bold" fill="#DC2626">
-                    Cơ: {inBodyData.segmental.ffmLeftLeg?.toFixed(1) ?? '0.0'} kg
+                    Cơ: {inBodyData?.segmental?.ffmLeftLeg?.toFixed(1) ?? '---'} kg
                   </SvgText>
                   <SvgText x="45" y="391" fontSize="13" fontWeight="bold" fill="#334155">
-                    Mỡ: {inBodyData.segmental.bfmLeftLeg?.toFixed(1) ?? '0.0'} kg
+                    Mỡ: {inBodyData?.segmental?.bfmLeftLeg?.toFixed(1) ?? '---'} kg
                   </SvgText>
                 </G>
 
@@ -313,10 +316,10 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     Chân Phải
                   </SvgText>
                   <SvgText x="600" y="365" fontSize="13" fontWeight="bold" fill="#DC2626">
-                    Cơ: {inBodyData.segmental.ffmRightLeg?.toFixed(1) ?? '0.0'} kg
+                    Cơ: {inBodyData?.segmental?.ffmRightLeg?.toFixed(1) ?? '---'} kg
                   </SvgText>
                   <SvgText x="600" y="381" fontSize="13" fontWeight="bold" fill="#334155">
-                    Mỡ: {inBodyData.segmental.bfmRightLeg?.toFixed(1) ?? '0.0'} kg
+                    Mỡ: {inBodyData?.segmental?.bfmRightLeg?.toFixed(1) ?? '---'} kg
                   </SvgText>
                 </G>
 

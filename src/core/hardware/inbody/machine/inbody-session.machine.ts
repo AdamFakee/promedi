@@ -328,9 +328,12 @@ export const inbodySessionMachine = setup({
     },
 
     transportTimeout: {
-      entry: assign({
-        lastErrorCode: () => 'UNKNOWN_ERROR' as const,
-      }),
+      entry: [
+        assign({
+          lastErrorCode: () => 'UNKNOWN_ERROR' as const,
+        }),
+        'onConnectionError',
+      ],
       always: 'lockingThenDisconnect',
     },
 

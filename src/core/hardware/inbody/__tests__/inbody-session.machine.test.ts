@@ -129,6 +129,10 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
 
     // Đợi fetchResultActor hoàn thành
     await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(actor.getSnapshot().value).toBe('verifyingCompletion')
+
+    // Giả lập poller gửi STATUS '0' (Ready) sau khi hoàn tất
+    actor.send({ type: 'STATUS_UPDATE', status: '0' })
     expect(actor.getSnapshot().value).toBe('completed')
     expect(actor.getSnapshot().context.result).toEqual(mockResult)
     expect(actor.getSnapshot().context.progress).toBe(100)

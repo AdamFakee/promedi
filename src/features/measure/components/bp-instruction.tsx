@@ -90,7 +90,24 @@ export const BpInstruction = ({ className, style, status = 'idle' }: BpInstructi
     )
   }
 
-  // Mặc định (idle / completed) hiển thị hướng dẫn tĩnh
+  if (status === 'completed') {
+    return (
+      <View
+        className={cn('w-full flex-1 items-center justify-center gap-6 p-4', className)}
+        style={style}
+      >
+        <View className="items-center justify-center rounded-full border-4 border-emerald-500/20 bg-emerald-50 p-8">
+          <MaterialCommunityIcons name="check-circle-outline" size={80} color="#10B981" />
+        </View>
+        <Text className="text-2xl font-black text-slate-800">Đã đo xong huyết áp</Text>
+        <Text className="text-center font-bold text-base text-slate-500">
+          Đang chuyển sang bước tiếp theo...
+        </Text>
+      </View>
+    )
+  }
+
+  // Mặc định (idle) hiển thị hướng dẫn tư thế ban đầu
   return (
     <View
       className={cn('w-full flex-1 flex-col justify-center gap-3 p-1', className)}

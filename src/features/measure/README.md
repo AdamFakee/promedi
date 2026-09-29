@@ -22,14 +22,17 @@ Mô-đun quản lý giao diện hiển thị 3 bước đo sức khỏe tuyến 
 
 ## 1. Bảng Danh mục Tệp (Directory Catalog)
 
-| Tệp                                 | Trách nhiệm                                                                                                                                           | Chạm Vào/Ra (I/O)            |
-| :---------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------- |
-| `components/bp-instruction.tsx`     | Hiển thị màn hình hướng dẫn và trạng thái đo huyết áp tự động.                                                                                        | 🌐 React UI & Audio Guidance |
-| `components/inbody-instruction.tsx` | Hiển thị màn hình hướng dẫn tư thế đứng đo phân tích chỉ số cơ thể (`inbody_guide_male.webp`).                                                        | 🌐 React UI & Image Loader   |
-| `components/result-summary.tsx`     | Hiển thị bảng tổng hợp kết quả 6 chỉ số, biểu đồ cơ thể chi tiết (`SvgDetailedBody`), mã QR lookup (`react-native-qrcode-svg`) và nút Hoàn tất phiên. | 🌐 React UI & Session Reset  |
-| `components/svg-detailed-body.tsx`  | Component SVG minh họa cấu trúc cơ thể người với các điểm chỉ báo phân tích vùng cơ và mỡ.                                                            | ❌ Pure SVG Rendering        |
-| `components/index.ts`               | Barrel File gom và re-export toàn bộ components đo đạc.                                                                                               | ❌ Barrel Re-export          |
-| `index.ts`                          | Root Feature Barrel File re-export cho callers ngoài feature.                                                                                         | ❌ Barrel Re-export          |
+| Tệp                                 | Trách nhiệm                                                                                                                                      | Chạm Vào/Ra (I/O)            |
+| :---------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------- |
+| `components/bp-instruction.tsx`     | Hiển thị màn hình hướng dẫn, trạng thái đang đo và hoàn tất đo huyết áp tự động.                                                                 | 🌐 React UI & Audio Guidance |
+| `components/inbody-instruction.tsx` | Hiển thị màn hình hướng dẫn tư thế đứng đo phân tích chỉ số cơ thể (`inbody_guide_male.webp`) kèm overlay đo và báo lỗi.                         | 🌐 React UI & Image Loader   |
+| `components/result-summary.tsx`     | Hiển thị bảng tổng hợp kết quả 6 chỉ số, biểu đồ cơ thể chi tiết (`SvgDetailedBody`), mã QR lookup (`react-native-qrcode-svg`) và đếm ngược 60s. | 🌐 React UI & Session Reset  |
+| `components/svg-detailed-body.tsx`  | Component SVG minh họa cấu trúc cơ thể người với các điểm chỉ báo phân tích vùng cơ và mỡ.                                                       | ❌ Pure SVG Rendering        |
+| `hooks/use-bp-measurement.ts`       | Hook cầu nối `bpbioSessionMachine` XState v5, quản lý lifecycle kết nối Serial và chuyển bước.                                                   | ⚠️ Hardware & FSM Bridge     |
+| `hooks/use-inbody-measurement.ts`   | Hook cầu nối `inbodySessionMachine` XState v5, quản lý kết nối USB Serial và nạp thông tin khách hàng.                                           | ⚠️ Hardware & FSM Bridge     |
+| `components/index.ts`               | Barrel File gom và re-export toàn bộ components đo đạc.                                                                                          | ❌ Barrel Re-export          |
+| `hooks/index.ts`                    | Barrel File gom và re-export toàn bộ measurement hooks.                                                                                          | ❌ Barrel Re-export          |
+| `index.ts`                          | Root Feature Barrel File re-export cho callers ngoài feature.                                                                                    | ❌ Barrel Re-export          |
 
 ---
 

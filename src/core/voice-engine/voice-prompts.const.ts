@@ -16,13 +16,12 @@ export const VOICE_PROMPTS: Record<VoicePromptKey, string> = {
     'Đo huyết áp và nhịp tim. Quý khách vui lòng luồn tay vào vòng đo, tỳ cùi chỏ vào cảm biến và giữ yên.',
   BP_ELBOW_OFF:
     'Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến. Quý khách vui lòng đẩy tay sâu hơn và ngồi yên.',
-  BP_COMPLETE: 'Đã đo xong huyết áp. Mời bạn nhấn Tiếp tục.',
+  BP_COMPLETE: 'Đã đo xong huyết áp.',
   INBODY_START:
     'Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày, đứng lên máy InBody và cầm hai tay nắm.',
   INBODY_CONTACT_ERROR:
     'Cảnh báo: Chưa nhận đủ tiếp xúc điện cực. Quý khách vui lòng cầm chắc thanh nắm và đứng yên.',
-  INBODY_COMPLETE:
-    'Đã phân tích xong chỉ số cơ thể. Mời bạn nhấn Tiếp tục để xem tổng hợp kết quả.',
+  INBODY_COMPLETE: 'Đã phân tích xong chỉ số cơ thể.',
   SUMMARY_START:
     'Quá trình khám sức khỏe đã hoàn tất. Quý khách có thể xem kết quả trên màn hình hoặc quét mã QR để lưu lại.',
   SUMMARY_TIMEOUT_10S:

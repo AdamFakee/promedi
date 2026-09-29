@@ -30,27 +30,8 @@ jest.mock('../../transport/usb-serial-transport', () => {
               // Phản hồi STATUS frame hợp lệ của InBody: STX 0x02, command 0x63 (STATUS), field '0' (Ready), ETX 0x03
               dataCallback(new Uint8Array([0x02, 0x63, 0x30, 0x1b, 0x03]))
             } else if (connectedPortId.includes('bpbio')) {
-              // Phản hồi frame hợp lệ của BPBIO với BCC = 0x50
-              const bcc = 0x02 ^ 0x00 ^ 0x53 ^ 0x31 ^ 0x32 ^ 0x30 ^ 0x00 ^ 0x00 ^ 0x00 ^ 0x03
-              const frame = [
-                0x16,
-                0x16,
-                0x01,
-                0x00,
-                0x00,
-                0x02,
-                0x00,
-                0x53,
-                0x31,
-                0x32,
-                0x30,
-                0x00,
-                0x00,
-                0x00,
-                0x03,
-                bcc,
-              ]
-              dataCallback(new Uint8Array(frame))
+              // Phản hồi CON của BPBIO khi nhận lệnh CONFIRM_CONNECT_FRAME
+              dataCallback(new Uint8Array([0x43, 0x4f, 0x4e]))
             }
           }
         }),

@@ -20,9 +20,6 @@ export function useBpMeasurement(isActive: boolean) {
   const [state, send] = useMachine(
     bpbioSessionMachine.provide({
       actions: {
-        onListeningStart: () => {
-          voicePlayerService.speak('BP_START')
-        },
         onMeasuringStart: () => {
           // 1. Khi máy bắt đầu đo -> Ngắt ngay voice hướng dẫn nếu đang phát
           voicePlayerService.stop()
@@ -74,7 +71,8 @@ export function useBpMeasurement(isActive: boolean) {
     send({ type: 'START' })
 
     return () => {
-      client.disconnect()
+      send({ type: 'DISCONNECT' })
+      client.disconnect().catch(() => {})
     }
   }, [isActive, client, send])
 
