@@ -9,6 +9,7 @@ import { useAppNavigation } from '@/shared/hooks'
 import { useIsFocused } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useVideoPlayer, VideoView } from 'expo-video'
+import { addNFCScanListener } from 'modules/expo-sunmi-k2'
 import React, { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -34,6 +35,39 @@ export default function KioskIdleRoute() {
       player.pause()
     }
   }, [player, isFocused])
+
+  // Lắng nghe sự kiện quẹt thẻ NFC tại màn hình Idle (Chờ)
+  useEffect(() => {
+    if (!isFocused) return
+
+    const subscription = addNFCScanListener((event) => {
+      if (!event.cardUid) return
+
+      // 1. Khởi tạo phiên khám mới
+      startSession()
+
+      // 2. Tự động điền dữ liệu định danh theo mã thẻ
+      submitIdentification({
+        fullName: `Khách hàng (NFC ${event.cardUid.slice(-4).toUpperCase()})`,
+        identityCode: event.cardUid,
+        age: 30,
+        heightCm: 165.0,
+        gender: 'M',
+      })
+
+      // 3. Đóng popup nếu đang mở
+      identModalRef.current?.close()
+
+      // 4. Nhảy thẳng qua màn hình đo (KIOSK_MEASURE)
+      setTimeout(() => {
+        navigateTo('KIOSK_MEASURE')
+      }, 150)
+    })
+
+    return () => {
+      subscription.remove()
+    }
+  }, [isFocused, navigateTo, startSession, submitIdentification])
 
   const handleStartSession = () => {
     startSession()

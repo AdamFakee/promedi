@@ -19,10 +19,17 @@ Thư mục này chứa toàn bộ các đặc tả kỹ thuật, chuẩn giao th
    - **Tệp**: `docs/specs/inbody-sdk-architecture.md`
    - **Mô tả**: Đặc tả kiến trúc phần mềm 4 lớp của SDK điều khiển InBody 260S trên Kiosk ProMedi. Giải trình lý do thiết kế, quy tắc mã hóa `latin1`, xử lý chuỗi tiếng Việt `sanitizeAscii`, Half-Duplex Mutex Lock, XState v5 Session Machine và bảng đối chiếu mã nguồn.
 
+4. **[Đặc Tả Kỹ Thuật & Kiến Trúc Kiosk Sunmi K2 (Hardware Specification)](file:///d:/promedi/docs/hard-ware/sunmi-k2-kiosk-spec.md)**
+   - **Tệp**: `sunmi-k2-kiosk-spec.md`
+   - **Mô tả**: Tài liệu đặc tả tích hợp trọn bộ phần cứng Kiosk Sunmi K2 (Đầu đọc thẻ NFC kép qua AIDL & Android Foreground Dispatch, Máy in nhiệt 80mm qua PrinterSdk).
+   - **Runbook Triển Khai**: [`docs/plans/sunmi-k2-kiosk-runbook.md`](file:///d:/promedi/docs/plans/sunmi-k2-kiosk-runbook.md).
+
 ---
 
 ## 🛠️ Mã Nguồn Cài Đặt Tương Ứng (Source Code References)
 
+- **Native Module Sunmi K2**: [`modules/expo-sunmi-k2/`](file:///d:/promedi/modules/expo-sunmi-k2/)
+- **Native Module USB Serial (InBody/BPBIO)**: [`modules/expo-usb-serial-bridge/`](file:///d:/promedi/modules/expo-usb-serial-bridge/)
 - **Mô-đun SDK InBody 260S**: [`src/core/hardware/inbody/`](file:///d:/promedi/src/core/hardware/inbody/)
 - **Transport TCP Socket (Port 2004)**: `src/core/hardware/inbody/transport/tcp-transport.ts`
 - **Frame Codec & Commands**: `src/core/hardware/inbody/protocol/`
