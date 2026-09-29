@@ -11,8 +11,10 @@ import type { TransportConfig } from '../transport/transport.interface'
 export interface InBodyMachineContext {
   /** Thể hiện của client InBody */
   client: InBodyClient
-  /** Cấu hình kết nối TCP (IP / Port) */
-  config: TransportConfig
+  /** Hàm resolve deviceKey từ BindingStore lúc runtime */
+  getDeviceKey: () => Promise<string | undefined>
+  /** Baudrate kết nối USB Serial */
+  baudRate: number
   /** Hồ sơ thông tin cá nhân khách hàng */
   patientInfo: PatientInfo | null
   /** Kết quả đo BIA thu thập được */

@@ -29,14 +29,16 @@ export function useBpMeasurement(isActive: boolean) {
         },
         onMeasurementCompleted: ({ context }) => {
           voicePlayerService.speak('BP_COMPLETE')
-          // 2. Khi máy đo xong -> Lưu kết quả vào HealthSession
-          if (context.result) {
-            completeBp({
-              systolic: context.result.systolic!,
-              diastolic: context.result.diastolic!,
-              pulse: context.result.pulse!,
-            })
-          }
+          // Đợi 3 giây để khách hàng kịp nhìn thấy màn hình "Đo hoàn tất" rồi mới tự động nhảy bước
+          setTimeout(() => {
+            if (context.result) {
+              completeBp({
+                systolic: context.result.systolic!,
+                diastolic: context.result.diastolic!,
+                pulse: context.result.pulse!,
+              })
+            }
+          }, 3000)
         },
         onErrorAlert: ({ event }) => {
           // Nếu thiết bị báo lỗi nhúc nhích tay / rụt cùi chỏ

@@ -268,7 +268,7 @@ Khối `DATA` chứa một mảng các chuỗi đại diện cho các chỉ số
 
 ## 🔄 5. Sơ Đồ Luồng Thực Thi Kiosk Production (Sequence & FSM)
 
-Quy trình tự động điều khiển máy InBody 260S trên Kiosk được thực hiện qua **4 Giai đoạn tuyến tính** thông qua State Machine (`health-session.machine.ts`):
+Quy trình tự động điều khiển máy InBody 260S trên Kiosk được thực hiện qua **4 Giai đoạn tuyến tính** thông qua State Machine (`inbody-session.machine.ts`):
 
 ```mermaid
 sequenceDiagram
@@ -276,13 +276,14 @@ sequenceDiagram
     participant Host as Kiosk Host (React Native)
     participant Dev as InBody 260S Device
 
-    Note over Host, Dev: GIAI ĐOẠN 1: CHUẨN BỊ & KHÓA THIẾT BỊ
-    Host->>Dev: Request STATUS (02 63 03)
-    Dev-->>Host: Response STATUS '0' (02 63 30 1B 03) [Ready]
-    Host->>Dev: Request LOCK '1' (02 6C 31 1B 03) [Lock Device]
-    Dev-->>Host: Response LOCK (02 6C 03)
+    Note over Host, Dev: GIAI ĐOẠN 0: KẾT NỐI & DỌN DẸP PHIÊN CŨ
+    Host->>Dev: Request SKIP (02 73 03) [Xóa màn hình lỗi cũ]
+    Dev-->>Host: Response SKIP (02 73 03)
+    Host->>Dev: Request UNLOCK '2' (02 6C 32 1B 03) [Mở khóa cảm biến cân]
+    Dev-->>Host: Response UNLOCK (02 6C 03)
+    Note over Dev: InBody về status '0' (Ready) — cảm biến cân hoạt động
 
-    Note over Host, Dev: GIAI ĐOẠN 2: BẮT ĐẦU CÂN & NẠP HỒ SƠ KHÁCH HÀNG
+    Note over Host, Dev: GIAI ĐOẠN 1: BẮT ĐẦU CÂN & NẠP HỒ SƠ KHÁCH HÀNG
     Note over Dev: Khách hàng bước lên cân InBody
     loop Polling Status mỗi 500ms
         Host->>Dev: Request STATUS (02 63 03)
@@ -292,7 +293,7 @@ sequenceDiagram
     Host->>Dev: Request INFO (02 75 [ID] 1B [M/F] 1B [Height] 1B [Age] 1B 03)
     Dev-->>Host: Response INFO (02 75 03) [Info Accepted]
 
-    Note over Host, Dev: GIAI ĐOẠN 3: PHÂN TÍCH DÒNG ĐIỆN BIA
+    Note over Host, Dev: GIAI ĐOẠN 2: PHÂN TÍCH DÒNG ĐIỆN BIA
     loop Polling Status mỗi 500ms
         Host->>Dev: Request STATUS (02 63 03)
         alt Trạng thái Đang quét dòng điện
@@ -303,11 +304,19 @@ sequenceDiagram
         end
     end
 
-    Note over Host, Dev: GIAI ĐOẠN 4: THU THẬP & PHÂN TÍCH KẾT QUẢ
+    Note over Host, Dev: GIAI ĐOẠN 3: THU THẬP & PHÂN TÍCH KẾT QUẢ
     Host->>Dev: Request RESULT (02 64 03)
     Dev-->>Host: Response RESULT (02 64 [DATA 0..763] 03)
     Note over Host: Host Parse mảng Index (Weight, SMM, BFM, BMI, PBF, WHR, BMR...) & Lưu WatermelonDB
+    Note over Host: Chờ 3 giây → dispatch completeInBody → UI nhảy sang màn Tổng hợp
+
+    Note over Host, Dev: GIAI ĐOẠN 4: BẢO MẬT THIẾT BỊ KHI KẾT THÚC
+    Host->>Dev: Request LOCK '1' (02 6C 31 1B 03) [Khóa lại trước khi ngắt kết nối]
+    Dev-->>Host: Response LOCK (02 6C 03)
 ```
+
+> **⚠️ Lưu ý quan trọng về LOCK/UNLOCK (ADR-INBODY-01):**
+> InBody 260S **tự động quay về trạng thái LOCK** (`STATUS '4'`) sau mỗi lượt đo hoàn tất. Nếu phiên cũ không được dọn dẹp đúng cách, cảm biến cân sẽ không nhận tín hiệu người bước lên. Do đó, Kiosk **BẮT BUỘC gửi UNLOCK `'2'` ngay khi bắt đầu phiên đo mới** (state `locking` dùng `unlockActor`), và chỉ gửi LOCK `'1'` khi kết thúc phiên (`lockingThenDisconnect`).
 
 ---
 

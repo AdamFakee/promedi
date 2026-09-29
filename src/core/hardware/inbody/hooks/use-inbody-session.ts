@@ -8,24 +8,25 @@ import { useMemo } from 'react'
 import { InBodyClient } from '../client/inbody-client'
 import { inbodySessionMachine } from '../machine/inbody-session.machine'
 import { TcpTransport } from '../transport/tcp-transport'
-import type { TransportConfig } from '../transport/transport.interface'
+import { UsbSerialTransport } from '../transport'
 import type { PatientInfo } from '../types/inbody.types'
 
 export interface UseInBodySessionOptions {
-  /** Cấu hình IP và Port của máy InBody 260S */
-  config?: TransportConfig
+  /** Hàm resolve deviceKey từ BindingStore */
+  getDeviceKey?: () => Promise<string | undefined>
+  /** Baudrate kết nối USB Serial (mặc định 19200) */
+  baudRate?: number
 }
 
 export function useInBodySession(options?: UseInBodySessionOptions) {
-  const config = useMemo<TransportConfig>(
-    () => options?.config ?? { host: '192.168.1.50', port: 2004 },
-    [options?.config],
-  )
-
-  const client = useMemo(() => new InBodyClient(new TcpTransport()), [])
+  const client = useMemo(() => new InBodyClient(new UsbSerialTransport()), [])
 
   const actorRef = useActorRef(inbodySessionMachine, {
-    input: { client, config },
+    input: {
+      client,
+      getDeviceKey: options?.getDeviceKey ?? (async () => undefined),
+      baudRate: options?.baudRate ?? 19200,
+    },
   })
 
   const stateValue = useSelector(actorRef, (snapshot) => snapshot.value)

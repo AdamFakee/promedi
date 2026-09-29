@@ -18,11 +18,12 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
     } as any
   })
 
-  it('khởi tạo ở trạng thái disconnected và chuyển sang connecting khi gửi CONNECT', () => {
+  it('khởi tạo ở trạng thái disconnected và chuyển sang connecting khi gửi CONNECT', async () => {
     const actor = createActor(inbodySessionMachine, {
       input: {
         client: mockClient,
-        config: { host: '127.0.0.1', port: 2004 },
+        getDeviceKey: async () => 'test-device-key',
+        baudRate: 19200,
       },
     })
 
@@ -31,14 +32,21 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
 
     actor.send({ type: 'CONNECT' })
     // Machine chuyển sang connecting và gọi connectActor
-    expect(mockClient.connect).toHaveBeenCalledWith({ host: '127.0.0.1', port: 2004 })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(mockClient.connect).toHaveBeenCalledWith({
+      type: 'usb-serial',
+      portId: 'inbody-port',
+      deviceKey: 'test-device-key',
+      baudRate: 19200,
+    })
   })
 
   it('chuyển từ ready -> waitingForWeight khi gửi event START với thông tin khách hàng', async () => {
     const actor = createActor(inbodySessionMachine, {
       input: {
         client: mockClient,
-        config: { host: '127.0.0.1', port: 2004 },
+        getDeviceKey: async () => 'test-device-key',
+        baudRate: 19200,
       },
     })
 
@@ -95,7 +103,8 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
     const actor = createActor(inbodySessionMachine, {
       input: {
         client: mockClient,
-        config: { host: '127.0.0.1', port: 2004 },
+        getDeviceKey: async () => 'test-device-key',
+        baudRate: 19200,
       },
     })
 
@@ -129,7 +138,8 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
     const actor = createActor(inbodySessionMachine, {
       input: {
         client: mockClient,
-        config: { host: '127.0.0.1', port: 2004 },
+        getDeviceKey: async () => 'test-device-key',
+        baudRate: 19200,
       },
     })
 

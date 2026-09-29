@@ -65,7 +65,7 @@ export const healthSessionMachine = setup({
           target: 'identification',
         },
         SUBMIT_IDENTIFICATION: {
-          target: 'serviceSelection',
+          target: 'measureBp',
           actions: 'setCustomer',
         },
       },
@@ -73,20 +73,8 @@ export const healthSessionMachine = setup({
     identification: {
       on: {
         SUBMIT_IDENTIFICATION: {
-          target: 'serviceSelection',
-          actions: 'setCustomer',
-        },
-        RESET_SESSION: {
-          target: 'idle',
-          actions: 'resetContext',
-        },
-      },
-    },
-    serviceSelection: {
-      on: {
-        SELECT_SERVICES: {
           target: 'measureBp',
-          actions: 'setServices',
+          actions: 'setCustomer',
         },
         RESET_SESSION: {
           target: 'idle',

@@ -24,7 +24,7 @@ describe('healthSessionMachine', () => {
     expect(actor.getSnapshot().value).toBe('identification')
   })
 
-  it('should transition from identification to serviceSelection on SUBMIT_IDENTIFICATION', () => {
+  it('should transition from identification to measureBp on SUBMIT_IDENTIFICATION', () => {
     const actor = createActor(healthSessionMachine)
     actor.start()
 
@@ -40,7 +40,7 @@ describe('healthSessionMachine', () => {
     actor.send({ type: 'SUBMIT_IDENTIFICATION', payload: customer })
 
     const snapshot = actor.getSnapshot()
-    expect(snapshot.value).toBe('serviceSelection')
+    expect(snapshot.value).toBe('measureBp')
     expect(snapshot.context.customer).toEqual({
       fullName: 'Nguyễn Văn A',
       identityCode: '012345678901',
@@ -49,28 +49,6 @@ describe('healthSessionMachine', () => {
       gender: 'M',
     })
     expect(snapshot.context.sessionId).toBe('server_rec_8892')
-  })
-
-  it('should transition from serviceSelection to measureBp on SELECT_SERVICES', () => {
-    const actor = createActor(healthSessionMachine)
-    actor.start()
-
-    actor.send({ type: 'START_SESSION' })
-    actor.send({
-      type: 'SUBMIT_IDENTIFICATION',
-      payload: {
-        fullName: 'Nguyễn Văn A',
-        identityCode: '012345678901',
-        age: 30,
-        heightCm: 170,
-        gender: 'M',
-      },
-    })
-    actor.send({ type: 'SELECT_SERVICES', payload: ['BP', 'INBODY'] })
-
-    const snapshot = actor.getSnapshot()
-    expect(snapshot.value).toBe('measureBp')
-    expect(snapshot.context.selectedServices).toEqual(['BP', 'INBODY'])
   })
 
   it('should transition from measureBp to measureInBody on BP_COMPLETED', () => {
@@ -88,7 +66,6 @@ describe('healthSessionMachine', () => {
         gender: 'M',
       },
     })
-    actor.send({ type: 'SELECT_SERVICES', payload: ['BP', 'INBODY'] })
 
     const bpData = { systolic: 120, diastolic: 80, pulse: 72 }
     actor.send({ type: 'BP_COMPLETED', payload: bpData })
@@ -113,7 +90,6 @@ describe('healthSessionMachine', () => {
         gender: 'M',
       },
     })
-    actor.send({ type: 'SELECT_SERVICES', payload: ['BP', 'INBODY'] })
     actor.send({ type: 'BP_COMPLETED', payload: { systolic: 120, diastolic: 80, pulse: 72 } })
 
     const inBodyData = {
@@ -159,7 +135,6 @@ describe('healthSessionMachine', () => {
         gender: 'M',
       },
     })
-    actor.send({ type: 'SELECT_SERVICES', payload: ['ALL'] })
     actor.send({ type: 'BP_COMPLETED', payload: { systolic: 120, diastolic: 80, pulse: 72 } })
     actor.send({
       type: 'INBODY_COMPLETED',
@@ -211,7 +186,6 @@ describe('healthSessionMachine', () => {
         gender: 'M',
       },
     })
-    actor.send({ type: 'SELECT_SERVICES', payload: ['ALL'] })
     actor.send({ type: 'BP_COMPLETED', payload: { systolic: 120, diastolic: 80, pulse: 72 } })
     actor.send({
       type: 'INBODY_COMPLETED',
@@ -267,7 +241,7 @@ describe('healthSessionMachine', () => {
         gender: 'M',
       },
     })
-    expect(actor.getSnapshot().value).toBe('serviceSelection')
+    expect(actor.getSnapshot().value).toBe('measureBp')
 
     actor.send({ type: 'RESET_SESSION' })
     const snapshot = actor.getSnapshot()

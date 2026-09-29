@@ -34,9 +34,16 @@ Mô-đun Core Layer 2 chịu trách nhiệm quản lý Máy trạng thái XState
 
 1. **XState v5 Pure Actor Architecture**:
    - Máy trạng thái `healthSessionMachine` tách biệt hoàn toàn khỏi UI và Hardware Adapters.
-   - UI chỉ tương tác qua việc dispatch Event: `submitIdentification`, `selectServices`, `completeBp`, `completeInBody`, `resetSession`.
-
-2. **60s Privacy Timeout Auto Reset (BR-PRIVACY-01)**:
+   - UI chỉ tương tác qua việc dispatch Event: `submitIdentification`, `completeBp`, `completeInBody`, `resetSession`, `skipMeasurement`.
+   - Luồng FSM Kiosk Thực Tế (không có bước chọn dịch vụ):
+     ```
+     idle → identification → measureBp → measureInBody → summary → (auto-reset 60s) → idle
+     ```
+   - **ADR-SESSION-01 (Bỏ serviceSelection)**: Bước `serviceSelection` đã bị xóa khỏi FSM vì Kiosk hiện tại luôn thực hiện cả 2 dịch vụ (Huyết áp + InBody) liên tiếp. Việc giữ state `serviceSelection` khiến FSM bị kẹt chờ sự kiện `SELECT_SERVICES` không bao giờ xảy ra trên UI.
+2. **Auto-Transition sau khi đo (ADR-SESSION-02)**:
+   - Sau khi phần cứng đo xong, hook `use-bp-measurement` / `use-inbody-measurement` chờ **3 giây** rồi mới dispatch `completeBp` / `completeInBody` vào FSM.
+   - Thời gian chờ 3s cho phép: (1) giọng nói thông báo phát xong, (2) khách hàng nhìn thấy màn hình kết quả trước khi nhảy bước.
+3. **60s Privacy Timeout Auto Reset (BR-PRIVACY-01)**:
    - State `summary` tự động đếm lùi 60s và xóa sạch dữ liệu phiên khám khi rảnh rỗi.
 
 ---

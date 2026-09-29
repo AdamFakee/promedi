@@ -1,4 +1,5 @@
 import { InBodyClient, inbodySessionMachine, type PatientInfo } from '@/core/hardware/inbody'
+import { bindingStore } from '@/core/hardware/resolver'
 import { createTransport } from '@/core/hardware/transport/transport-factory'
 import { useHealthSession } from '@/core/health-session'
 import { voicePlayerService } from '@/core/voice-engine'
@@ -11,13 +12,11 @@ export function useInBodyMeasurement(isActive: boolean) {
   const { context, completeInBody } = useHealthSession()
   const { replaceTo } = useAppNavigation()
 
-  // Khởi tạo InBodyClient và machine đồng bộ
+  // Khởi tạo InBodyClient với USB Serial transport (InBody 260S kết nối qua USB Serial 19200 baud)
   const client = useMemo(() => {
-    const transport = createTransport('tcp')
+    const transport = createTransport('usb-serial')
     return new InBodyClient(transport)
   }, [])
-
-  const config = useMemo(() => ({ host: '192.168.1.50', port: 2004 }), [])
 
   const [state, send] = useMachine(
     inbodySessionMachine.provide({
@@ -28,10 +27,12 @@ export function useInBodyMeasurement(isActive: boolean) {
         },
         onMeasurementCompleted: ({ context: machineCtx }) => {
           voicePlayerService.speak('INBODY_COMPLETE')
-          // 2. Khi đo xong -> Ghi nhận kết quả
-          if (machineCtx.result) {
-            completeInBody(machineCtx.result)
-          }
+          // Đợi 3 giây trước khi tự động nhảy sang màn hình tổng hợp
+          setTimeout(() => {
+            if (machineCtx.result) {
+              completeInBody(machineCtx.result)
+            }
+          }, 3000)
         },
         onDeviceError: () => {
           // Báo lỗi sai tư thế / điện cực
@@ -49,7 +50,11 @@ export function useInBodyMeasurement(isActive: boolean) {
     {
       input: {
         client,
-        config,
+        getDeviceKey: async () => {
+          const bindings = await bindingStore.getAll()
+          return bindings.find((b) => b.role === 'inbody')?.deviceKey
+        },
+        baudRate: 19200,
       },
     },
   )

@@ -22,7 +22,8 @@ export const inbodySessionMachine = setup({
     events: InBodyMachineEvent
     input: {
       client: InBodyMachineContext['client']
-      config: InBodyMachineContext['config']
+      getDeviceKey: InBodyMachineContext['getDeviceKey']
+      baudRate?: number
     }
   },
   actions: {
@@ -32,14 +33,29 @@ export const inbodySessionMachine = setup({
     onDeviceError: () => {},
   },
   actors: {
-    /** Actor thực thi kết nối TCP */
+    /** Actor thực thi kết nối USB Serial */
     connectActor: fromPromise(
       async ({
         input,
       }: {
-        input: { client: InBodyMachineContext['client']; config: InBodyMachineContext['config'] }
+        input: {
+          client: InBodyMachineContext['client']
+          getDeviceKey: InBodyMachineContext['getDeviceKey']
+          baudRate: number
+        }
       }) => {
-        await input.client.connect(input.config)
+        const deviceKey = await input.getDeviceKey()
+        if (!deviceKey) {
+          throw new Error(
+            'Chưa thiết lập được cổng kết nối tới máy InBody! Vui lòng vào màn hình Test Thiết Bị chạy tính năng Dò cổng để kiểm tra.',
+          )
+        }
+        await input.client.connect({
+          type: 'usb-serial',
+          portId: 'inbody-port',
+          deviceKey,
+          baudRate: input.baudRate,
+        })
       },
     ),
 
@@ -123,7 +139,8 @@ export const inbodySessionMachine = setup({
   initial: 'disconnected',
   context: ({ input }) => ({
     client: input.client,
-    config: input.config,
+    getDeviceKey: input.getDeviceKey,
+    baudRate: input.baudRate ?? 19200,
     patientInfo: null,
     result: null,
     consecutiveNoEtxCount: 0,
@@ -140,7 +157,11 @@ export const inbodySessionMachine = setup({
     connecting: {
       invoke: {
         src: 'connectActor',
-        input: ({ context }) => ({ client: context.client, config: context.config }),
+        input: ({ context }) => ({
+          client: context.client,
+          getDeviceKey: context.getDeviceKey,
+          baudRate: context.baudRate,
+        }),
         onDone: {
           target: 'initializing',
         },
@@ -162,10 +183,13 @@ export const inbodySessionMachine = setup({
 
     locking: {
       invoke: {
-        src: 'lockActor',
+        // UNLOCK ('2') khi vào màn đo để InBody về status '0' (READY),
+        // cảm biến cân mới detect được người bước lên.
+        // LOCK '1' chỉ dùng khi rời màn đo (lockingThenDisconnect).
+        src: 'unlockActor',
         input: ({ context }) => ({ client: context.client }),
         onDone: 'ready',
-        onError: 'ready', // Vẫn tiếp tục nếu lock cảnh báo
+        onError: 'ready',
       },
     },
 
