@@ -33,6 +33,9 @@ describe('healthSessionMachine', () => {
       fullName: 'Nguyễn Văn A',
       identityCode: '012345678901',
       sessionId: 'server_rec_8892',
+      age: 30,
+      heightCm: 170,
+      gender: 'M' as const,
     }
     actor.send({ type: 'SUBMIT_IDENTIFICATION', payload: customer })
 
@@ -41,6 +44,9 @@ describe('healthSessionMachine', () => {
     expect(snapshot.context.customer).toEqual({
       fullName: 'Nguyễn Văn A',
       identityCode: '012345678901',
+      age: 30,
+      heightCm: 170,
+      gender: 'M',
     })
     expect(snapshot.context.sessionId).toBe('server_rec_8892')
   })
@@ -52,7 +58,13 @@ describe('healthSessionMachine', () => {
     actor.send({ type: 'START_SESSION' })
     actor.send({
       type: 'SUBMIT_IDENTIFICATION',
-      payload: { fullName: 'Nguyễn Văn A', identityCode: '012345678901' },
+      payload: {
+        fullName: 'Nguyễn Văn A',
+        identityCode: '012345678901',
+        age: 30,
+        heightCm: 170,
+        gender: 'M',
+      },
     })
     actor.send({ type: 'SELECT_SERVICES', payload: ['BP', 'INBODY'] })
 
@@ -68,7 +80,13 @@ describe('healthSessionMachine', () => {
     actor.send({ type: 'START_SESSION' })
     actor.send({
       type: 'SUBMIT_IDENTIFICATION',
-      payload: { fullName: 'Nguyễn Văn A', identityCode: '012345678901' },
+      payload: {
+        fullName: 'Nguyễn Văn A',
+        identityCode: '012345678901',
+        age: 30,
+        heightCm: 170,
+        gender: 'M',
+      },
     })
     actor.send({ type: 'SELECT_SERVICES', payload: ['BP', 'INBODY'] })
 
@@ -87,12 +105,38 @@ describe('healthSessionMachine', () => {
     actor.send({ type: 'START_SESSION' })
     actor.send({
       type: 'SUBMIT_IDENTIFICATION',
-      payload: { fullName: 'Nguyễn Văn A', identityCode: '012345678901' },
+      payload: {
+        fullName: 'Nguyễn Văn A',
+        identityCode: '012345678901',
+        age: 30,
+        heightCm: 170,
+        gender: 'M',
+      },
     })
     actor.send({ type: 'SELECT_SERVICES', payload: ['BP', 'INBODY'] })
     actor.send({ type: 'BP_COMPLETED', payload: { systolic: 120, diastolic: 80, pulse: 72 } })
 
-    const inBodyData = { weight: 70, muscleMass: 35, bodyFatPercentage: 18, score: 85 }
+    const inBodyData = {
+      weight: 70,
+      smm: 35,
+      pbf: 18,
+      inBodyScore: 85,
+      bmi: 22,
+      vfl: 5,
+      tbw: 40,
+      segmental: {
+        ffmRightArm: 3,
+        ffmLeftArm: 3,
+        ffmTrunk: 25,
+        ffmRightLeg: 9,
+        ffmLeftLeg: 9,
+        bfmRightArm: 1,
+        bfmLeftArm: 1,
+        bfmTrunk: 5,
+        bfmRightLeg: 2,
+        bfmLeftLeg: 2,
+      },
+    } as any
     actor.send({ type: 'INBODY_COMPLETED', payload: inBodyData })
 
     const snapshot = actor.getSnapshot()
@@ -107,13 +151,39 @@ describe('healthSessionMachine', () => {
 
     actor.send({
       type: 'SUBMIT_IDENTIFICATION',
-      payload: { fullName: 'Nguyễn Văn A', identityCode: '012345678901' },
+      payload: {
+        fullName: 'Nguyễn Văn A',
+        identityCode: '012345678901',
+        age: 30,
+        heightCm: 170,
+        gender: 'M',
+      },
     })
     actor.send({ type: 'SELECT_SERVICES', payload: ['ALL'] })
     actor.send({ type: 'BP_COMPLETED', payload: { systolic: 120, diastolic: 80, pulse: 72 } })
     actor.send({
       type: 'INBODY_COMPLETED',
-      payload: { weight: 70, muscleMass: 35, bodyFatPercentage: 18, score: 85 },
+      payload: {
+        weight: 70,
+        smm: 35,
+        pbf: 18,
+        inBodyScore: 85,
+        bmi: 22,
+        vfl: 5,
+        tbw: 40,
+        segmental: {
+          ffmRightArm: 3,
+          ffmLeftArm: 3,
+          ffmTrunk: 25,
+          ffmRightLeg: 9,
+          ffmLeftLeg: 9,
+          bfmRightArm: 1,
+          bfmLeftArm: 1,
+          bfmTrunk: 5,
+          bfmRightLeg: 2,
+          bfmLeftLeg: 2,
+        },
+      } as any,
     })
 
     expect(actor.getSnapshot().value).toBe('summary')
@@ -133,13 +203,39 @@ describe('healthSessionMachine', () => {
 
     actor.send({
       type: 'SUBMIT_IDENTIFICATION',
-      payload: { fullName: 'Nguyễn Văn A', identityCode: '012345678901' },
+      payload: {
+        fullName: 'Nguyễn Văn A',
+        identityCode: '012345678901',
+        age: 30,
+        heightCm: 170,
+        gender: 'M',
+      },
     })
     actor.send({ type: 'SELECT_SERVICES', payload: ['ALL'] })
     actor.send({ type: 'BP_COMPLETED', payload: { systolic: 120, diastolic: 80, pulse: 72 } })
     actor.send({
       type: 'INBODY_COMPLETED',
-      payload: { weight: 70, muscleMass: 35, bodyFatPercentage: 18, score: 85 },
+      payload: {
+        weight: 70,
+        smm: 35,
+        pbf: 18,
+        inBodyScore: 85,
+        bmi: 22,
+        vfl: 5,
+        tbw: 40,
+        segmental: {
+          ffmRightArm: 3,
+          ffmLeftArm: 3,
+          ffmTrunk: 25,
+          ffmRightLeg: 9,
+          ffmLeftLeg: 9,
+          bfmRightArm: 1,
+          bfmLeftArm: 1,
+          bfmTrunk: 5,
+          bfmRightLeg: 2,
+          bfmLeftLeg: 2,
+        },
+      } as any,
     })
 
     // Simulate ticking down to 1s
@@ -163,7 +259,13 @@ describe('healthSessionMachine', () => {
 
     actor.send({
       type: 'SUBMIT_IDENTIFICATION',
-      payload: { fullName: 'Nguyễn Văn A', identityCode: '012345678901' },
+      payload: {
+        fullName: 'Nguyễn Văn A',
+        identityCode: '012345678901',
+        age: 30,
+        heightCm: 170,
+        gender: 'M',
+      },
     })
     expect(actor.getSnapshot().value).toBe('serviceSelection')
 

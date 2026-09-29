@@ -45,6 +45,9 @@ export default function KioskIdleRoute() {
     submitIdentification({
       fullName: data.fullName,
       identityCode: data.identityCode,
+      age: 30,
+      heightCm: 165.0,
+      gender: 'M',
     })
     setTimeout(() => {
       navigateTo('KIOSK_MEASURE')

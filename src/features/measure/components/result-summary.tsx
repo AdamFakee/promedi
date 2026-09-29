@@ -28,22 +28,50 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
     pulse: 72,
   }
 
-  const inBodyData = context.inBodyResults ?? {
-    weight: 68.5,
-    muscleMass: 31.2,
-    bodyFatPercentage: 18.4,
-    score: 82,
-  }
+  const inBodyData =
+    context.inBodyResults ??
+    ({
+      weight: 68.5,
+      smm: 31.2,
+      pbf: 18.4,
+      inBodyScore: 82,
+      bmi: 23.2,
+      vfl: 4,
+      tbw: 41.5,
+      segmental: {
+        ffmRightArm: 3.2,
+        ffmLeftArm: 3.1,
+        ffmTrunk: 24.5,
+        ffmRightLeg: 8.3,
+        ffmLeftLeg: 8.2,
+        bfmRightArm: 0.8,
+        bfmLeftArm: 0.8,
+        bfmTrunk: 4.2,
+        bfmRightLeg: 1.9,
+        bfmLeftLeg: 1.9,
+      },
+    } as any)
 
-  const heightM = 1.72
-  const bmi = (inBodyData.weight / (heightM * heightM)).toFixed(1)
-  const bodyAge = 28
-  const visceralFat = 4
-  const tbw = 41.5
+  const bmi = inBodyData.bmi?.toFixed(1) ?? '0.0'
+  const bodyAge = context.customer?.age || 28
+  const visceralFat = inBodyData.vfl ?? 0
+  const tbw = inBodyData.tbw ?? 0
 
   return (
     <View className={cn('w-full flex-1 flex-col gap-3 p-1', className)} style={style}>
       <View>
+        {/* ==================== THÔNG TIN KHÁCH HÀNG ==================== */}
+        <View className="mb-2 flex-row items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+          <Text className="font-bold text-sm uppercase tracking-wider text-slate-800">
+            {context.customer ? `KẾT QUẢ: ${context.customer.fullName}` : 'KẾT QUẢ KHÁM TỔNG HỢP'}
+          </Text>
+          {context.customer && (
+            <Text className="font-medium text-sm text-slate-500">
+              CCCD: {context.customer.identityCode}
+            </Text>
+          )}
+        </View>
+
         {/* ==================== 1. HUYẾT ÁP & TIM MẠCH ==================== */}
         <View className="w-full py-1">
           <View className="mb-3 flex-row items-center justify-between border-b border-slate-200/60 pb-2">
@@ -124,7 +152,9 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     />
                   </Svg>
                   <View className="absolute items-center justify-center">
-                    <Text className="text-sm font-black text-slate-900">{inBodyData.score}</Text>
+                    <Text className="text-sm font-black text-slate-900">
+                      {inBodyData.inBodyScore}
+                    </Text>
                   </View>
                 </View>
                 <Text className="mt-0.5 font-bold text-[10px] uppercase text-slate-500">
@@ -145,7 +175,7 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
               <View className="w-1/4 items-center border-r border-slate-200/60 py-1">
                 <Text className="font-bold text-xs uppercase text-slate-500">Khối Lượng Cơ</Text>
                 <View className="mt-1.5 flex-row items-baseline gap-0.5">
-                  <Text className="text-xl font-black text-primary">{inBodyData.muscleMass}</Text>
+                  <Text className="text-xl font-black text-primary">{inBodyData.smm}</Text>
                   <Text className="font-bold text-xs text-slate-500">kg</Text>
                 </View>
               </View>
@@ -154,9 +184,7 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
               <View className="w-1/4 items-center py-1">
                 <Text className="font-bold text-xs uppercase text-slate-500">Tỷ Lệ Mỡ</Text>
                 <View className="mt-1.5 flex-row items-baseline gap-0.5">
-                  <Text className="text-xl font-black text-slate-900">
-                    {inBodyData.bodyFatPercentage}
-                  </Text>
+                  <Text className="text-xl font-black text-slate-900">{inBodyData.pbf}</Text>
                   <Text className="font-bold text-xs text-slate-500">%</Text>
                 </View>
               </View>
@@ -233,10 +261,10 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     Tay Trái
                   </SvgText>
                   <SvgText x="45" y="65" fontSize="13" fontWeight="bold" fill="#DC2626">
-                    Cơ: 3.1 kg
+                    Cơ: {inBodyData.segmental.ffmLeftArm?.toFixed(1) ?? '0.0'} kg
                   </SvgText>
                   <SvgText x="45" y="81" fontSize="13" fontWeight="bold" fill="#334155">
-                    Mỡ: 0.8 kg
+                    Mỡ: {inBodyData.segmental.bfmLeftArm?.toFixed(1) ?? '0.0'} kg
                   </SvgText>
                 </G>
 
@@ -246,10 +274,10 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     Tay Phải
                   </SvgText>
                   <SvgText x="600" y="55" fontSize="13" fontWeight="bold" fill="#DC2626">
-                    Cơ: 3.2 kg
+                    Cơ: {inBodyData.segmental.ffmRightArm?.toFixed(1) ?? '0.0'} kg
                   </SvgText>
                   <SvgText x="600" y="71" fontSize="13" fontWeight="bold" fill="#334155">
-                    Mỡ: 0.8 kg
+                    Mỡ: {inBodyData.segmental.bfmRightArm?.toFixed(1) ?? '0.0'} kg
                   </SvgText>
                 </G>
 
@@ -259,10 +287,10 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     Thân Người
                   </SvgText>
                   <SvgText x="600" y="225" fontSize="13" fontWeight="bold" fill="#DC2626">
-                    Cơ: 24.5 kg
+                    Cơ: {inBodyData.segmental.ffmTrunk?.toFixed(1) ?? '0.0'} kg
                   </SvgText>
                   <SvgText x="600" y="241" fontSize="13" fontWeight="bold" fill="#334155">
-                    Mỡ: 4.2 kg
+                    Mỡ: {inBodyData.segmental.bfmTrunk?.toFixed(1) ?? '0.0'} kg
                   </SvgText>
                 </G>
 
@@ -272,10 +300,10 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     Chân Trái
                   </SvgText>
                   <SvgText x="45" y="375" fontSize="13" fontWeight="bold" fill="#DC2626">
-                    Cơ: 8.2 kg
+                    Cơ: {inBodyData.segmental.ffmLeftLeg?.toFixed(1) ?? '0.0'} kg
                   </SvgText>
                   <SvgText x="45" y="391" fontSize="13" fontWeight="bold" fill="#334155">
-                    Mỡ: 1.9 kg
+                    Mỡ: {inBodyData.segmental.bfmLeftLeg?.toFixed(1) ?? '0.0'} kg
                   </SvgText>
                 </G>
 
@@ -285,10 +313,10 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
                     Chân Phải
                   </SvgText>
                   <SvgText x="600" y="365" fontSize="13" fontWeight="bold" fill="#DC2626">
-                    Cơ: 8.3 kg
+                    Cơ: {inBodyData.segmental.ffmRightLeg?.toFixed(1) ?? '0.0'} kg
                   </SvgText>
                   <SvgText x="600" y="381" fontSize="13" fontWeight="bold" fill="#334155">
-                    Mỡ: 1.9 kg
+                    Mỡ: {inBodyData.segmental.bfmRightLeg?.toFixed(1) ?? '0.0'} kg
                   </SvgText>
                 </G>
 

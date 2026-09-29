@@ -30,12 +30,7 @@ export function useInBodyMeasurement(isActive: boolean) {
           voicePlayerService.speak('INBODY_COMPLETE')
           // 2. Khi đo xong -> Ghi nhận kết quả
           if (machineCtx.result) {
-            completeInBody({
-              weight: machineCtx.result.weight || 0,
-              muscleMass: machineCtx.result.smm || 0,
-              bodyFatPercentage: machineCtx.result.pbf || 0,
-              score: machineCtx.result.inBodyScore || 0,
-            })
+            completeInBody(machineCtx.result)
           }
         },
         onDeviceError: () => {
@@ -82,14 +77,14 @@ export function useInBodyMeasurement(isActive: boolean) {
 
       const patientInfo: PatientInfo = {
         id: customer.identityCode || '000000000000',
-        age: 30, // Tạm thời dùng giá trị mặc định nếu UI chưa có
-        heightCm: 165.0,
-        gender: 'M',
+        age: customer.age,
+        heightCm: customer.heightCm,
+        gender: customer.gender,
       }
 
       send({ type: 'START', patientInfo })
     }
-  }, [isActive, state.value, context.customer, send])
+  }, [isActive, state, context.customer, send])
 
   const handleReset = () => {
     send({ type: 'RESET' })

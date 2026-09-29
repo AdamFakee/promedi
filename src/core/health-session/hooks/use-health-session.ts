@@ -1,7 +1,8 @@
 import { createActor } from 'xstate'
 import { useCallback, useEffect, useState } from 'react'
 import { healthSessionMachine } from '../machines'
-import type { CustomerData, BpData, InBodyData, ServiceType } from '../types'
+import type { CustomerData, BpData, ServiceType } from '../types'
+import type { InBodyResult } from '@/core/hardware/inbody'
 
 const globalHealthSessionActor = createActor(healthSessionMachine)
 globalHealthSessionActor.start()
@@ -34,7 +35,7 @@ export function useHealthSession() {
     globalHealthSessionActor.send({ type: 'BP_COMPLETED', payload: bpData })
   }, [])
 
-  const completeInBody = useCallback((inBodyData: InBodyData) => {
+  const completeInBody = useCallback((inBodyData: InBodyResult) => {
     globalHealthSessionActor.send({ type: 'INBODY_COMPLETED', payload: inBodyData })
   }, [])
 

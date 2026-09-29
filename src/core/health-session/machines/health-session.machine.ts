@@ -25,6 +25,9 @@ export const healthSessionMachine = setup({
         customer: {
           fullName: event.payload.fullName,
           identityCode: event.payload.identityCode,
+          age: event.payload.age,
+          heightCm: event.payload.heightCm,
+          gender: event.payload.gender,
         },
       }
     }),
