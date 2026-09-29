@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from 'react'
-import { useMachine } from '@xstate/react'
 import { BpbioClient, bpbioSessionMachine } from '@/core/hardware/bpbio'
-import { createTransport } from '@/core/hardware/transport/transport-factory'
-import { useHealthSession } from '@/core/health-session/hooks/use-health-session'
-import { voicePlayerService } from '@/core/voice-engine/voice-player.service'
-import { useAppNavigation } from '@/shared/hooks/use-app-navigation'
 import { bindingStore } from '@/core/hardware/resolver'
+import { createTransport } from '@/core/hardware/transport/transport-factory'
+import { useHealthSession } from '@/core/health-session'
+import { voicePlayerService } from '@/core/voice-engine'
+import { useAppNavigation } from '@/shared/hooks'
+import { useMachine } from '@xstate/react'
+import { useEffect, useMemo } from 'react'
 
 export function useBpMeasurement(isActive: boolean) {
   const { completeBp } = useHealthSession()
@@ -69,11 +69,9 @@ export function useBpMeasurement(isActive: boolean) {
   useEffect(() => {
     if (!isActive) return
 
-    let mounted = true
     send({ type: 'START' })
 
     return () => {
-      mounted = false
       client.disconnect()
     }
   }, [isActive, client, send])

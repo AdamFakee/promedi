@@ -45,6 +45,9 @@ Mô-đun này chịu trách nhiệm điều khiển và giao tiếp với máy p
 2. **Streaming-Safe Codec**: `FrameCodec` sử dụng buffer lũy thừa và vòng lặp `while` tìm `STX` và `ETX` giúp chống triệt để tình trạng phân mảnh gói tin TCP.
 3. **Mã Hóa `latin1` / Sanitize ASCII**: ID người dùng tự động xóa dấu tiếng Việt và giới hạn 14 ký tự ASCII an toàn trước khi đóng gói.
 4. **Half-Duplex Mutex Lock**: `InBodyClient` ngăn chặn các lệnh gửi đè nhau trong khoảng delay 400ms-500ms của InBody.
+5. **Auto-Pilot Protocol & Zero-Touch UI**: Triệt tiêu hoàn toàn nút bấm trên giao diện Kiosk (kể cả nút "Đo lại"). Mọi tương tác đều tự động hóa ngầm: tự nã gói `INFO` khi chốt cân nặng (`STATUS 1`), tự rút `RESULT` khi đo xong (`STATUS 3`).
+6. **Chính sách An ninh Phần cứng (Always-Locked)**: Gửi lệnh `LOCK` vô hiệu hóa phím bấm phần cứng InBody ngay khi mở Kiosk (`connecting` $\rightarrow$ `locking`), và bắt buộc khóa lại trước khi Kiosk chuyển bước (`lockingThenDisconnect`) hoặc ngay sau khi dính lỗi (`relockingError`).
+7. **Xác minh Dọn dẹp (Resend Status)**: Áp dụng state `verifyingCompletion` để đợi máy InBody trả về mã `30` (Ready) sau khi kéo `RESULT`, đảm bảo phần cứng đã reset bộ đệm hoàn toàn trước khi cho UI nhảy qua bước đo Huyết áp.
 
 ---
 

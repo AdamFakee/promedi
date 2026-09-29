@@ -224,21 +224,19 @@ graph TD
 - **Điều kiện tiền đề**: Dịch vụ "InBody" hoặc "Chọn tất cả" được kích hoạt tại Màn 3.
 - **Điều kiện hậu đề**: Lưu dữ liệu chỉ số InBody vào phiên khám.
 
-#### Luồng sự kiện chính (Basic Flow):
+#### Luồng sự kiện chính (Basic Flow - Auto-pilot Protocol):
 
-1. Màn hình dọc Kiosk hiển thị giao diện đo InBody:
+1. Hệ thống tự động thiết lập kết nối TCP Socket tới máy InBody, gửi lệnh **Dọn dẹp (SKIP)** để ép máy thoát khỏi các màn hình lỗi cũ (nếu có), sau đó gửi lệnh **Khóa máy (LOCK)** để vô hiệu hóa phím bấm cứng.
+2. Màn hình dọc Kiosk hiển thị giao diện đo InBody:
    - **Header Top**: Icon các bước đo (InBody đang active sáng đèn).
    - **Khung Video & Chữ hướng dẫn**: Video đứng InBody + Chữ lưu ý gọn: _"Lưu ý: Tháo giày/vớ, đứng khớp điện cực chân, cầm 2 tay nắm dang 15 độ, giữ thả lỏng."_
-   - **Thanh Progress & Status**: _"Đang thực hiện đo... 66%"_ (Thanh tiến trình xanh animated).
-   - **Nút điều khiển**: Nút **"Bỏ qua"** và nút **"Tiếp tục"**.
-   - **Footer Bottom**: Banner QR Code.
-2. Hệ thống phát giọng nói hướng dẫn:
+3. Hệ thống phát giọng nói hướng dẫn (`INBODY_START`):
    - _Voice prompt_: **"Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày, đứng lên máy InBody và cầm hai tay nắm."**
-3. Máy InBody đo cân nặng $\rightarrow$ Đo trở kháng BIA $\rightarrow$ Gửi dữ liệu về Kiosk.
-4. Màn hình cập nhật tiến trình 100%, hiển thị tóm tắt chỉ số InBody Score, Cơ, Mỡ.
-5. Hệ thống phát giọng nói:
-   - _Voice prompt_: **"Đã phân tích xong chỉ số cơ thể. Mời bạn nhấn Tiếp tục để xem tổng hợp kết quả."**
-6. Khách hàng nhấn **"Tiếp tục"** $\rightarrow$ Chuyển sang **UC-06 (Bảng Tổng hợp Kết quả)**.
+4. Kiosk liên tục **Polling trạng thái (STATUS 500ms)** ngầm. Khi khách bước lên cân, InBody chốt cân nặng (Status `1`), Kiosk lập tức **tự động đẩy gói Thông tin Định danh (INFO)** xuống máy mà không cần khách thao tác.
+5. InBody tiến hành quét BIA (Status `2`). Kiosk tự động **ngắt mọi âm thanh hướng dẫn trước đó** để không đè âm báo tít tít của máy vật lý, UI hiển thị progress "Đang đo...".
+6. InBody báo đo xong (Status `3`), Kiosk tự động gửi lệnh **Rút dữ liệu (RESULT)**. UI nhảy 100% progress.
+7. Màn hình hiển thị tóm tắt chỉ số InBody Score, Cơ, Mỡ.
+8. Kiosk thực hiện **Resend Status** (Chờ InBody trả về Status `0` - Ready) để đảm bảo InBody đã dọn dẹp màn hình, sau đó hệ thống tự động gọi Voice (`INBODY_COMPLETE`) và chuyển sang Bước 5 (hoặc **UC-06**).
 
 #### Luồng ngoại lệ (Exception Flows):
 

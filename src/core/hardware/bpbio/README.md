@@ -37,6 +37,9 @@ Mô-đun quản lý vòng đời kết nối, giao thức truyền tin (64-byte 
 - **Quyết định 3: Tách đứt `bindingStore` (MMKV) ra khỏi Machine**
   - _Tại sao?_ Trước đây Machine tự `import { bindingStore }` để lấy ID cổng USB dẫn đến Lỗi Dependency Cycle. Nay đã được refactor: Hook phải đọc `bindingStore` rồi bơm ID cổng vào tham số `input` lúc khởi tạo Machine. Machine hoàn toàn "sạch" I/O cục bộ.
 
+- **Quyết định 4: Auto-Pilot Zero-Touch Kiosk & Tự Phục Hồi Lỗi (Auto-Reset)**
+  - _Tại sao?_ Triệt tiêu hoàn toàn tương tác vật lý (như nút "Đo lại") trên màn hình Kiosk. Khi máy đo huyết áp rụt cùi chỏ báo lỗi (State `error`), Kiosk phát Voice cảnh báo, ngâm 5 giây, rồi FSM tự động (thông qua `after: 5000`) quay lại trạng thái chờ `listening`. Khách chỉ việc đặt lại tay, vòng đo sẽ tự tiếp diễn mà không cần phải chạm vào Kiosk.
+
 ---
 
 ## 3. Hướng dẫn kiểm thử & Chạy lệnh

@@ -1,15 +1,15 @@
 import { cn } from '@/shared/utils'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import React, { useEffect } from 'react'
-import { StyleProp, Text, View, ViewStyle, TouchableOpacity } from 'react-native'
+import { StyleProp, Text, View, ViewStyle } from 'react-native'
 import Animated, {
-  useSharedValue,
   useAnimatedStyle,
+  useSharedValue,
   withRepeat,
   withSequence,
   withTiming,
 } from 'react-native-reanimated'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
 
 const bpGuide = require('@/assets/bp_guide.png')
 
@@ -20,16 +20,9 @@ export interface BpInstructionProps {
   style?: StyleProp<ViewStyle>
   /** Trạng thái đo */
   status?: 'idle' | 'measuring' | 'error' | 'completed'
-  /** Hàm callback khi muốn reset lại trạng thái */
-  onReset?: () => void
 }
 
-export const BpInstruction = ({
-  className,
-  style,
-  status = 'idle',
-  onReset,
-}: BpInstructionProps) => {
+export const BpInstruction = ({ className, style, status = 'idle' }: BpInstructionProps) => {
   // Animation for "measuring" text (infinite pulse)
   const opacity = useSharedValue(0.4)
   const scale = useSharedValue(0.98)
@@ -90,16 +83,9 @@ export const BpInstruction = ({
         </View>
         <Text className="text-center text-2xl font-black text-red-600">Đã xảy ra lỗi</Text>
         <Text className="px-8 text-center font-bold text-base text-slate-600">
-          Máy đo phát hiện cử động hoặc lỗi không xác định. Quý khách vui lòng thử lại.
+          Máy đo phát hiện cử động hoặc lỗi không xác định. Quý khách vui lòng chỉnh lại tư thế, máy
+          sẽ tự động đo lại.
         </Text>
-        {onReset && (
-          <TouchableOpacity
-            onPress={onReset}
-            className="mt-4 rounded-xl bg-red-600 px-8 py-4 shadow-lg shadow-red-500/30"
-          >
-            <Text className="text-xl font-black text-white">ĐO LẠI</Text>
-          </TouchableOpacity>
-        )}
       </View>
     )
   }

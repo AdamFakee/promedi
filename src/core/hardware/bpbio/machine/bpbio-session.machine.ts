@@ -204,6 +204,14 @@ export const bpbioSessionMachine = setup({
         },
         error: {
           entry: ['onErrorAlert'],
+          after: {
+            5000: {
+              target: 'listening',
+              actions: ({ context }) => {
+                context.client.clearPending()
+              },
+            },
+          },
           on: {
             RESET: {
               target: 'listening',

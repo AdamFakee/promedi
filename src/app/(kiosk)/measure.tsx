@@ -4,6 +4,7 @@ import {
   InBodyInstruction,
   ResultSummary,
   useBpMeasurement,
+  useInBodyMeasurement,
 } from '@/features/measure'
 import {
   KioskCountdownTimer,
@@ -27,6 +28,9 @@ export default function KioskMeasureRoute() {
 
   // Khởi tạo logic đo Huyết áp khi ở Step 0
   const bpState = useBpMeasurement(currentStep === 0)
+
+  // Khởi tạo logic đo InBody khi ở Step 1
+  const inbodyState = useInBodyMeasurement(currentStep === 1)
 
   return (
     <View className="relative flex-1 bg-white">
@@ -65,9 +69,13 @@ export default function KioskMeasureRoute() {
           {/* 3. Dynamic Measurement Instruction Area */}
           <View className="w-full flex-1 overflow-hidden px-2">
             {currentStep === 0 ? (
-              <BpInstruction status={bpState.status} onReset={bpState.handleReset} />
+              <BpInstruction status={bpState.status} />
             ) : currentStep === 1 ? (
-              <InBodyInstruction />
+              <InBodyInstruction
+                status={inbodyState.status}
+                progress={inbodyState.progress}
+                errorCode={inbodyState.errorCode}
+              />
             ) : (
               <ResultSummary />
             )}

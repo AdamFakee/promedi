@@ -25,6 +25,12 @@ export const inbodySessionMachine = setup({
       config: InBodyMachineContext['config']
     }
   },
+  actions: {
+    onMeasuringStart: () => {},
+    onMeasurementCompleted: () => {},
+    onConnectionError: () => {},
+    onDeviceError: () => {},
+  },
   actors: {
     /** Actor thực thi kết nối TCP */
     connectActor: fromPromise(
@@ -136,11 +142,21 @@ export const inbodySessionMachine = setup({
         src: 'connectActor',
         input: ({ context }) => ({ client: context.client, config: context.config }),
         onDone: {
-          target: 'locking',
+          target: 'initializing',
         },
         onError: {
           target: 'disconnected',
+          actions: [assign({ lastErrorCode: () => 'UNKNOWN_ERROR' as const }), 'onConnectionError'],
         },
+      },
+    },
+
+    initializing: {
+      invoke: {
+        src: 'sendSkipActor',
+        input: ({ context }) => ({ client: context.client }),
+        onDone: 'locking',
+        onError: 'locking', // Vẫn tiếp tục nếu timeout
       },
     },
 
@@ -181,13 +197,14 @@ export const inbodySessionMachine = setup({
           {
             guard: ({ event }) => event.status === STATUS_CODE.ERROR,
             target: 'deviceError',
-            actions: assign({
-              lastErrorCode: ({ event }) => parseErrorCode(event.errorCode),
-            }),
+            actions: [
+              assign({ lastErrorCode: ({ event }) => parseErrorCode(event.errorCode) }),
+              'onDeviceError',
+            ],
           },
         ],
         TRANSPORT_TIMEOUT: 'transportTimeout',
-        DISCONNECT: 'unlockingThenDisconnect',
+        DISCONNECT: 'lockingThenDisconnect',
       },
     },
 
@@ -195,7 +212,10 @@ export const inbodySessionMachine = setup({
       invoke: {
         src: 'sendInfoActor',
         input: ({ context }) => ({ client: context.client, patientInfo: context.patientInfo }),
-        onDone: 'measuring',
+        onDone: {
+          target: 'measuring',
+          actions: 'onMeasuringStart',
+        },
         onError: 'deviceError',
       },
     },
@@ -214,9 +234,10 @@ export const inbodySessionMachine = setup({
           {
             guard: ({ event }) => event.status === STATUS_CODE.ERROR,
             target: 'deviceError',
-            actions: assign({
-              lastErrorCode: ({ event }) => parseErrorCode(event.errorCode),
-            }),
+            actions: [
+              assign({ lastErrorCode: ({ event }) => parseErrorCode(event.errorCode) }),
+              'onDeviceError',
+            ],
           },
           {
             actions: assign({
@@ -225,7 +246,7 @@ export const inbodySessionMachine = setup({
           },
         ],
         TRANSPORT_TIMEOUT: 'transportTimeout',
-        DISCONNECT: 'unlockingThenDisconnect',
+        DISCONNECT: 'lockingThenDisconnect',
       },
     },
 
@@ -234,7 +255,7 @@ export const inbodySessionMachine = setup({
         src: 'fetchResultActor',
         input: ({ context }) => ({ client: context.client }),
         onDone: {
-          target: 'completed',
+          target: 'verifyingCompletion',
           actions: assign({
             result: ({ event }) => event.output,
             progress: 100,
@@ -244,9 +265,38 @@ export const inbodySessionMachine = setup({
       },
     },
 
+    verifyingCompletion: {
+      invoke: {
+        src: 'statusPoller',
+        input: ({ context }) => ({ client: context.client }),
+      },
+      on: {
+        STATUS_UPDATE: {
+          guard: ({ event }) =>
+            event.status === STATUS_CODE.READY || event.status === STATUS_CODE.LOCKED,
+          target: 'completed',
+          actions: 'onMeasurementCompleted',
+        },
+        TRANSPORT_TIMEOUT: {
+          target: 'completed',
+          actions: 'onMeasurementCompleted',
+        },
+        DISCONNECT: 'lockingThenDisconnect',
+      },
+    },
+
     deviceError: {
       invoke: {
         src: 'sendSkipActor',
+        input: ({ context }) => ({ client: context.client }),
+        onDone: 'relockingError',
+        onError: 'relockingError',
+      },
+    },
+
+    relockingError: {
+      invoke: {
+        src: 'lockActor',
         input: ({ context }) => ({ client: context.client }),
         onDone: 'waitingForWeight',
         onError: 'waitingForWeight',
@@ -257,19 +307,19 @@ export const inbodySessionMachine = setup({
       entry: assign({
         lastErrorCode: () => 'UNKNOWN_ERROR' as const,
       }),
-      always: 'unlockingThenDisconnect',
+      always: 'lockingThenDisconnect',
     },
 
     completed: {
       on: {
         RESET: 'ready',
-        DISCONNECT: 'unlockingThenDisconnect',
+        DISCONNECT: 'lockingThenDisconnect',
       },
     },
 
-    unlockingThenDisconnect: {
+    lockingThenDisconnect: {
       invoke: {
-        src: 'unlockActor',
+        src: 'lockActor',
         input: ({ context }) => ({ client: context.client }),
         onDone: 'disconnecting',
         onError: 'disconnecting',
