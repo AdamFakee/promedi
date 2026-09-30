@@ -25,6 +25,7 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
   const bpData = context.bpResults
   const inBodyData = context.inBodyResults
 
+  const gender = context.customer?.gender ?? 'M'
   const bmi = inBodyData?.bmi ? inBodyData.bmi.toFixed(1) : '---'
   const bodyAge = context.customer?.age ? context.customer.age : '---'
   const visceralFat = inBodyData?.vfl ?? '---'
@@ -288,7 +289,7 @@ export const ResultSummary = ({ className, style }: ResultSummaryProps) => {
 
                 {/* 3. CENTERED DETAILED BODY SVG */}
                 <G transform="translate(195, 0)">
-                  <SvgDetailedBody width={310} height={465} />
+                  <SvgDetailedBody width={310} height={465} gender={gender} />
                 </G>
               </Svg>
             </View>

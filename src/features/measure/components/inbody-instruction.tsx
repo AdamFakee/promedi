@@ -1,3 +1,4 @@
+import { useHealthSession } from '@/core/health-session'
 import { cn } from '@/shared/utils'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -21,6 +22,7 @@ export interface InBodyInstructionProps {
   status?: 'idle' | 'measuring' | 'error' | 'completed'
   progress?: number
   errorCode?: string | null
+  gender?: 'M' | 'F'
   className?: string
   style?: StyleProp<ViewStyle>
 }
@@ -29,9 +31,13 @@ export const InBodyInstruction = ({
   status = 'idle',
   progress = 0,
   errorCode,
+  gender: genderProp,
   className,
   style,
 }: InBodyInstructionProps) => {
+  const { context } = useHealthSession()
+  const gender = genderProp ?? context.customer?.gender ?? 'M'
+
   // Animation cho thanh scan quét lên xuống
   const scanY = useSharedValue(10)
   const textOpacity = useSharedValue(0.5)
@@ -86,7 +92,7 @@ export const InBodyInstruction = ({
         >
           {/* Vùng chứa SVG Body với chiều cao cố định để thanh scan chạy */}
           <View className="relative h-[280px] w-[190px] items-center justify-center overflow-hidden">
-            <SvgDetailedBody width={165} height={270} />
+            <SvgDetailedBody width={165} height={270} gender={gender} />
 
             {/* Scanning Laser Beam with Glow effect */}
             <Animated.View
