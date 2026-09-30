@@ -80,7 +80,7 @@ export default function KioskIdleRoute() {
     submitIdentification({
       fullName: data.fullName,
       identityCode: data.identityCode,
-      age: 30,
+      age: Number(data.age) || 30,
       heightCm: 165.0,
       gender: data.gender || 'M',
     })

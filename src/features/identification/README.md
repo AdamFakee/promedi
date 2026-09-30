@@ -1,13 +1,13 @@
 # Mô-đun Định danh Khách hàng (Identification Feature)
 
-Mô-đun quản lý giao diện Popup Modal nhập thông tin định danh bệnh nhân (Họ và tên & Số Căn cước công dân 12 chữ số) phục vụ luồng tự khám sức khỏe tại Kiosk.
+Mô-đun quản lý giao diện Popup Modal nhập thông tin định danh khách hàng (Họ và tên, Số CCCD 12 chữ số, Số tuổi & Giới tính) phục vụ luồng tự khám sức khỏe tại Kiosk và truyền dữ liệu cho máy InBody 260S.
 
 ---
 
 ⚠️ **Cảnh báo & Phân biệt**:
 
 - Mô-đun này xử lý **Định danh khách hàng** qua Popup Modal căn giữa tại Màn hình rảnh rỗi (Idle screen).
-- Thông tin định danh chỉ thu thập **Họ và tên (bắt buộc)** và **Số CCCD 12 chữ số (bắt buộc)**. Phân biệt với mô-đun Kích hoạt thiết bị (`activation`) dành cho Admin Kiosk.
+- Thông tin định danh thu thập **Họ và tên (bắt buộc)**, **Số CCCD 12 chữ số (bắt buộc)**, **Số tuổi (1-120, bắt buộc)** và **Giới tính ('M' | 'F', bắt buộc)**. Dữ liệu này được truyền trực tiếp xuống State Machine và nạp vào máy InBody 260S qua lệnh Open Protocol `INFO (0x75)`.
 
 ---
 
@@ -22,29 +22,24 @@ Mô-đun quản lý giao diện Popup Modal nhập thông tin định danh bện
 
 ## 1. Đang có gì (Bảng danh mục tệp)
 
-| Tệp                                                                                                                           | Trách nhiệm                                            | Chạm Vào/Ra (I/O)             |
-| :---------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :---------------------------- |
-| [`index.ts`](file:///d:/promedi/src/features/identification/index.ts)                                                         | Barrel File xuất ra Public API cho mô-đun              | ❌ Logic thuần                |
-| [`components/identification-modal.tsx`](file:///d:/promedi/src/features/identification/components/identification-modal.tsx)   | Form Popup căn giữa nhập Họ tên, Giới tính & Số CCCD   | 🌐 UI / State React Hook Form |
-| [`components/virtual-numpad.tsx`](file:///d:/promedi/src/features/identification/components/virtual-numpad.tsx)               | Bàn phím số ảo tích hợp phím Xóa                       | ⚠️ Native Haptics Feedback    |
-| [`validations/identification.schema.ts`](file:///d:/promedi/src/features/identification/validations/identification.schema.ts) | Valibot validation schema cho Họ tên, CCCD & Giới tính | ❌ Logic thuần                |
+| Tệp                                                                                                                           | Trách nhiệm                                                     | Chạm Vào/Ra (I/O)             |
+| :---------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------- | :---------------------------- |
+| [`index.ts`](file:///d:/promedi/src/features/identification/index.ts)                                                         | Barrel File xuất ra Public API cho mô-đun                       | ❌ Logic thuần                |
+| [`components/identification-modal.tsx`](file:///d:/promedi/src/features/identification/components/identification-modal.tsx)   | Form Popup căn giữa nhập Họ tên, Tuổi, Giới tính & Số CCCD      | 🌐 UI / State React Hook Form |
+| [`validations/identification.schema.ts`](file:///d:/promedi/src/features/identification/validations/identification.schema.ts) | Valibot validation schema cho Họ tên, CCCD, Số tuổi & Giới tính | ❌ Logic thuần                |
 
 ---
 
 ## 2. Các quyết định đã chốt & Lý giải kỹ thuật (HOW & WHY)
 
 1. **Ràng buộc Định danh Bắt buộc (Mandatory Identification Fields)**:
-   - Các trường **Họ và tên** (không trống), **Số CCCD** (đúng 12 chữ số `/^\d{12}$/`) và **Giới tính** (`'M' | 'F'`) đều là **bắt buộc**.
-   - Lựa chọn giới tính sử dụng Base Component `SegmentedControl` kết hợp Controller từ `react-hook-form` để đảm bảo UI chuẩn Kiosk Touch và phục vụ chính xác thuật toán đo cơ/mỡ InBody.
+   - Các trường **Họ và tên** (không trống), **Số CCCD** (đúng 12 chữ số `/^\d{12}$/`), **Số tuổi** (từ 1 đến 120) và **Giới tính** (`'M' | 'F'`) đều là **bắt buộc**.
+   - Lựa chọn giới tính sử dụng Base Component `SegmentedControl` kết hợp Controller từ `react-hook-form` để đảm bảo UI chuẩn Kiosk Touch và phục vụ chính xác thuật toán đo cơ/mỡ InBody. Giới tính không được chọn mặc định từ đầu.
+   - Hiệu ứng phản hồi tương tác (Micro-interaction): Khi người dùng bấm submit mà chưa chọn giới tính, hệ thống kích hoạt hiệu ứng Reanimated **rung lắc ngang (shake)** dứt khoát và hiển thị thông báo lỗi qua Base Component `InputError`.
    - Sử dụng Valibot Schema kết hợp `react-hook-form` với `mode: 'onSubmit'` để chỉ validate khi người dùng bấm "Bắt đầu kiểm tra sức khỏe".
 
-2. **Tối ưu Hiệu năng Bấm phím 60fps (Zero Waterfalls & Re-render Elimination)**:
-   - Loại bỏ `watch('identityCode')` ở Modal cha. Sử dụng `getValues('identityCode')` trong `useCallback` để ngắt kết nối re-render toàn bộ Modal khi gõ phím.
-   - Bọc `VirtualNumpad` bằng `React.memo` giúp 11 nút bấm phím không bị re-render lại khi giá trị input thay đổi.
-   - Truyền `{ shouldValidate: false }` khi gọi `setValue` từ phím bấm Numpad để không trigger Valibot schema validation đồng bộ trên từng keystroke.
-
-3. **An toàn Haptics Bridge**:
-   - Bọc `Haptics.impactAsync(...).catch(() => {})` giúp tránh nghẽn thread bridge trên thiết bị Kiosk Android không có haptic motor.
+2. **Dữ liệu Đồng bộ Phần cứng InBody**:
+   - Dữ liệu tuổi (`age`), giới tính (`gender`), số CCCD (`id`) và họ tên từ Modal được chuyển tiếp vào `submitIdentification` và truyền tự động qua máy InBody 260S khi bắt đầu đo qua lệnh `INFO (0x75)`.
 
 ---
 

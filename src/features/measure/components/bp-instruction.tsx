@@ -97,7 +97,7 @@ export const BpInstruction = ({ className, style, status = 'idle' }: BpInstructi
       style={style}
     >
       {/* Hàng 1: Bước 1 (Ảnh bên trái ── Chữ bên phải) */}
-      <View className="flex-row items-center gap-5 overflow-hidden rounded-3xl border border-red-100/80 bg-white/90 p-4 shadow-sm backdrop-blur-md">
+      <View className="flex-row items-center gap-5 overflow-hidden rounded-3xl border border-red-100/80 bg-white/90 p-4 backdrop-blur-md">
         <View className="shadow-inner h-36 w-44 overflow-hidden rounded-2xl bg-slate-100">
           <Image
             source={bpGuide}
@@ -108,7 +108,7 @@ export const BpInstruction = ({ className, style, status = 'idle' }: BpInstructi
         </View>
 
         <View className="flex-1 justify-center">
-          <View className="mb-2 self-start rounded-lg bg-red-600 px-3.5 py-1 shadow-sm">
+          <View className="mb-2 self-start rounded-lg bg-red-600 px-3.5 py-1">
             <Text className="text-xs font-black uppercase tracking-wider text-white">BƯỚC 1</Text>
           </View>
           <Text className="mb-1.5 text-2xl font-black tracking-tight text-slate-900">
@@ -121,7 +121,7 @@ export const BpInstruction = ({ className, style, status = 'idle' }: BpInstructi
       </View>
 
       {/* Hàng 2: Bước 2 (Ảnh bên trái ── Chữ bên phải) */}
-      <View className="flex-row items-center gap-5 overflow-hidden rounded-3xl border border-red-100/80 bg-white/90 p-4 shadow-sm backdrop-blur-md">
+      <View className="flex-row items-center gap-5 overflow-hidden rounded-3xl border border-red-100/80 bg-white/90 p-4 backdrop-blur-md">
         <View className="shadow-inner h-36 w-44 overflow-hidden rounded-2xl bg-slate-100">
           <Image
             source={bpGuide}
@@ -132,7 +132,7 @@ export const BpInstruction = ({ className, style, status = 'idle' }: BpInstructi
         </View>
 
         <View className="flex-1 justify-center">
-          <View className="mb-2 self-start rounded-lg bg-red-600 px-3.5 py-1 shadow-sm">
+          <View className="mb-2 self-start rounded-lg bg-red-600 px-3.5 py-1">
             <Text className="text-xs font-black uppercase tracking-wider text-white">BƯỚC 2</Text>
           </View>
           <Text className="mb-1.5 text-2xl font-black tracking-tight text-slate-900">

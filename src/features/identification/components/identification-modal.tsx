@@ -2,6 +2,7 @@ import {
   Button,
   ControlledInput,
   IconButton,
+  InputError,
   ModalBase,
   SegmentedControl,
   SvgBMULogo,
@@ -10,13 +11,18 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import React, { forwardRef, useCallback, useImperativeHandle, useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, type FieldErrors } from 'react-hook-form'
 import { Text, View } from 'react-native'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated'
 import {
   identificationFormSchema,
   type IdentificationFormData,
 } from '../validations/identification.schema'
-import { VirtualNumpad } from './virtual-numpad'
 
 export interface IdentificationModalRef {
   open: () => void
@@ -37,52 +43,62 @@ export const IdentificationModal = forwardRef<IdentificationModalRef, Identifica
       close: () => setVisible(false),
     }))
 
-    const { control, handleSubmit, setValue, getValues, reset } = useForm<IdentificationFormData>({
+    const {
+      control,
+      handleSubmit,
+      reset,
+      formState: { errors },
+    } = useForm<IdentificationFormData>({
       resolver: valibotResolver(identificationFormSchema),
       mode: 'onSubmit',
       defaultValues: {
         fullName: '',
         identityCode: '',
-        gender: 'M',
+        age: '',
+        gender: undefined,
       },
     })
+
+    // Animation rung lắc nhẹ cho phần chọn Giới tính khi chưa chọn lúc Submit
+    const genderShakeX = useSharedValue(0)
+
+    const triggerGenderShake = useCallback(() => {
+      genderShakeX.value = withSequence(
+        withTiming(-12, { duration: 50 }),
+        withTiming(12, { duration: 50 }),
+        withTiming(-10, { duration: 50 }),
+        withTiming(10, { duration: 50 }),
+        withTiming(-6, { duration: 50 }),
+        withTiming(6, { duration: 50 }),
+        withTiming(-2, { duration: 50 }),
+        withTiming(0, { duration: 50 }),
+      )
+    }, [genderShakeX])
+
+    const genderAnimatedStyle = useAnimatedStyle(() => ({
+      transform: [{ translateX: genderShakeX.value }],
+    }))
 
     const handleClose = useCallback(() => {
       setVisible(false)
       reset()
     }, [reset])
 
-    const handlePressDigit = useCallback(
-      (digit: string) => {
-        const current = getValues('identityCode') || ''
-        if (current.length < 12) {
-          setValue('identityCode', current + digit, {
-            shouldValidate: false,
-            shouldDirty: true,
-            shouldTouch: true,
-          })
+    const onFormInvalid = useCallback(
+      (formErrors: FieldErrors<IdentificationFormData>) => {
+        if (formErrors.gender) {
+          triggerGenderShake()
         }
       },
-      [getValues, setValue],
+      [triggerGenderShake],
     )
-
-    const handlePressDelete = useCallback(() => {
-      const current = getValues('identityCode') || ''
-      if (current.length > 0) {
-        setValue('identityCode', current.slice(0, -1), {
-          shouldValidate: false,
-          shouldDirty: true,
-          shouldTouch: true,
-        })
-      }
-    }, [getValues, setValue])
 
     return (
       <ModalBase
         visible={visible}
         onClose={handleClose}
         size="default"
-        className="max-w-xl self-center overflow-hidden rounded-3xl border border-red-100 bg-white p-0 shadow-2xl"
+        className="max-w-xl self-center overflow-hidden rounded-3xl border border-red-100 bg-white p-0"
       >
         <View className="p-6">
           {/* Header Bar */}
@@ -117,8 +133,20 @@ export const IdentificationModal = forwardRef<IdentificationModalRef, Identifica
               autoCapitalize="words"
             />
 
-            {/* Gender Selection: Nam / Nữ bằng Base Component SegmentedControl */}
-            <View className="gap-1.5">
+            <ControlledInput
+              control={control}
+              name="age"
+              label="Số tuổi"
+              placeholder="Nhập số tuổi"
+              required={true}
+              size="lg"
+              keyboardType="number-pad"
+              maxLength={3}
+              editable={!isLoading}
+            />
+
+            {/* Gender Selection: Nam / Nữ bằng Base Component SegmentedControl có hiệu ứng rung lắc khi chưa chọn */}
+            <Animated.View style={genderAnimatedStyle} className="gap-1.5">
               <Text className="font-bold text-sm text-slate-800">
                 Giới tính <Text className="text-primary">*</Text>
               </Text>
@@ -158,7 +186,8 @@ export const IdentificationModal = forwardRef<IdentificationModalRef, Identifica
                   />
                 )}
               />
-            </View>
+              {errors.gender?.message && <InputError message={errors.gender.message} />}
+            </Animated.View>
 
             <ControlledInput
               control={control}
@@ -172,17 +201,12 @@ export const IdentificationModal = forwardRef<IdentificationModalRef, Identifica
             />
           </View>
 
-          {/* Integrated Numpad */}
-          <View className="my-2">
-            <VirtualNumpad onPressDigit={handlePressDigit} onPressDelete={handlePressDelete} />
-          </View>
-
           {/* Submit Action Button */}
           <Button
             label="Bắt đầu kiểm tra sức khỏe"
             variant="primary"
             size="lg"
-            onPress={handleSubmit(onSubmit)}
+            onPress={handleSubmit(onSubmit, onFormInvalid)}
             loading={isLoading}
             disabled={isLoading}
             className="mt-3 w-full"
