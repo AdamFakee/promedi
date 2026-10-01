@@ -139,8 +139,30 @@ export const RESULT_INDEX_MAP = {
   smi: 211,
   /** Index 306: Điểm số phát triển trẻ em */
   growthScore: 306,
+  /** Index 308: Mức độ béo phì */
+  obesityDegree: 308,
   /** Index 313: Khuyến nghị năng lượng tiêu thụ (kcal) */
   recommendedEnergy: 313,
+  /** Index 314: Đánh giá cơ nạc Tay Trái */
+  leanMassEvaluationLeftArm: 314,
+  /** Index 315: Đánh giá cơ nạc Tay Phải */
+  leanMassEvaluationRightArm: 315,
+  /** Index 316: Đánh giá cơ nạc Thân Chi */
+  leanMassEvaluationTrunk: 316,
+  /** Index 317: Đánh giá cơ nạc Chân Trái */
+  leanMassEvaluationLeftLeg: 317,
+  /** Index 318: Đánh giá cơ nạc Chân Phải */
+  leanMassEvaluationRightLeg: 318,
+  /** Index 319: Đánh giá mỡ Tay Trái */
+  bodyFatMassEvaluationLeftArm: 319,
+  /** Index 320: Đánh giá mỡ Tay Phải */
+  bodyFatMassEvaluationRightArm: 320,
+  /** Index 321: Đánh giá mỡ Thân Chi */
+  bodyFatMassEvaluationTrunk: 321,
+  /** Index 322: Đánh giá mỡ Chân Trái */
+  bodyFatMassEvaluationLeftLeg: 322,
+  /** Index 323: Đánh giá mỡ Chân Phải */
+  bodyFatMassEvaluationRightLeg: 323,
   /** Index 744: Trạng thái kiểm tra điện trở sinh học Impedance */
   impedanceCheck: 744,
 } as const

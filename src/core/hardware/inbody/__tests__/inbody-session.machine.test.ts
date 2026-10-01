@@ -1,6 +1,7 @@
 import { createActor } from 'xstate'
 import { inbodySessionMachine } from '../machine/inbody-session.machine'
 import type { InBodyClient } from '../client/inbody-client'
+import type { InBodyResult } from '../types/inbody.types'
 
 describe('inbodySessionMachine (XState v5 FSM)', () => {
   let mockClient: jest.Mocked<InBodyClient>
@@ -95,8 +96,16 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
       smi: 8.1,
       segmental: {} as any,
       control: {} as any,
+      normalRanges: {} as any,
+      evaluations: {} as any,
+      segmentalEvals: {} as any,
+      mobileNumber: null,
+      obesityDegree: null,
+      growthScore: null,
+      recommendedEnergy: null,
+      impedanceCheck: null,
       raw: [],
-    }
+    } as unknown as InBodyResult
 
     mockClient.requestResult.mockResolvedValue(mockResult)
 

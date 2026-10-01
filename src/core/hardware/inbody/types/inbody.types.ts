@@ -42,6 +42,58 @@ export interface ControlMetrics {
   ffmControl: number | null
 }
 
+/** Giới hạn tiêu chuẩn (Normal Ranges) - Dùng để vẽ thanh Progress Bar (Dưới/Chuẩn/Trên) */
+export interface NormalRangeMetrics {
+  upperLimitProtein: number | null // Index 147
+  lowerLimitProtein: number | null // Index 148
+  upperLimitMinerals: number | null // Index 149
+  lowerLimitMinerals: number | null // Index 150
+  upperLimitWeight: number | null // Index 153
+  lowerLimitWeight: number | null // Index 154
+  upperLimitSmm: number | null // Index 155
+  lowerLimitSmm: number | null // Index 156
+  upperLimitBmi: number | null // Index 157
+  lowerLimitBmi: number | null // Index 158
+  upperLimitPbf: number | null // Index 159
+  lowerLimitPbf: number | null // Index 160
+  upperLimitWhr: number | null // Index 161
+  lowerLimitWhr: number | null // Index 162
+  lowerLimitBfm: number | null // Index 169
+  upperLimitBfm: number | null // Index 170
+  lowerLimitBmr: number | null // Index 171
+  upperLimitBmr: number | null // Index 172
+  lowerLimitTbw: number | null // Index 173
+  upperLimitTbw: number | null // Index 174
+  lowerLimitFfm: number | null // Index 175
+  upperLimitFfm: number | null // Index 176
+}
+
+/** Đánh giá tự động từ máy (Evaluations) */
+export interface EvaluationMetrics {
+  evaluationProtein: number | null // Index 184
+  evaluationMinerals: number | null // Index 185
+  evaluationBodyFat: number | null // Index 186
+  obesityEvaluationBmi: number | null // Index 190
+  obesityEvaluationPbf: number | null // Index 191
+  bodyBalanceUpper: number | null // Index 193
+  bodyBalanceLower: number | null // Index 194
+  bodyBalanceUpperLower: number | null // Index 195
+}
+
+/** Đánh giá cơ & mỡ cho từng chi (Segmental Evaluations) */
+export interface SegmentalEvaluations {
+  leanMassEvaluationLeftArm: number | null // Index 314
+  leanMassEvaluationRightArm: number | null // Index 315
+  leanMassEvaluationTrunk: number | null // Index 316
+  leanMassEvaluationLeftLeg: number | null // Index 317
+  leanMassEvaluationRightLeg: number | null // Index 318
+  bodyFatMassEvaluationLeftArm: number | null // Index 319
+  bodyFatMassEvaluationRightArm: number | null // Index 320
+  bodyFatMassEvaluationTrunk: number | null // Index 321
+  bodyFatMassEvaluationLeftLeg: number | null // Index 322
+  bodyFatMassEvaluationRightLeg: number | null // Index 323
+}
+
 /**
  * Kết quả phân tích thành phần cơ thể hoàn chỉnh thu thập từ lệnh RESULT (0x64).
  */
@@ -88,10 +140,27 @@ export interface InBodyResult {
   inBodyScore: number | null
   /** Skeletal Muscle Index (kg/m²) */
   smi: number | null
+  /** Số điện thoại khách hàng nhập trên cân */
+  mobileNumber: string | null
+  /** Mức độ béo phì */
+  obesityDegree: number | null
+  /** Điểm tăng trưởng - Dành cho trẻ em */
+  growthScore: number | null
+  /** Kcal khuyến nghị */
+  recommendedEnergy: number | null
+  /** Mã kiểm tra lỗi trở kháng */
+  impedanceCheck: string | null
+
   /** Đánh giá cơ nạc & mỡ từng chi */
   segmental: SegmentalMetrics
   /** Khuyến nghị điều chỉnh */
   control: ControlMetrics
+  /** Giới hạn tiêu chuẩn */
+  normalRanges: NormalRangeMetrics
+  /** Đánh giá tổng quan */
+  evaluations: EvaluationMetrics
+  /** Đánh giá từng vùng */
+  segmentalEvals: SegmentalEvaluations
   /** Mảng dữ liệu thô (Raw fields 0..763) để audit/debug */
   raw: string[]
 }

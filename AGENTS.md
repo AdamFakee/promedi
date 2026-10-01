@@ -321,3 +321,73 @@ src/
     ├── store/                        # toast, session cleanup
     └── utils/                        # Pure global utilities (formatters, math, date)
 ```
+
+---
+
+## 🤝 Quy chuẩn Giao tiếp & Theo dõi API (FE & BE Contract)
+
+> Đây là tiêu chuẩn bắt buộc khi AI Agent hoặc đội Dev thiết kế, đề xuất hoặc nghiệm thu API giữa Frontend (Kiosk/Mobile) và Backend.
+
+### 1. Quy ước chung
+
+| Hạng mục               | Quy ước                                                                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Base URL**           | `dev`: `https://api-dev.example.com/v1/kiosk` · `prod`: `https://api.example.com/v1/kiosk`                            |
+| **Naming field**       | `camelCase`                                                                                                           |
+| **Datetime**           | `ISO 8601 UTC` (VD: `2026-10-01T08:30:00Z`)                                                                           |
+| **Tiền tệ (Currency)** | Số nguyên đơn vị nhỏ nhất (VND: `150000`) + field `currency`                                                          |
+| **ID**                 | `String` (UUID/ULID), **KHÔNG** dùng number                                                                           |
+| **Null**               | Field không có giá trị trả `null`, **KHÔNG** bỏ field khỏi response                                                   |
+| **Auth**               | `Authorization: Bearer <accessToken>` (Access 15 phút, Refresh 30 ngày xoay vòng)                                     |
+| **Hết hạn token**      | `401` + `TOKEN_EXPIRED` → FE gọi `/auth/refresh` rồi retry. Nếu refresh fail → `REFRESH_TOKEN_INVALID` → Force Logout |
+| **Header FE gửi kèm**  | `X-Platform` (ios/android/kiosk), `X-Device-Id`, `X-App-Version`, `X-Request-Id` (UUID), `Accept-Language`            |
+| **API tạo/thanh toán** | Bắt buộc có `X-Idempotency-Key` (UUID) để retry an toàn, tránh tạo trùng                                              |
+| **Pagination**         | Cursor: `?limit=20&cursor=...` → `meta: { nextCursor, hasMore }` (limit mặc định 20, max 100)                         |
+| **Sort / Filter**      | `sort=-createdAt` (dấu `-` là giảm dần), filter qua field: `status=PAID,SHIPPED`                                      |
+| **Offline (nếu có)**   | Record có `updatedAt`, `deletedAt`, endpoint delta `GET /sync?since=`, FE tự sinh UUID khi tạo offline.               |
+
+#### Cấu trúc Response
+
+- **Thành công (200 OK)**:
+  ```json
+  { "success": true, "data": {}, "meta": {}, "requestId": "..." }
+  ```
+- **Thất bại (4xx, 5xx)**:
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "VALIDATION_ERROR",
+      "message": "Dữ liệu không hợp lệ",
+      "details": [{ "field": "email", "code": "INVALID_FORMAT", "message": "Email sai định dạng" }]
+    },
+    "requestId": "..."
+  }
+  ```
+  _(**FE Note**: Rẽ nhánh xử lý theo `error.code` cố định, KHÔNG parse `message` vì message đã localize theo `Accept-Language` dành cho hiển thị user)._
+
+### 2. Quy tắc Tổ chức File Quản lý API
+
+Toàn bộ danh sách API, trạng thái và lỗi bắt buộc phải được gom và lưu trữ trong thư mục `docs/api/` qua 4 file cụ thể:
+
+1. **`docs/api/api-pending.md` (Chưa xong)**:
+   - Chứa các API đang ở trạng thái: _Đề xuất_, _Đã chốt_, _BE đang làm_, hoặc _Có trên dev (chờ FE test)_.
+   - Phải mô tả rõ Request, Response, Auth và các tham số.
+2. **`docs/api/api-completed.md` (Đã xong)**:
+   - Chứa các API đã được FE / Kiosk test thành công. Từ thời điểm này, Swagger của BE sẽ được lấy làm chuẩn.
+   - **⚠️ CẢNH BÁO CHO AGENT**: Bắt buộc phải **HỎI VÀ CHỜ DEV XÁC NHẬN** trước khi di chuyển (move) bất kỳ API nào từ `api-pending.md` sang `api-completed.md`.
+3. **`docs/api/api-bugs.md` (Lỗi / Bugs Đang Mở)**:
+   - Chứa các báo cáo lỗi API đang xử lý (ví dụ: response trả ra khác với document, lỗi 500, crash).
+4. **`docs/api/api-bugs-resolved.md` (Lỗi / Bugs Đã Xong)**:
+   - Chứa các bug đã được sửa và test lại thành công.
+   - **⚠️ CẢNH BÁO CHO AGENT**: Bắt buộc phải **HỎI VÀ CHỜ DEV XÁC NHẬN** trước khi di chuyển bug từ `api-bugs.md` sang file này.
+
+### 3. Quy trình Báo cáo Bug API
+
+- Nếu API response sai lệch so với document đã chốt $\rightarrow$ Thêm bug mới vào `api-bugs.md`.
+- Nếu docs không nói hoặc mơ hồ $\rightarrow$ Bổ sung vào docs (không tính là Bug).
+- **Mức độ Bug**:
+  - `P0` (Sửa trong ngày): Chặn luồng chính / crash / mất dữ liệu.
+  - `P1` (Sửa 2-3 ngày): Sai chức năng nhưng có cách né (workaround).
+  - `P2` (Đợt sau): Sai nhỏ về format, thứ tự hiển thị, lỗi typo message.
+- **Form báo bug bắt buộc**: Cần chứa `Môi trường`, `Thời điểm`, `Tài khoản test`, `requestId`, `Tần suất`, `Request Payload/Params`, và `Kỳ vọng vs Thực tế`.
