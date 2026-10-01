@@ -25,7 +25,8 @@ export default function KioskIdleRoute() {
 
   const player = useVideoPlayer(videoSource, (p) => {
     p.loop = true
-    p.muted = true
+    p.muted = false
+    p.volume = 1.0
   })
 
   useEffect(() => {
@@ -112,13 +113,13 @@ export default function KioskIdleRoute() {
       />
 
       {/* Floating Dev Hardware Test Button on Idle Screen */}
-      {/* <Pressable
+      <Pressable
         onPress={() => setTestModalVisible(true)}
         style={styles.floatingDevBtn}
         hitSlop={10}
       >
         <Text style={styles.floatingDevBtnText}>🛠 TEST HARDWARE (15 UCs)</Text>
-      </Pressable> */}
+      </Pressable>
 
       {/* Fullscreen Touchable Backdrop to start session on tap anywhere */}
       <Pressable className="absolute inset-0" onPress={handleStartSession} />
