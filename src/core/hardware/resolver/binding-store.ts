@@ -2,7 +2,7 @@
  * Bộ lưu trữ kết quả tự dò cổng USB (Device Binding Local Storage).
  *
  * Chức năng:
- * - Lưu trữ kết quả gán Role ('inbody' | 'bpbio') với mã định danh thiết bị USB (`deviceKey`) vào bộ nhớ nhanh MMKV.
+ * - Lưu trữ kết quả gán Role ('inbody' | 'bpbio' | 'tof') với mã định danh thiết bị USB (`deviceKey`) vào bộ nhớ nhanh MMKV.
  * - Phục vụ luồng Fast-Path Verification: Giúp Kiosk khởi động siêu nhanh ở các lần bật máy tiếp theo nếu dây cắm không đổi.
  *
  * @module src/core/hardware/resolver/binding-store.ts
@@ -11,11 +11,11 @@
 import { createMMKV } from 'react-native-mmkv'
 
 /** Vai trò của thiết bị đo được gán bởi Kiosk */
-export type DeviceRole = 'inbody' | 'bpbio'
+export type DeviceRole = 'inbody' | 'bpbio' | 'tof'
 
 /** Cấu trúc liên kết vai trò thiết bị và khóa định danh USB */
 export interface DeviceBinding {
-  /** Vai trò thiết bị ('inbody' | 'bpbio') */
+  /** Vai trò thiết bị ('inbody' | 'bpbio' | 'tof') */
   role: DeviceRole
   /** Khóa định danh thiết bị USB dạng "vendorId:productId:deviceId" */
   deviceKey: string

@@ -9,6 +9,8 @@ export * from './resolver'
 
 export * as InBodySDK from './inbody'
 export * as BpbioSDK from './bpbio'
+export * as TofSDK from './tof'
 
 export { InBodyDevice, InBodyClient } from './inbody'
 export { BpbioDevice, BpbioClient } from './bpbio'
+export { ToFDistanceDevice, ToFClient, HeightMeasurementEngine } from './tof'

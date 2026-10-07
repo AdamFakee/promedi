@@ -5,18 +5,24 @@
  * - Khai báo cấu hình baudrate và payload tín hiệu hỏi thử (Probe Payload) cho từng vai trò thiết bị.
  * - InBody 260S: Gửi lệnh STATUS (0x63), kiểm tra phản hồi khung STX...ETX chứa Status Code hợp lệ.
  * - BPBIO750: Gửi lệnh CONFIRM_CONNECT (RE 0x52 0x45), kiểm tra phản hồi chứa ASCII 'CON'.
+ * - ToF VL53L5CX/L8CX: Gửi lệnh PING [0xAA 0x55 'P' 'G'] và kiểm tra phản hồi PONG Ack [0xAA 0x55 'O' 'K'] hoặc 204B Frame.
  *
  * @module src/core/hardware/resolver/device-probes.ts
  */
 
 import { COMMANDS as BPBIO_COMMANDS, buildBpbioCommandFrame } from '../bpbio'
 import { FrameCodec, COMMANDS as INBODY_COMMANDS } from '../inbody'
+import {
+  TOF_PING_COMMAND,
+  TOF_PONG_RESPONSE,
+  ToFStreamFramer,
+} from '../tof/protocol/tof-frame-codec'
 import type { DeviceTransport } from '../transport'
 import type { DeviceRole } from './binding-store'
 
 /** Interface quy định cấu trúc 1 Probe Signature */
 export interface DeviceProbe {
-  /** Vai trò thiết bị ('inbody' | 'bpbio') */
+  /** Vai trò thiết bị ('inbody' | 'bpbio' | 'tof') */
   role: DeviceRole
   /** Tốc độ truyền baud rate cần thiết để hỏi thử */
   baudRate: number
@@ -77,7 +83,7 @@ async function sendProbeAndCheck(
   })
 }
 
-/** Danh sách mảng các Probe Signatures cho InBody 260S và BPBIO750 */
+/** Danh sách mảng các Probe Signatures cho InBody 260S, BPBIO750 và ToF VL53L5CX/L8CX */
 export const PROBES: DeviceProbe[] = [
   {
     role: 'inbody',
@@ -97,10 +103,6 @@ export const PROBES: DeviceProbe[] = [
     baudRate: 9600,
     probe: async (transport) => {
       // Dùng CONFIRM_CONNECT_FRAME [0x52, 0x45] ("RE") — phản hồi 'CON' ở MỌI trạng thái máy.
-      //
-      // FIX BUG: SerialInputOutputManager gửi 1 byte/chunk.
-      // Nếu check `ascii.includes('CON')` trên từng chunk đơn lẻ → không bao giờ match.
-      // Phải dùng `accumulated` để gom bytes qua nhiều lần gọi, rồi check trên chuỗi tổng hợp.
       const accumulated: number[] = []
       const cmd = buildBpbioCommandFrame(BPBIO_COMMANDS.CONFIRM_CONNECT_FRAME)
       return sendProbeAndCheck(transport, cmd, (chunk) => {
@@ -108,6 +110,38 @@ export const PROBES: DeviceProbe[] = [
         const ascii = accumulated.map((b) => String.fromCharCode(b)).join('')
         return ascii.includes('CON')
       })
+    },
+  },
+  {
+    role: 'tof',
+    baudRate: 460800,
+    probe: async (transport) => {
+      // ToF Handshake: Gửi lệnh PING [0xAA, 0x55, 'P', 'G'] và chờ phản hồi PONG Ack [0xAA, 0x55, 'O', 'K'] hoặc 204B Frame
+      const accumulated: number[] = []
+      const framer = new ToFStreamFramer()
+      return sendProbeAndCheck(
+        transport,
+        TOF_PING_COMMAND,
+        (chunk) => {
+          // 1. Kiểm tra nếu có phản hồi PONG Ack [0xAA, 0x55, 'O', 'K']
+          for (const b of chunk) accumulated.push(b)
+          for (let i = 0; i <= accumulated.length - 4; i++) {
+            if (
+              accumulated[i] === TOF_PONG_RESPONSE[0] &&
+              accumulated[i + 1] === TOF_PONG_RESPONSE[1] &&
+              accumulated[i + 2] === TOF_PONG_RESPONSE[2] &&
+              accumulated[i + 3] === TOF_PONG_RESPONSE[3]
+            ) {
+              return true
+            }
+          }
+
+          // 2. Hoặc kiểm tra luồng nhị phân 204B đang stream
+          const frames = framer.pushData(chunk)
+          return frames.length > 0
+        },
+        1200,
+      )
     },
   },
 ]

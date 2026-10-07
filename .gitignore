@@ -50,3 +50,7 @@ app-example
 # IDE
 .idea/
 .vscode/
+
+# Build executables
+*.exe
+

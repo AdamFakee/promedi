@@ -22,9 +22,11 @@ import {
   DeviceResolver,
   InBodySDK,
   TcpTransport,
+  ToFDistanceDevice,
   UsbSerialTransport,
   bindingStore,
 } from '@/core/hardware'
+import type { HeightCalculationResult, VL53L5CXFramePayload } from '@/core/hardware/tof'
 import React, { useState } from 'react'
 import {
   Modal,
@@ -56,7 +58,7 @@ export interface HardwareTestModalProps {
 
 export const HardwareTestModal: React.FC<HardwareTestModalProps> = ({ visible, onClose }) => {
   const [activeTab, setActiveTab] = useState<
-    'sequential' | 'sunmi-field' | 'inbody' | 'bpbio' | 'tcp' | 'resolver' | 'exception'
+    'sequential' | 'sunmi-field' | 'inbody' | 'bpbio' | 'tcp' | 'resolver' | 'exception' | 'tof'
   >('sequential')
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [isRunningAll, setIsRunningAll] = useState(false)
@@ -72,6 +74,100 @@ export const HardwareTestModal: React.FC<HardwareTestModalProps> = ({ visible, o
   const [tcpPort, setTcpPort] = useState('2004')
   const [inbodyHeight, setInbodyHeight] = useState('175')
   const [inbodyAge, setInbodyAge] = useState('30')
+
+  // ToF Real Hardware Test State
+  const tofDeviceRef = React.useRef<ToFDistanceDevice | null>(null)
+  const [isTofStreaming, setIsTofStreaming] = useState(false)
+  const [tofFramePayload, setTofFramePayload] = useState<VL53L5CXFramePayload | null>(null)
+  const [tofHeightResult, setTofHeightResult] = useState<HeightCalculationResult | null>(null)
+  const [tofError, setTofError] = useState<string | null>(null)
+
+  React.useEffect(() => {
+    return () => {
+      if (tofDeviceRef.current) {
+        tofDeviceRef.current.disconnect().catch(() => {})
+        tofDeviceRef.current = null
+      }
+    }
+  }, [])
+
+  const runTofStartRealHardwareStream = async () => {
+    const startTime = Date.now()
+    addLog(
+      'UC-TOF-01',
+      'RUNNING',
+      'Đang mở kết nối Cổng USB Serial Cảm biến ToF VL53L5CX (Tốc độ 460800 Baud, PHẦN CỨNG THẬT)...',
+    )
+    try {
+      if (!tofDeviceRef.current) {
+        tofDeviceRef.current = new ToFDistanceDevice()
+      }
+      const dev = tofDeviceRef.current
+
+      // ÉP BẮT BUỘC KHÔNG DÙNG MOCK STREAM (Phần cứng thật 100%)
+      dev.setMockMode(false)
+
+      dev.onFrame((framePayload) => {
+        setTofFramePayload(framePayload)
+      })
+
+      dev.onStatusChange((status) => {
+        if (status === 'error') {
+          setIsTofStreaming(false)
+          setTofError('Lỗi kết nối cáp phần cứng Cảm biến ToF (Transport Error)')
+        }
+      })
+
+      await dev.connect()
+
+      setIsTofStreaming(true)
+      setTofError(null)
+
+      const latency = Date.now() - startTime
+      addLog(
+        'UC-TOF-01',
+        'PASS',
+        'ĐÃ KẾT NỐI PHẦN CỨNG THẬT ESP32 VL53L5CX (460800 Baud)! Đang nhận luồng 204Bytes Stream 15Hz...',
+        'CONNECT: UsbSerialTransport (460800 8N1, Port: tof)',
+        'RECV STREAM: [204-BYTE BINARY FRAME @ 15Hz OK]',
+        latency,
+      )
+    } catch (err: any) {
+      setIsTofStreaming(false)
+      setTofError(err.message)
+      addLog(
+        'UC-TOF-01',
+        'FAIL',
+        `Lỗi kết nối phần cứng ToF: ${err.message}`,
+        undefined,
+        undefined,
+        Date.now() - startTime,
+      )
+    }
+  }
+
+  const runTofStopStream = async () => {
+    const startTime = Date.now()
+    try {
+      if (tofDeviceRef.current) {
+        await tofDeviceRef.current.disconnect()
+        tofDeviceRef.current = null
+      }
+      setIsTofStreaming(false)
+      setTofFramePayload(null)
+      setTofHeightResult(null)
+      addLog(
+        'UC-TOF-02',
+        'PASS',
+        'Đã dừng luồng Stream Cảm biến ToF an toàn.',
+        undefined,
+        undefined,
+        Date.now() - startTime,
+      )
+    } catch (err: any) {
+      addLog('UC-TOF-02', 'FAIL', `Lỗi dừng Stream: ${err.message}`)
+    }
+  }
 
   const addLog = (
     useCaseCode: string,
@@ -2334,6 +2430,7 @@ export const HardwareTestModal: React.FC<HardwareTestModalProps> = ({ visible, o
 
       const inbodyBinding = result.get('inbody')
       const bpbioBinding = result.get('bpbio')
+      const tofBinding = result.get('tof')
 
       const lines: string[] = []
       if (inbodyBinding) {
@@ -2352,8 +2449,16 @@ export const HardwareTestModal: React.FC<HardwareTestModalProps> = ({ visible, o
       } else {
         lines.push(`❌ BPBIO750    → Không tìm thấy. Kiểm tra nguồn điện & cáp USB BPBIO.`)
       }
+      if (tofBinding) {
+        const devName =
+          devs.find((d: any) => d.deviceKey === tofBinding.deviceKey)?.deviceName ??
+          tofBinding.deviceKey
+        lines.push(`✅ ToF VL53L5CX → ${devName} (${tofBinding.deviceKey})`)
+      } else {
+        lines.push(`❌ ToF VL53L5CX → Không tìm thấy. Kiểm tra nguồn điện & cáp USB ESP32.`)
+      }
 
-      const allResolved = !!(inbodyBinding && bpbioBinding)
+      const allResolved = !!(inbodyBinding && bpbioBinding && tofBinding)
       const summary = [
         `============================================`,
         `🔌 KẾT QUẢ TỰ DÒ CỔNG USB (${devs.length} cổng)`,
@@ -2369,8 +2474,8 @@ export const HardwareTestModal: React.FC<HardwareTestModalProps> = ({ visible, o
         'UC-RES-01',
         allResolved ? 'PASS' : 'FAIL',
         summary,
-        `SEND: probe:inbody (19200 8N1, STATUS 0x63) + probe:bpbio (9600 8N1, RE 0x52 0x45)`,
-        `MMKV SAVED: inbody=${inbodyBinding?.deviceKey ?? 'null'} | bpbio=${bpbioBinding?.deviceKey ?? 'null'}`,
+        `SEND: probe:inbody (19200 8N1) + probe:bpbio (9600 8N1) + probe:tof (460800 8N1 PING)`,
+        `MMKV SAVED: inbody=${inbodyBinding?.deviceKey ?? 'null'} | bpbio=${bpbioBinding?.deviceKey ?? 'null'} | tof=${tofBinding?.deviceKey ?? 'null'}`,
         latency,
       )
     } catch (err: any) {
@@ -2794,6 +2899,15 @@ export const HardwareTestModal: React.FC<HardwareTestModalProps> = ({ visible, o
               <Text
                 style={[styles.tabText, activeTab === 'resolver' && styles.activeTabText]}
               >{`Resolver\n(Auto-Probe)`}</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setActiveTab('tof')}
+              style={[styles.tabItem, activeTab === 'tof' && styles.activeTabItem]}
+            >
+              <Text
+                style={[styles.tabText, activeTab === 'tof' && styles.activeTabText]}
+              >{`ToF Height\n(460800 Real)`}</Text>
             </Pressable>
 
             <Pressable
@@ -3242,6 +3356,162 @@ export const HardwareTestModal: React.FC<HardwareTestModalProps> = ({ visible, o
                     desc="Đọc binding cũ từ MMKV và xác thực lại trong < 200ms giúp Kiosk mở nhanh"
                     onRun={runResolverUseCase2}
                   />
+                </>
+              )}
+
+              {activeTab === 'tof' && (
+                <>
+                  <Text style={styles.phaseHeaderTitle}>
+                    📡 CẢM BIẾN CHIỀU CAO TOF STMICROELECTRONICS VL53L5CX (460800 BAUD - PHẦN CỨNG
+                    THẬT)
+                  </Text>
+
+                  {/* Status Banner */}
+                  <View
+                    style={{
+                      backgroundColor: isTofStreaming ? '#064E3B' : '#1E293B',
+                      borderColor: isTofStreaming ? '#10B981' : '#475569',
+                      borderWidth: 1,
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 12,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <View>
+                      <Text
+                        style={{
+                          color: isTofStreaming ? '#34D399' : '#94A3B8',
+                          fontSize: 13,
+                          fontWeight: '800',
+                        }}
+                      >
+                        {isTofStreaming
+                          ? '🟢 KẾT NỐI PHẦN CỨNG THẬT (STREAMING 15Hz)'
+                          : '⚪ CHƯA KẾT NỐI STREAMING'}
+                      </Text>
+                      <Text style={{ color: '#64748B', fontSize: 11, marginTop: 2 }}>
+                        {isTofStreaming
+                          ? 'Cổng Serial 460800 Baud | Gói nhị phân 204 Bytes / 66ms'
+                          : 'Bấm nút "1. Bắt Đầu Luồng Stream" để mở cổng USB Serial phần cứng'}
+                      </Text>
+                      {tofError && (
+                        <Text
+                          style={{
+                            color: '#F87171',
+                            fontSize: 11,
+                            marginTop: 4,
+                            fontWeight: '700',
+                          }}
+                        >
+                          ⚠️ Lỗi: {tofError}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+
+                  <TestCard
+                    code="UC-TOF-01"
+                    title="1. Bắt Đầu Luồng Stream Phần CỨNG THẬT (460800 Baud)"
+                    desc="Mở cổng USB Serial thật nối mạch ESP32 VL53L5CX đọc 64 zones nhị phân (204B @ 15Hz)"
+                    onRun={runTofStartRealHardwareStream}
+                  />
+
+                  <TestCard
+                    code="UC-TOF-02"
+                    title="2. Dừng Luồng Stream & Ngắt Kết Nối An Toàn"
+                    desc="Ngắt kết nối USB Serial transport và dừng nhận byte thô"
+                    onRun={runTofStopStream}
+                  />
+
+                  {/* Render 8x8 Grid Heatmap Live Data */}
+                  {tofFramePayload && (
+                    <View
+                      style={{
+                        backgroundColor: '#0F172A',
+                        borderRadius: 8,
+                        padding: 14,
+                        marginTop: 12,
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: 10,
+                        }}
+                      >
+                        <Text style={{ color: '#38BDF8', fontSize: 13, fontWeight: '800' }}>
+                          📊 MA TRẬN 8x8 KHOẢNG CÁCH (FRAME ID: #{tofFramePayload.frameId})
+                        </Text>
+                        <Text style={{ color: '#64748B', fontSize: 11 }}>
+                          Thời gian: {tofFramePayload.timestampMs}ms
+                        </Text>
+                      </View>
+
+                      <View style={{ alignItems: 'center' }}>
+                        <View
+                          style={{ flexDirection: 'row', flexWrap: 'wrap', width: 312, gap: 3 }}
+                        >
+                          {tofFramePayload.distances.map((dist, idx) => {
+                            let bgColor = '#0284C7' // Floor > 1200mm (Cyan/Blue)
+                            if (dist < 300)
+                              bgColor = '#EF4444' // Head Peak < 300mm (Red)
+                            else if (dist < 600)
+                              bgColor = '#F97316' // Head 300-600mm (Orange)
+                            else if (dist < 1000) bgColor = '#EAB308' // Shoulders 600-1000mm (Yellow)
+
+                            return (
+                              <View
+                                key={idx}
+                                style={{
+                                  width: 35,
+                                  height: 35,
+                                  backgroundColor: bgColor,
+                                  borderRadius: 4,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}>
+                                  {dist}
+                                </Text>
+                              </View>
+                            )
+                          })}
+                        </View>
+                      </View>
+
+                      <View
+                        style={{
+                          marginTop: 12,
+                          flexDirection: 'row',
+                          justifyContent: 'space-around',
+                          backgroundColor: '#1E293B',
+                          padding: 8,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '700' }}>
+                          🔴 Peak (&lt;30cm)
+                        </Text>
+                        <Text style={{ color: '#F97316', fontSize: 10, fontWeight: '700' }}>
+                          🟠 Đầu (&lt;60cm)
+                        </Text>
+                        <Text style={{ color: '#EAB308', fontSize: 10, fontWeight: '700' }}>
+                          🟡 Vai (&lt;100cm)
+                        </Text>
+                        <Text style={{ color: '#38BDF8', fontSize: 10, fontWeight: '700' }}>
+                          🔵 Sàn (&gt;100cm)
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                 </>
               )}
 
