@@ -33,7 +33,7 @@ import struct
 OUT = os.path.dirname(os.path.abspath(__file__))
 
 # Chiều cao lắp đặt cảm biến trần Kiosk chuẩn (mm)
-Z_SENSOR = 2200
+Z_SENSOR = 2457
 
 # Góc quét từng zone trong ma trận 8x8 (45 độ / 8 zones = 5.625 độ / zone)
 STEP = math.radians(45 / 8)
@@ -284,7 +284,7 @@ case("STANDING_1700_OFFSET_Y60", "Người cao 1700mm đứng lệch trước 60
 case("STANDING_1700_DARK_HAIR_STATUS9", "Tóc đen: mọi zone đỉnh đầu có status 9", lambda i: dict(objs=[person(0, 0, 1700)], force9_head=True), lambda i: exp("PERSON_OK", 1700, 1, {"x": 0, "y": 0}, note="Status 9 vẫn hợp lệ"), ["status"])
 case("BROAD_SHOULDERS_SINGLE", "1 người bờ vai rộng: KHÔNG được báo 2 người", stand(1700, s=1.25, shoulder_drop=300), lambda i: exp("PERSON_OK", 1700, 1, {"x": 0, "y": 0}, note="Bẫy đầu-vai không tạo valley >=150mm"), ["negative", "multi"])
 
-# 5. Các trường hợp đứng sai vị trí đứng (Đứng sát mép)
+# 6. Các trường hợp đứng sai vị trí đứng (Đứng sát mép)
 for nm, x, y in [("RIGHT", 160, 0), ("LEFT", -160, 0), ("FRONT", 0, 160), ("BACK", 0, -160)]:
     case(
         f"WRONG_POSITION_{nm}",
@@ -294,19 +294,11 @@ for nm, x, y in [("RIGHT", 160, 0), ("LEFT", -160, 0), ("FRONT", 0, 160), ("BACK
         ["position"],
     )
 
-# 6. Các trường hợp Giơ tay cao hơn đầu (Hand Raised Filter)
-case("HAND_RAISED_LEFT", "Giơ tay cao hơn đầu 200mm, lệch trái-trước", lambda i: dict(objs=[person(0, 0, 1700), hand(-75, -85, 1900, r=30)]), lambda i: exp("HAND_RAISED", None, 1, {"x": 0, "y": 0}, note="Test 4: Lọc bàn tay"), ["hand"])
-case("HAND_RAISED_MIN_60", "Bàn tay cao hơn đầu 60mm (sát ngưỡng 50mm)", lambda i: dict(objs=[person(0, 0, 1700), hand(75, -85, 1760)]), lambda i: exp("HAND_RAISED", None, 1, {"x": 0, "y": 0}, note="Biên: tay chỉ 1-2 zone"), ["hand", "boundary"])
-
-# 7. Phát hiện nhiều người bên dưới cảm biến
-case("TWO_PEOPLE_VALLEY", "2 người đứng sát nhau, chung blob, valley ~200mm", lambda i: dict(objs=[person(-140, 0, 1700), person(140, 0, 1650)]), lambda i: exp("MULTIPLE_PEOPLE", None, 2, None, note="Test 3: valley >=150mm"), ["multi"])
-case("TWO_PEOPLE_ADULT_CHILD", "Người lớn + trẻ em 1100mm đứng cạnh (2 blob riêng)", lambda i: dict(objs=[person(-130, 0, 1700), person(250, 55, 1100, s=0.7, shoulder_drop=180)]), lambda i: exp("MULTIPLE_PEOPLE", None, 2, None, note="2 blob độc lập"), ["multi"])
-
-# 8. Vật thể thấp dưới 800mm
+# 7. Vật thể thấp dưới 800mm
 case("LOW_OBJECT_BELOW_MIN", "Vật thấp 600mm (Túi xách / Ghế ngồi): dưới minPersonHeight 800mm", lambda i: dict(objs=[box(0, 0, 600, 150, 150)]), lambda i: exp("NO_PERSON", None, 0, None, note="h<800 -> Không tính người"), ["presence", "negative"])
 
 # 9. Nhiễu tín hiệu và Chuyển động đung đưa
-GL = 2
+GL = 15
 def glitch(i):
     return dict(objs=[person(0, 0, 1700)], blocked=(i == GL))
 
@@ -314,10 +306,10 @@ case("GLITCH_MIDSTREAM", "Frame 3 mất toàn bộ status=255 giữa luồng bì
 
 SW_H = [-25, 20, -10, 28, -15]
 SW_X = [-20, 15, -5, 25, -10]
-case("UNSTABLE_SWAYING", "Đứng đung đưa: đỉnh đầu +-28mm, lệch ngang +-25mm", lambda i: dict(objs=[person(SW_X[i], 0, 1700 + SW_H[i])]), lambda i: exp("PERSON_OK", 1700 + SW_H[i], 1, {"x": SW_X[i], "y": 0}, stable=False, note="Range > 15mm -> UNSTABLE"), ["stability"])
+case("UNSTABLE_SWAYING", "Đứng đung đưa: đỉnh đầu +-28mm, lệch ngang +-25mm", lambda i: dict(objs=[person(SW_X[i % 5], 0, 1700 + SW_H[i % 5])]), lambda i: exp("PERSON_OK", 1700 + SW_H[i % 5], 1, {"x": SW_X[i % 5], "y": 0}, stable=False, note="Range > 15mm -> UNSTABLE"), ["stability"])
 
 ENT_X = [-330, -220, -110, -30, 0]
-case("ENTERING_WALKING", "Đi vào từ mép trái đến giữa cảm biến", lambda i: dict(objs=[person(ENT_X[i], 0, 1700)]), lambda i: exp("TRANSITION", 1700, 1, {"x": ENT_X[i], "y": 0}, stable=False, note="Đang di chuyển vào"), ["transition"])
+case("ENTERING_WALKING", "Đi vào từ mép trái đến giữa cảm biến", lambda i: dict(objs=[person(ENT_X[min(i, 4)], 0, 1700)]), lambda i: exp("TRANSITION", 1700, 1, {"x": ENT_X[min(i, 4)], "y": 0}, stable=False, note="Đang di chuyển vào"), ["transition"])
 
 # ============================================================================
 # HÀM THỰC THI CHÍNH (BUILD & SELF-CHECK)
@@ -328,7 +320,7 @@ def build():
     rng_master = random.Random(20260506)
     floor_frames = []
     rows, packets, manifest = [], bytearray(), []
-    N = 5  # Mỗi test case gồm 5 frames
+    N = 30  # Mỗi test case gồm 30 frames để đủ thời gian chốt (stabilityWindowMs = 1500ms ~ 22 frames)
 
     for ci, cs in enumerate(CASES):
         base = (ci + 1) * 100

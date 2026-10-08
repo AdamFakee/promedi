@@ -6,6 +6,7 @@ export default function KioskLayout() {
     <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
       <Stack.Screen name="idle" />
       <Stack.Screen name="measure" />
+      <Stack.Screen name="height-demo" />
     </Stack>
   )
 }

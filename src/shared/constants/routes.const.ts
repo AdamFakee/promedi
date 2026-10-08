@@ -18,6 +18,7 @@ export const ROUTES = {
     path: () => '/(kiosk)/hardware-error' as Href,
     params: {} as { error: string; device: string },
   },
+  KIOSK_HEIGHT_DEMO: { path: () => '/(kiosk)/height-demo' as Href, params: {} as never },
 } as const
 
 export type RouteName = keyof typeof ROUTES

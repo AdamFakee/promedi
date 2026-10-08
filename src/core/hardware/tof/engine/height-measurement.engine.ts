@@ -1,140 +1,660 @@
-/**
- * @file height-measurement.engine.ts
- * @brief Engine xử lý toán học tính toán chiều cao cơ thể người từ ma trận 8x8 ToF VL53L5CX (Phiên bản V5.1).
- * @module src/core/hardware/tof/engine/height-measurement.engine.ts
- *
- * Quy trình xử lý:
- * 1. Khởi tạo Bảng tra cứu Bù góc quang học cosθ (Pre-calculated Cosine Lookup Table cho 64 zones).
- * 2. Chuyển đổi khoảng cách xiên r sang độ sâu thẳng đứng z = r * cosθ.
- * 3. Tính chiều cao thô h = ceilingHeight - z.
- * 4. Lọc cờ độ tin cậy Target Status (Chỉ nhận Status 5 - Valid 100% và Status 9 - Valid 50%).
- * 5. Nhận diện cụm đỉnh đầu trung tâm (Peak Cluster Blob).
- * 6. Lọc cử chỉ Giơ tay (Hand Gesture Filter: loại bỏ 1-2 zone bàn tay cao hơn đỉnh đầu >= 50mm).
- * 7. Làm tròn chiều cao chính xác đến 0.1cm.
- */
+import type {
+  EngineEvent,
+  EngineGuidance,
+  EngineState,
+  FloorCalibrationData,
+  HeightCalculationResult,
+  HeightEngineConfig,
+  HeightEngineOutput,
+  HeightLockResult,
+  TareResult,
+  VL53L5CXFramePayload,
+} from '../types/tof.types'
 
-import type { HeightCalculationResult, VL53L5CXFramePayload } from '../types/tof.types'
+export const DEFAULT_HEIGHT_ENGINE_CONFIG = {
+  expectedFloorMm: 2457,
+  roiRowStart: 1,
+  roiRowEnd: 6,
+  roiColStart: 1,
+  roiColEnd: 6,
+  minPersonMm: 800,
+  presentFrames: 3,
+  absentFrames: 15,
+  headBandMm: 80,
+  topK: 3,
+  minBandZones: 2,
+  validHeightMinMm: 800,
+  validHeightMaxMm: 2300,
+  maxJumpMm: 60,
+  stabilityWindowMs: 1500,
+  stabilityMinHoldMs: 1000,
+  minSamples: 8,
+  stabilityRangeMm: 15,
+  stabilityMaxSlopeMmPerSec: 8.0,
+  glitchGrace: 3,
+  maxGapMs: 300,
+  timeoutMs: 15000,
+  driftCheckFrames: 150,
+  driftThresholdMm: 15,
+  madFactor: 3,
+  madFloorMm: 3,
+  minKeptRatio: 0.75,
+  gainScale: 1.0,
+  offsetMm: 0.0,
+}
+
+export const GUIDANCE_MESSAGES: Record<EngineGuidance, string> = {
+  IDLE: 'San sang do chieu cao',
+  STEP_ON: 'Moi buoc len ban can, dung thang, tha long tay',
+  HOLD_STILL: 'Vui long dung thang lung, giu yen vi tri va nhin thang',
+  MEASURING: 'Dang phan tich tin hieu do chieu cao...',
+  LOCKED: 'Da hoan thanh do chieu cao',
+  TIMEOUT: 'Qua thoi gian do chieu cao, vui long thu lai',
+  STEP_IN: 'Vui long buoc vao san do',
+  LOWER_ARMS: 'Vui long ha tay xuong de do chinh xac',
+  ONE_PERSON: 'Vui long chi 1 nguoi dung do tren san',
+  MOVE_LEFT: 'Vui long buoc sang trai',
+  MOVE_RIGHT: 'Vui long buoc sang phai',
+  MOVE_FORWARD: 'Vui long buoc ve phia truoc',
+  MOVE_BACK: 'Vui long buoc lui lai',
+}
+
+interface StabilitySample {
+  ts: number
+  h: number
+}
 
 export class HeightMeasurementEngine {
-  /** Chiều cao trần Kiosk tính từ cảm biến xuống mặt sàn (mặc định 2200mm = 2.20m) */
-  private sensorHeightMm: number
-  /** Bảng tra cứu giá trị cosθ cho ma trận 8x8 zones (Tối ưu 60fps / chống giật lag Kiosk) */
-  private cosLookupTable: number[][] = []
+  private cfg: Required<typeof DEFAULT_HEIGHT_ENGINE_CONFIG>
 
-  /**
-   * Constructor khởi tạo Engine với chiều cao trần nhà Kiosk.
-   * @param sensorHeightMm Chiều cao lắp đặt cảm biến trần (mm, mặc định 2200mm)
-   */
-  constructor(sensorHeightMm = 2200) {
-    this.sensorHeightMm = sensorHeightMm
-    this.initCosLookupTable()
+  private baseline: FloorCalibrationData | null = null
+  private cosLUT: number[][] = []
+
+  private isEnabled = true
+  private episodeId = 0
+  private hitCount = 0
+  private missCount = 0
+  private glitchCount = 0
+  private locked = false
+  private lockedResult: HeightLockResult | null = null
+  private timeoutTriggered = false
+
+  private history: StabilitySample[] = []
+  private prevH: number | null = null
+  private lastTs: number | null = null
+  private sessionStart: number | null = null
+  private issueCount: Record<string, number> = {}
+
+  private needsRecalibration = false
+  private lastProgress = 0
+  private pendingEvent: EngineEvent | undefined = undefined
+
+  constructor(config: Partial<HeightEngineConfig> = {}) {
+    this.cfg = {
+      ...DEFAULT_HEIGHT_ENGINE_CONFIG,
+      ...config,
+    } as Required<typeof DEFAULT_HEIGHT_ENGINE_CONFIG>
+
+    if (config.calibration) {
+      this.baseline = config.calibration
+    }
+
+    this.initLookupTables()
   }
 
-  /**
-   * Tính toán trước bảng tra cứu cosθ 8x8 để triệt tiêu chi phí tính toán lượng giác trong vòng lặp 15Hz streaming.
-   */
-  private initCosLookupTable(): void {
-    const stepRad = (45.0 / 8.0) * (Math.PI / 180.0) // Góc quét 5.625 độ mỗi zone (radians)
-    const tanVals: number[] = new Array(8)
-    for (let i = 0; i < 8; i++) {
-      tanVals[i] = Math.tan((i - 3.5) * stepRad)
-    }
+  public getConfig(): Required<typeof DEFAULT_HEIGHT_ENGINE_CONFIG> {
+    return { ...this.cfg }
+  }
 
-    this.cosLookupTable = []
-    for (let r = 0; r < 8; r++) {
-      const rowCos: number[] = new Array(8)
-      for (let c = 0; c < 8; c++) {
-        // Công thức tính cosθ trong không gian 3D: 1 / sqrt(1 + tan(X)^2 + tan(Y)^2)
-        rowCos[c] = 1.0 / Math.sqrt(1.0 + Math.pow(tanVals[c], 2) + Math.pow(tanVals[r], 2))
-      }
-      this.cosLookupTable.push(rowCos)
+  public updateConfig(newConfig: Partial<HeightEngineConfig>): void {
+    this.cfg = {
+      ...this.cfg,
+      ...newConfig,
+    } as Required<typeof DEFAULT_HEIGHT_ENGINE_CONFIG>
+
+    if (newConfig.calibration) {
+      this.baseline = newConfig.calibration
     }
   }
 
-  /**
-   * Xử lý 1 Frame đo nhị phân 64 vùng và tính toán ra chiều cao final (cm).
-   * @param frame Frame payload dữ liệu ToF đầu vào
-   * @return Kết quả HeightCalculationResult (chiều cao cm, cờ giơ tay, số lượng người, độ tin cậy)
-   */
-  public calculateHeight(frame: VL53L5CXFramePayload): HeightCalculationResult {
-    if (!frame.isValid || frame.distances.length !== 64) {
-      return this.createEmptyResult(frame, 'Frame không hợp lệ hoặc thiếu dữ liệu zone')
-    }
+  public start(): void {
+    this.isEnabled = true
+  }
 
-    const validHeights: number[] = []
-    const zoneHeights: number[] = new Array(64).fill(0)
-    let validZoneCount = 0
+  public stop(): void {
+    this.isEnabled = false
+    this.reset()
+  }
 
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        const idx = r * 8 + c
-        const rawDist = frame.distances[idx]
-        const status = frame.targetStatuses[idx]
+  public reset(): void {
+    this.history = []
+    this.sessionStart = null
+    this.issueCount = {}
+    this.locked = false
+    this.lockedResult = null
+    this.timeoutTriggered = false
+    this.glitchCount = 0
+    this.prevH = null
+    this.hitCount = 0
+    this.missCount = 0
+    this.lastProgress = 0
+    this.pendingEvent = undefined
+  }
 
-        // Chỉ chấp nhận Status 5 (Valid 100%) hoặc Status 9 (Valid 50%) và dải khoảng cách hợp lệ (50mm -> 3900mm)
-        if ((status === 5 || status === 9) && rawDist > 50 && rawDist < 3900) {
-          const cosVal = this.cosLookupTable[r][c]
-          const verticalDepth = rawDist * cosVal
-          const heightMm = Math.max(0, this.sensorHeightMm - verticalDepth)
+  public calibrateFloor(
+    frames: VL53L5CXFramePayload[],
+    options: { force?: boolean } = {},
+  ): TareResult {
+    const validFrames = frames // Accept all frames during calibration to maximize chances
+    if (validFrames.length < 5) return { error: 'TOO_FEW_ZONES' }
 
-          zoneHeights[idx] = heightMm
+    const n = validFrames.length
+    const zoneSamples: number[][] = Array.from({ length: 64 }, () => [])
 
-          // Chỉ xem xét các zone có chiều cao >= 800mm (80cm) là ứng viên của cơ thể người
-          if (heightMm >= 800) {
-            validHeights.push(heightMm)
-            validZoneCount++
+    for (const frame of validFrames) {
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const i = r * 8 + c
+          const d = frame.distances[i]
+          const st = frame.targetStatuses[i]
+          // Chấp nhận rộng rãi hơn các status (5, 6, 9, 10, 12, 13) để tránh thiếu zone do vật thể phản xạ kém
+          if (st >= 5 && st <= 13 && st !== 7 && st !== 8 && d > 200 && d < 4000) {
+            zoneSamples[i].push(d * this.cosLUT[r][c])
           }
         }
       }
     }
 
-    // Nếu không có zone nào đạt chuẩn người đứng
-    if (validZoneCount === 0 || validHeights.length === 0) {
-      return this.createEmptyResult(frame, 'Không phát hiện người đứng dưới cảm biến')
+    const cand: FloorCalibrationData = {
+      floorZ: new Array(64).fill(0),
+      floorOk: new Array(64).fill(false),
+      refX0: 0,
+      refY0: 0,
+      calibratedAt: Date.now(),
     }
 
-    // Sắp xếp danh sách chiều cao giảm dần
-    validHeights.sort((a, b) => b - a)
+    let diffSum = 0
+    let diffCount = 0
 
-    // Kiểm tra cử chỉ giơ tay: Nếu zone cao nhất (peak) chênh lệch >= 50mm so với cụm đỉnh đầu (p90)
-    const peakHeight = validHeights[0]
-    const p90Height = validHeights[Math.min(3, validHeights.length - 1)]
-    const hasHandRaised = peakHeight - p90Height >= 50
+    for (let i = 0; i < 64; i++) {
+      const s = zoneSamples[i]
+      // Chỉ cần 20% số frames có dữ liệu là đủ
+      if (s.length >= 0.2 * n) {
+        const mean = s.reduce((a, b) => a + b, 0) / s.length
+        const variance = s.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / s.length
+        const stdDev = Math.sqrt(variance)
+        // Nới lỏng stdDev lên 80mm vì thiết bị (máy inbody) có bề mặt phức tạp
+        if (stdDev > 80) {
+          cand.floorOk[i] = false
+          continue
+        }
 
-    // Nếu có giơ tay, lấy p90Height làm đỉnh đầu thật; nếu không giơ tay, lấy peakHeight
-    const headHeightMm = hasHandRaised ? p90Height : peakHeight
-    const headDistanceMm = Math.max(0, this.sensorHeightMm - headHeightMm)
+        s.sort((a, b) => a - b)
+        const mid = Math.floor(s.length / 2)
+        cand.floorZ[i] = s.length % 2 !== 0 ? s[mid] : (s[mid - 1] + s[mid]) / 2
+        cand.floorOk[i] = true
 
-    // Đổi sang cm và làm tròn chính xác 0.1cm
-    const measuredHeightCm = Math.round((headHeightMm / 10.0) * 10.0) / 10.0
+        if (this.baseline && this.baseline.floorOk[i]) {
+          diffSum += cand.floorZ[i] - this.baseline.floorZ[i]
+          diffCount++
+        }
+      } else {
+        cand.floorOk[i] = false
+      }
+    }
+
+    // Removed strict coreOk check.
+    // The environment might have permanent equipment (like InBody base, BP machine)
+    // in the center zones that protrude significantly. We should trust the calibration.
+    let validCount = 0
+    for (let r = this.cfg.roiRowStart; r <= this.cfg.roiRowEnd; r++) {
+      for (let c = this.cfg.roiColStart; c <= this.cfg.roiColEnd; c++) {
+        if (cand.floorOk[r * 8 + c]) validCount++
+      }
+    }
+
+    // Yêu cầu tối thiểu chỉ cần 4 zone (thay vì 20) để có thể hoạt động
+    if (validCount < 4) {
+      return { error: 'TOO_FEW_ZONES' }
+    }
+
+    if (!options.force && this.baseline && diffCount > 10) {
+      const meanDiff = Math.abs(diffSum / diffCount)
+      if (meanDiff > 20) {
+        return 'PENDING'
+      }
+    }
+
+    this.baseline = cand
+    this.needsRecalibration = false
+    return 'APPLIED'
+  }
+
+  public clearCalibration(): void {
+    this.baseline = null
+  }
+
+  public getBaseline(): FloorCalibrationData | null {
+    return this.baseline
+  }
+
+  public push(frame: VL53L5CXFramePayload): HeightEngineOutput {
+    if (!this.isEnabled) {
+      return this.out('IDLE', 'IDLE', 0, null, 0, false, false, frame)
+    }
+
+    if (this.baseline === null) {
+      return this.out('NEEDS_CALIBRATION', 'IDLE', 0, null, 0, false, false, frame)
+    }
+
+    if (!frame.isValid || frame.distances.length !== 64) {
+      return this.out('ERROR', 'IDLE', 0, null, 0, false, false, frame)
+    }
+
+    if (
+      this.lastTs !== null &&
+      (frame.timestampMs < this.lastTs || frame.timestampMs - this.lastTs > this.cfg.maxGapMs)
+    ) {
+      this.history = []
+      this.prevH = null
+    }
+    this.lastTs = frame.timestampMs
+
+    this.pendingEvent = undefined
+
+    const zones = this.buildHeightMap(frame)
+    const peak = zones.length > 0 ? Math.max(...zones.map((z) => z.h)) : 0
+
+    const isCore = (i: number) => {
+      const r = Math.floor(i / 8)
+      const c = i % 8
+      return r >= 2 && r <= 5 && c >= 2 && c <= 5
+    }
+
+    const band = zones.filter((z) => z.h >= peak - this.cfg.headBandMm).sort((a, b) => b.h - a.h)
+    let hasCorePeak = false
+    for (const z of band) {
+      if (isCore(z.i)) {
+        hasCorePeak = true
+        break
+      }
+    }
+
+    const hasPerson = peak >= this.cfg.minPersonMm && hasCorePeak
+
+    if (this.locked && this.lockedResult) {
+      if (!hasPerson) {
+        this.missCount++
+        if (this.missCount >= this.cfg.absentFrames) {
+          this.pendingEvent = 'PERSON_LEFT'
+          this.reset()
+          return this.out('IDLE', 'STEP_ON', 0, null, 0, false, false, frame)
+        }
+      } else {
+        this.missCount = 0
+      }
+      return this.out(
+        'LOCKED',
+        'LOCKED',
+        1.0,
+        null,
+        0,
+        false,
+        true,
+        frame,
+        false,
+        undefined,
+        this.lockedResult,
+      )
+    }
+
+    if (this.timeoutTriggered) {
+      if (!hasPerson) {
+        this.missCount++
+        if (this.missCount >= this.cfg.absentFrames) {
+          this.pendingEvent = 'PERSON_LEFT'
+          this.reset()
+          return this.out('IDLE', 'STEP_ON', 0, null, 0, false, false, frame)
+        }
+      } else {
+        this.missCount = 0
+      }
+      return this.out('TIMEOUT', 'TIMEOUT', this.lastProgress, null, 0, false, false, frame)
+    }
+
+    if (!hasPerson) {
+      this.missCount++
+      this.hitCount = 0
+
+      if (this.missCount >= this.cfg.driftCheckFrames) {
+        this.checkIdleDrift(frame)
+      }
+
+      if (this.missCount >= this.cfg.absentFrames) {
+        if (this.sessionStart !== null) {
+          this.pendingEvent = 'PERSON_LEFT'
+        }
+        this.reset()
+        return this.out('IDLE', 'STEP_ON', 0, null, 0, false, false, frame)
+      }
+
+      if (this.sessionStart === null) {
+        return this.out('IDLE', 'STEP_ON', 0, null, 0, false, false, frame)
+      }
+
+      return this.out('MEASURING', 'MEASURING', this.lastProgress, null, 0, false, false, frame)
+    }
+
+    this.missCount = 0
+    this.hitCount++
+
+    if (this.hitCount === this.cfg.presentFrames && this.sessionStart === null) {
+      this.sessionStart = frame.timestampMs
+      this.episodeId++
+      this.pendingEvent = 'PERSON_PRESENT'
+    }
+
+    if (this.hitCount < this.cfg.presentFrames) {
+      const s = this.sessionStart === null ? 'IDLE' : 'MEASURING'
+      const g = this.sessionStart === null ? 'STEP_ON' : 'MEASURING'
+      return this.out(s, g, 0, null, 0, false, false, frame)
+    }
+
+    const topZones = band.slice(0, Math.min(this.cfg.topK, band.length))
+    const instantH =
+      topZones.length > 0 ? topZones.reduce((s, z) => s + z.h, 0) / topZones.length : 0
+    const headZoneCount = topZones.length
+
+    let glitchReason: string | null = null
+    if (band.length < this.cfg.minBandZones) {
+      glitchReason = 'SPIKE'
+    } else if (instantH < this.cfg.validHeightMinMm || instantH > this.cfg.validHeightMaxMm) {
+      glitchReason = 'OUT_OF_RANGE'
+    } else if (this.prevH !== null && Math.abs(instantH - this.prevH) > this.cfg.maxJumpMm) {
+      glitchReason = 'JUMP'
+    }
+
+    this.prevH = instantH
+
+    if (glitchReason) {
+      this.issueCount[glitchReason] = (this.issueCount[glitchReason] ?? 0) + 1
+      this.glitchCount++
+      if (this.glitchCount > this.cfg.glitchGrace) {
+        this.history = []
+      }
+      if (this.checkTimeout(frame.timestampMs)) {
+        return this.out('TIMEOUT', 'TIMEOUT', this.lastProgress, null, 0, false, false, frame)
+      }
+      return this.out(
+        'MEASURING',
+        'HOLD_STILL',
+        this.lastProgress,
+        instantH,
+        headZoneCount,
+        false,
+        false,
+        frame,
+      )
+    }
+
+    this.glitchCount = 0
+    this.history.push({ ts: frame.timestampMs, h: instantH })
+
+    const cutoff = frame.timestampMs - this.cfg.stabilityWindowMs
+    this.history = this.history.filter((s) => s.ts >= cutoff)
+
+    const heights = this.history.map((s) => s.h)
+    const med = this.median(heights)
+    const devs = heights.map((h) => Math.abs(h - med))
+    const mad = Math.max(this.median(devs), this.cfg.madFloorMm)
+    const kept = this.history.filter((s) => Math.abs(s.h - med) <= this.cfg.madFactor * mad)
+
+    if (kept.length < this.cfg.minKeptRatio * this.history.length) {
+      if (this.checkTimeout(frame.timestampMs)) {
+        return this.out('TIMEOUT', 'TIMEOUT', this.lastProgress, null, 0, false, false, frame)
+      }
+      this.lastProgress = 0.3
+      return this.out('MEASURING', 'HOLD_STILL', 0.3, instantH, headZoneCount, false, false, frame)
+    }
+
+    const keptH = kept.map((s) => s.h)
+    const range = Math.max(...keptH) - Math.min(...keptH)
+    const slope = this.linregSlope(kept) * 1000
+    const holdMs = kept[kept.length - 1].ts - kept[0].ts
+
+    if (range > this.cfg.stabilityRangeMm || Math.abs(slope) > this.cfg.stabilityMaxSlopeMmPerSec) {
+      this.issueCount['MOVING'] = (this.issueCount['MOVING'] ?? 0) + 1
+      const progress = Math.min(0.4, Math.max(0.1, 1.0 - range / 50.0))
+      this.lastProgress = progress
+      if (this.checkTimeout(frame.timestampMs)) {
+        return this.out('TIMEOUT', 'TIMEOUT', this.lastProgress, null, 0, false, false, frame)
+      }
+      return this.out(
+        'MEASURING',
+        'HOLD_STILL',
+        progress,
+        instantH,
+        headZoneCount,
+        false,
+        false,
+        frame,
+      )
+    }
+
+    const progressRatio = Math.min(1.0, holdMs / this.cfg.stabilityMinHoldMs)
+    const qualityFactor = Math.max(0.5, 1.0 - range / 35.0)
+    const progress = Math.min(0.99, progressRatio * qualityFactor)
+    this.lastProgress = progress
+
+    if (holdMs >= this.cfg.stabilityMinHoldMs && kept.length >= this.cfg.minSamples) {
+      const sortedH = [...keptH].sort((a, b) => a - b)
+      const trim = Math.floor(sortedH.length * 0.1)
+      const trimSlice = sortedH.slice(trim, sortedH.length - trim)
+      const rawMm = trimSlice.reduce((s, v) => s + v, 0) / trimSlice.length
+      const finalMm = rawMm * this.cfg.gainScale + this.cfg.offsetMm
+      const heightCm = Math.round((finalMm / 10.0) * 10.0) / 10.0
+
+      const confidence = Math.min(0.99, Math.max(0.85, 1.0 - range / this.cfg.stabilityRangeMm))
+
+      this.lockedResult = {
+        episodeId: this.episodeId,
+        heightCm,
+        rawMm: Math.round(rawMm),
+        sampleCount: kept.length,
+        lockedAt: frame.timestampMs,
+        confidence,
+      }
+      this.locked = true
+      this.pendingEvent = 'LOCKED'
+      return this.out(
+        'LOCKED',
+        'LOCKED',
+        1.0,
+        instantH,
+        headZoneCount,
+        false,
+        true,
+        frame,
+        false,
+        undefined,
+        this.lockedResult,
+      )
+    }
+
+    if (this.checkTimeout(frame.timestampMs)) {
+      return this.out('TIMEOUT', 'TIMEOUT', this.lastProgress, null, 0, false, false, frame)
+    }
+
+    return this.out(
+      'MEASURING',
+      'HOLD_STILL',
+      progress,
+      instantH,
+      headZoneCount,
+      false,
+      false,
+      frame,
+    )
+  }
+
+  public calculateHeight(frame: VL53L5CXFramePayload): HeightCalculationResult {
+    const output = this.push(frame)
+    const measuredHeightCm = output.result?.heightCm ?? output.instantHeightCm ?? 0
+    const headDistanceMm =
+      output.instantHeightMm !== null
+        ? Math.max(0, this.cfg.expectedFloorMm - output.instantHeightMm)
+        : this.cfg.expectedFloorMm
+    const confidence = output.result?.confidence ?? (output.instantHeightCm ? 0.95 : 0.0)
 
     return {
+      ...output,
       measuredHeightCm,
-      headDistanceMm: Math.round(headDistanceMm),
-      floorDistanceMm: this.sensorHeightMm,
-      confidence: hasHandRaised ? 0.8 : 0.98,
-      hasHandRaised,
-      isStable: true,
-      personCount: validZoneCount >= 4 ? 1 : 0,
-      rawFrame: frame,
+      headDistanceMm,
+      floorDistanceMm: this.cfg.expectedFloorMm,
+      confidence,
     }
   }
 
-  /**
-   * Tạo kết quả rỗng khi không có người hoặc frame bị lỗi.
-   * @param frame Frame gốc
-   * @param _reason Lý do không tính toán được chiều cao
-   */
-  private createEmptyResult(frame: VL53L5CXFramePayload, _reason: string): HeightCalculationResult {
+  private initLookupTables(): void {
+    const step = (45.0 / 8.0) * (Math.PI / 180.0)
+    const tanTable = Array.from({ length: 8 }, (_, i) => Math.tan((i - 3.5) * step))
+    this.cosLUT = Array.from({ length: 8 }, (_, r) =>
+      Array.from(
+        { length: 8 },
+        (__, c) => 1.0 / Math.sqrt(1.0 + Math.pow(tanTable[c], 2) + Math.pow(tanTable[r], 2)),
+      ),
+    )
+  }
+
+  private buildHeightMap(frame: VL53L5CXFramePayload): { h: number; status: number; i: number }[] {
+    if (!this.baseline) return []
+    const result: { h: number; status: number; i: number }[] = []
+
+    for (let r = this.cfg.roiRowStart; r <= this.cfg.roiRowEnd; r++) {
+      for (let c = this.cfg.roiColStart; c <= this.cfg.roiColEnd; c++) {
+        const i = r * 8 + c
+        const st = frame.targetStatuses[i]
+        // Mở rộng status chấp nhận được (gồm cả 6, 10, 12, 13) để nhận diện tóc/vật liệu phản xạ kém
+        if (st < 5 || st > 13 || st === 7 || st === 8) continue
+        if (!this.baseline.floorOk[i]) continue
+        const d = frame.distances[i]
+        if (d <= 50 || d >= 3900) continue
+        const z = d * this.cosLUT[r][c]
+        const h = Math.max(0, this.baseline.floorZ[i] - z)
+        result.push({ h, status: st, i })
+      }
+    }
+    return result
+  }
+
+  private checkTimeout(ts: number): boolean {
+    if (this.sessionStart !== null && ts - this.sessionStart > this.cfg.timeoutMs) {
+      this.timeoutTriggered = true
+      this.pendingEvent = 'TIMEOUT'
+
+      let maxCount = -1
+      let dominant = 'NOT_STABLE'
+      for (const [reason, count] of Object.entries(this.issueCount)) {
+        if (count > maxCount) {
+          maxCount = count
+          dominant = reason
+        }
+      }
+      this.issueCount['DOMINANT'] = dominant as any
+      return true
+    }
+    return false
+  }
+
+  private checkIdleDrift(frame: VL53L5CXFramePayload): void {
+    if (!this.baseline) return
+    const diffs: number[] = []
+    for (let r = this.cfg.roiRowStart; r <= this.cfg.roiRowEnd; r++) {
+      for (let c = this.cfg.roiColStart; c <= this.cfg.roiColEnd; c++) {
+        const i = r * 8 + c
+        if (this.baseline.floorOk[i]) {
+          const d = frame.distances[i]
+          const st = frame.targetStatuses[i]
+          if ((st === 5 || st === 9) && d > 500 && d < 4000) {
+            const z = d * this.cosLUT[r][c]
+            diffs.push(Math.abs(z - this.baseline.floorZ[i]))
+          }
+        }
+      }
+    }
+    if (diffs.length >= 20) {
+      const meanDiff = diffs.reduce((a, b) => a + b, 0) / diffs.length
+      if (meanDiff > this.cfg.driftThresholdMm) {
+        this.needsRecalibration = true
+      }
+    }
+  }
+
+  private median(arr: number[]): number {
+    if (arr.length === 0) return 0
+    const sorted = [...arr].sort((a, b) => a - b)
+    const mid = Math.floor(sorted.length / 2)
+    return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+  }
+
+  private linregSlope(samples: StabilitySample[]): number {
+    const n = samples.length
+    if (n < 2) return 0
+    let sumT = 0,
+      sumH = 0
+    for (const s of samples) {
+      sumT += s.ts
+      sumH += s.h
+    }
+    const avgT = sumT / n
+    const avgH = sumH / n
+    let num = 0,
+      den = 0
+    for (const s of samples) {
+      num += (s.ts - avgT) * (s.h - avgH)
+      den += (s.ts - avgT) ** 2
+    }
+    return den !== 0 ? num / den : 0
+  }
+
+  private out(
+    state: EngineState,
+    guidance: EngineGuidance,
+    progress: number,
+    instantHeightMm: number | null,
+    headZoneCount: number,
+    hasHandRaised: boolean,
+    isStable: boolean,
+    rawFrame: VL53L5CXFramePayload,
+    needsRecalibration = this.needsRecalibration,
+    dominantIssueReason?: string,
+    result?: HeightLockResult,
+  ): HeightEngineOutput {
+    const instantHeightCm =
+      instantHeightMm !== null ? Math.round((instantHeightMm / 10.0) * 10.0) / 10.0 : null
+
+    if (state === 'TIMEOUT' && !dominantIssueReason && this.issueCount['DOMINANT']) {
+      dominantIssueReason = this.issueCount['DOMINANT'] as any
+    }
+
     return {
-      measuredHeightCm: 0,
-      headDistanceMm: this.sensorHeightMm,
-      floorDistanceMm: this.sensorHeightMm,
-      confidence: 0,
-      hasHandRaised: false,
-      isStable: false,
-      personCount: 0,
-      rawFrame: frame,
+      state,
+      episodeId: this.episodeId,
+      guidance,
+      guidanceMessage: GUIDANCE_MESSAGES[guidance] ?? GUIDANCE_MESSAGES.IDLE,
+      progress: Math.min(1.0, Math.max(0, Math.round(progress * 100) / 100)),
+      instantHeightMm,
+      instantHeightCm,
+      headZoneCount,
+      personCount: state === 'IDLE' || state === 'STEP_ON' ? 0 : 1,
+      hasHandRaised,
+      isStable,
+      result,
+      rawFrame,
+      needsRecalibration,
+      dominantIssueReason,
+      event: this.pendingEvent,
+      headCentroidMm: null,
     }
   }
 }

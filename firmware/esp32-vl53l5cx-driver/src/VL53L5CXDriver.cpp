@@ -29,7 +29,7 @@ VL53L5CXDriver::VL53L5CXDriver()
     : m_state(VL53L5CX_STATE_UNINITIALIZED),
       m_mockMode(false),
       m_frameCounter(0),
-      m_ceilingHeightMm(150) { // Mặc định 150mm (15cm) cho môi trường thử nghiệm
+      m_ceilingHeightMm(VL53L5CX_BASE_HEIGHT_MM) { // 2457mm = 245.7cm (Độ cao lắp đặt cảm biến)
 }
 
 VL53L5CXDriver::~VL53L5CXDriver() {
@@ -301,7 +301,7 @@ void VL53L5CXDriver::flipLensOrientation(const uint16_t src[VL53L5CX_ZONES], uin
     }
 }
 
-void VL53L5CXDriver::printFrameLog(const VL53L5CXFrame& frame) {
+void VL53L5CXDriver::printFrameLog(const VL53L5CXFrame& frame, uint16_t refHeightMm) {
 #ifdef ARDUINO
     uint16_t minDist = 0xFFFF;
     uint16_t maxDist = 0;
@@ -312,9 +312,17 @@ void VL53L5CXDriver::printFrameLog(const VL53L5CXFrame& frame) {
         if (frame.distances[i] > maxDist) maxDist = frame.distances[i];
     }
 
+    // Chiều cao ước tính người đứng: Chênh lệch từ mốc cảm biến (184.7cm) xuống đỉnh đầu
+    float estPersonHeightCm = 0.0f;
+    if (refHeightMm > minDist && minDist > 30) {
+        estPersonHeightCm = (refHeightMm - minDist) / 10.0f;
+    }
+
     Serial.println(F("\n================= [VL53L5CX DATA LOG] ================="));
     Serial.printf("Frame ID: %u | Timestamp: %ums | Valid: %s\n", 
                   frame.frameId, frame.timestampMs, frame.isValid ? "YES" : "NO");
+    Serial.printf("Base Sensor: %.1fcm (168 + 16.7cm) | Est Person Height: %.1fcm\n", 
+                  refHeightMm / 10.0f, estPersonHeightCm);
     Serial.printf("Min Dist: %umm | Max Dist: %umm | Center Dist: %umm\n", 
                   minDist, maxDist, centerDist);
     Serial.println(F("Ma tran khoang cach 8x8 (mm):"));

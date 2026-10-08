@@ -3,10 +3,10 @@
  * @module src/core/hardware/inbody/machine/inbody-session.machine.ts
  */
 
-import { setup, assign, fromCallback, fromPromise } from 'xstate'
-import type { InBodyMachineContext, InBodyMachineEvent } from './inbody-session.types'
+import { assign, fromCallback, fromPromise, setup } from 'xstate'
+import { ERROR_CODE, STATUS_CODE } from '../protocol/constants'
 import type { InBodyErrorCode } from '../types/inbody.types'
-import { STATUS_CODE, ERROR_CODE } from '../protocol/constants'
+import type { InBodyMachineContext, InBodyMachineEvent } from './inbody-session.types'
 
 /** Helper phân loại mã lỗi từ STATUS 35 */
 function parseErrorCode(code?: string): InBodyErrorCode {

@@ -111,6 +111,10 @@ export const HardwareTestModal: React.FC<HardwareTestModalProps> = ({ visible, o
         setTofFramePayload(framePayload)
       })
 
+      dev.onHeightResult((heightResult) => {
+        setTofHeightResult(heightResult)
+      })
+
       dev.onStatusChange((status) => {
         if (status === 'error') {
           setIsTofStreaming(false)

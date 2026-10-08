@@ -49,9 +49,9 @@ void setup() {
 }
 
 // Cấu hình Chế độ Truyền Serial:
-// - Để nguyên comment `//#define STREAM_BINARY_TO_KIOSK`: Xem log bảng 8x8 sạch sẽ trên Serial Monitor (Không bị rác chữ nhị phân).
-// - Bỏ comment `#define STREAM_BINARY_TO_KIOSK`: Bắn mảng nhị phân 204 bytes xuống Kiosk Android.
-//#define STREAM_BINARY_TO_KIOSK
+// - Bật #define STREAM_BINARY_TO_KIOSK: Truyền gói nhị phân 204 bytes chuẩn 15Hz xuống Kiosk Android.
+// - Tắt #define STREAM_BINARY_TO_KIOSK: Chỉ in log bảng ma trận text ra Serial Monitor để debug bằng tay.
+#define STREAM_BINARY_TO_KIOSK
 
 void loop() {
     // 1. Kiểm tra câu lệnh bắt tay Probe Handshake từ Kiosk (4 Bytes: 0xAA 0x55 'P' 'G')
@@ -76,7 +76,7 @@ void loop() {
 
     VL53L5CXFrame frame;
 
-    // 2. Đọc frame mới nhất
+    // 2. Đọc frame mới nhất từ cảm biến thật
     if (driver.readFrame(frame)) {
 #ifdef STREAM_BINARY_TO_KIOSK
         // Đóng gói frame thành mảng nhị phân 204 bytes truyền xuống Kiosk
@@ -84,13 +84,13 @@ void loop() {
         if (bytesSerialized > 0) {
             Serial.write(packetBuffer, bytesSerialized);
         }
-#endif
-
-        // 3. Log dữ liệu ma trận 8x8 trực quan ra Serial Monitor mỗi 1 giây (~15 frames)
+#else
+        // 3. Log dữ liệu ma trận 8x8 trực quan ra Serial Monitor mỗi 1 giây (~15 frames) khi không stream binary
         static uint32_t logCounter = 0;
         if (++logCounter % 15 == 0) {
-            VL53L5CXDriver::printFrameLog(frame);
+            VL53L5CXDriver::printFrameLog(frame, driver.getReferenceHeight());
         }
+#endif
     }
 
     // Tần số lấy mẫu 15 Hz (~66ms cho mỗi chu kỳ đo)

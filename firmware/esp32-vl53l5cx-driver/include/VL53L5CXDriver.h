@@ -25,6 +25,11 @@
 #define VL53L5CX_PIN_LPN 4   // ESP32 GPIO 4  (D4)  -> Sensor LPN (Low Power Enable)
 #define VL53L5CX_PIN_INT -1  // KHÔNG CẮM (-1)
 
+/**
+ * Chiều cao lắp đặt cảm biến chuẩn (Base Height) = 245.7 cm (2457 mm)
+ */
+#define VL53L5CX_BASE_HEIGHT_MM 2457
+
 /** Số vùng đo trong ma trận 8x8 */
 #define VL53L5CX_ZONES 64
 
@@ -141,8 +146,9 @@ public:
     /**
      * In log ma trận khoảng cách 8x8 trực quan ra cổng Serial (Human-readable ASCII Grid).
      * @param frame Frame chứa dữ liệu 64 vùng đo.
+     * @param refHeightMm Chiều cao tham chiếu lắp đặt cảm biến (mặc định 2457mm)
      */
-    static void printFrameLog(const VL53L5CXFrame& frame);
+    static void printFrameLog(const VL53L5CXFrame& frame, uint16_t refHeightMm = VL53L5CX_BASE_HEIGHT_MM);
 
     /**
      * Đóng gói struct VL53L5CXFrame thành mảng byte nhị phân 204 Bytes để truyền qua Serial.
@@ -177,7 +183,7 @@ public:
      */
     static void flipLensOrientation(const uint16_t src[VL53L5CX_ZONES], uint16_t dst[VL53L5CX_ZONES]);
 
-    /** Thiết lập chiều cao chuẩn / khoảng cách thử nghiệm (mặc định 150mm = 15cm) */
+    /** Thiết lập chiều cao chuẩn / khoảng cách thử nghiệm (mặc định 2457mm) */
     void setReferenceHeight(uint16_t heightMm) { m_ceilingHeightMm = heightMm; }
     uint16_t getReferenceHeight() const { return m_ceilingHeightMm; }
 
@@ -185,7 +191,7 @@ private:
     VL53L5CX_State m_state;       ///< Trạng thái FSM của driver
     bool           m_mockMode;    ///< Cờ chạy mock mode
     uint32_t       m_frameCounter;///< Bộ đếm frame tự tăng
-    uint16_t       m_ceilingHeightMm; ///< Chiều cao thử nghiệm (mặc định 150mm = 15cm)
+    uint16_t       m_ceilingHeightMm; ///< Chiều cao lắp đặt cảm biến (mặc định 2457mm)
 };
 
 #endif // VL53L5CX_DRIVER_H

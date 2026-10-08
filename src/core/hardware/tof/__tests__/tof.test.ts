@@ -112,16 +112,32 @@ describe('ToF Distance Sensor Hardware Module (VL53L5CX)', () => {
   })
 
   describe('HeightMeasurementEngine', () => {
-    const engine = new HeightMeasurementEngine(2200)
+    const engine = new HeightMeasurementEngine()
+
+    const generateFloorFrames = (count: number, expectedFloorMm = 2445): VL53L5CXFramePayload[] => {
+      const frames: VL53L5CXFramePayload[] = []
+      for (let f = 0; f < count; f++) {
+        frames.push({
+          frameId: f + 1,
+          timestampMs: (f + 1) * 66,
+          distances: new Array(64).fill(expectedFloorMm),
+          targetStatuses: new Array(64).fill(5),
+          zoneCount: 64,
+          isValid: true,
+        })
+      }
+      return frames
+    }
 
     it('should calculate height for a 170cm standing person', () => {
-      const distances = new Array(64).fill(2100)
+      engine.calibrateFloor(generateFloorFrames(20))
+      const distances = new Array(64).fill(2445)
       const targetStatuses = new Array(64).fill(5)
 
-      // Center 4x4 zones have head distance ~500mm to ceiling (2200 - 1700 = 500mm)
+      // Center 4x4 zones have head distance ~745mm to ceiling (2445 - 1700 = 745mm)
       const centerIndices = [27, 28, 35, 36]
       centerIndices.forEach((idx) => {
-        distances[idx] = 500
+        distances[idx] = 745
       })
 
       const mockFrame: VL53L5CXFramePayload = {
@@ -133,6 +149,8 @@ describe('ToF Distance Sensor Hardware Module (VL53L5CX)', () => {
         isValid: true,
       }
 
+      engine.calculateHeight(mockFrame)
+      engine.calculateHeight(mockFrame)
       const result = engine.calculateHeight(mockFrame)
       expect(result.measuredHeightCm).toBeGreaterThanOrEqual(169.0)
       expect(result.measuredHeightCm).toBeLessThanOrEqual(171.0)
@@ -140,32 +158,100 @@ describe('ToF Distance Sensor Hardware Module (VL53L5CX)', () => {
       expect(result.personCount).toBe(1)
     })
 
-    it('should detect hand raised gesture', () => {
-      const distances = new Array(64).fill(2100)
-      const targetStatuses = new Array(64).fill(5)
-
-      // Head cluster at 500mm (~170cm)
-      ;[27, 28, 35, 36].forEach((idx) => {
-        distances[idx] = 500
+    it('should lock height after holding still across stability window', () => {
+      const stableEngine = new HeightMeasurementEngine({
+        expectedFloorMm: 2200,
+        stabilityWindowMs: 1500,
+        stabilityMinHoldMs: 1000,
       })
+      stableEngine.calibrateFloor(generateFloorFrames(20, 2200))
 
-      // Hand gesture raised at zone 19 (300mm to ceiling)
-      distances[19] = 300
+      let lastOutput = null
+      // Feed 25 frames at 15Hz (66ms interval ~ 1650ms total) with constant 170cm height
+      for (let i = 0; i < 25; i++) {
+        const distances = new Array(64).fill(2100)
+        const targetStatuses = new Array(64).fill(5)
+        ;[27, 28, 35, 36].forEach((idx) => {
+          distances[idx] = 500 // 1700mm
+        })
 
-      const mockFrame: VL53L5CXFramePayload = {
-        frameId: 2,
-        timestampMs: 132,
-        distances,
-        targetStatuses,
-        zoneCount: 64,
-        isValid: true,
+        const frame: VL53L5CXFramePayload = {
+          frameId: i + 1,
+          timestampMs: (i + 1) * 66,
+          distances,
+          targetStatuses,
+          zoneCount: 64,
+          isValid: true,
+        }
+
+        lastOutput = stableEngine.push(frame)
       }
 
-      const result = engine.calculateHeight(mockFrame)
-      expect(result.hasHandRaised).toBe(true)
-      // Head height should still be calculated from head cluster (~170cm)
-      expect(result.measuredHeightCm).toBeGreaterThanOrEqual(169.0)
-      expect(result.measuredHeightCm).toBeLessThanOrEqual(171.0)
+      expect(lastOutput).not.toBeNull()
+      expect(lastOutput?.isStable).toBe(true)
+      expect(lastOutput?.state).toBe('LOCKED')
+      expect(lastOutput?.guidance).toBe('LOCKED')
+      expect(lastOutput?.progress).toBe(1.0)
+      expect(lastOutput?.result?.heightCm).toBeCloseTo(170.0, 0)
+    })
+
+    it('should calibrate floor across frames and reject bad zones', () => {
+      const calibEngine = new HeightMeasurementEngine()
+
+      const frames: VL53L5CXFramePayload[] = []
+      for (let f = 0; f < 30; f++) {
+        const distances = new Array(64).fill(2250) // Floor at 2250mm
+        const targetStatuses = new Array(64).fill(5)
+        // Zone 0 is corrupted
+        targetStatuses[0] = 0
+
+        frames.push({
+          frameId: f + 1,
+          timestampMs: (f + 1) * 66,
+          distances,
+          targetStatuses,
+          zoneCount: 64,
+          isValid: true,
+        })
+      }
+
+      const result = calibEngine.calibrateFloor(frames)
+      expect(result).toBe('APPLIED')
+      const calib = calibEngine.getBaseline()!
+      expect(calib.floorOk[27]).toBe(true)
+      expect(calib.floorOk[0]).toBe(false) // zone 0 rejected due to bad status
+    })
+
+    it('should reset stability buffer when frame timestamp has a gap > 300ms', () => {
+      const gapEngine = new HeightMeasurementEngine()
+      gapEngine.calibrateFloor(generateFloorFrames(20))
+
+      const makeFrame = (id: number, ts: number): VL53L5CXFramePayload => {
+        const distances = new Array(64).fill(2100)
+        const targetStatuses = new Array(64).fill(5)
+        ;[27, 28, 35, 36].forEach((idx) => {
+          distances[idx] = 500
+        })
+        return {
+          frameId: id,
+          timestampMs: ts,
+          distances,
+          targetStatuses,
+          zoneCount: 64,
+          isValid: true,
+        }
+      }
+
+      // Feed 15 frames normally
+      for (let i = 0; i < 15; i++) {
+        gapEngine.push(makeFrame(i + 1, (i + 1) * 66))
+      }
+
+      // Gap of 1000ms (> 300ms)
+      const afterGapOutput = gapEngine.push(makeFrame(16, 15 * 66 + 1000))
+      // Progress should drop / not be locked
+      expect(afterGapOutput.isStable).toBe(false)
+      expect(afterGapOutput.state).not.toBe('LOCKED')
     })
   })
 
@@ -173,11 +259,27 @@ describe('ToF Distance Sensor Hardware Module (VL53L5CX)', () => {
     it('should notify subscribers when mock stream is started', (done) => {
       const client = new ToFClient()
 
+      // Calibrate floor baseline first so engine can measure mock data
+      const floorFrames: VL53L5CXFramePayload[] = []
+      for (let f = 0; f < 20; f++) {
+        floorFrames.push({
+          frameId: f + 1,
+          timestampMs: (f + 1) * 66,
+          distances: new Array(64).fill(2445), // matches default expectedFloorMm
+          targetStatuses: new Array(64).fill(5),
+          zoneCount: 64,
+          isValid: true,
+        })
+      }
+      client.calibrateFloor(floorFrames)
+
       client.onHeightResult((result) => {
-        expect(result.measuredHeightCm).toBeGreaterThanOrEqual(169.0)
-        expect(result.measuredHeightCm).toBeLessThanOrEqual(171.0)
-        client.stopMockStream()
-        done()
+        if (result.measuredHeightCm > 0) {
+          expect(result.measuredHeightCm).toBeGreaterThanOrEqual(169.0)
+          expect(result.measuredHeightCm).toBeLessThanOrEqual(171.0)
+          client.stopMockStream()
+          done()
+        }
       })
 
       client.startMockStream(170.0)

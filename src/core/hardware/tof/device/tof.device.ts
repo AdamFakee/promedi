@@ -4,7 +4,7 @@
  * @module src/core/hardware/tof/device/tof.device.ts
  */
 
-import type { DeviceStatus, IMeasurementDevice } from '../../types/measurement-device.interface'
+import type { DeviceStatus } from '../../types/measurement-device.interface'
 import type { TransportConfig } from '../../transport/transport.interface'
 import { TransportError } from '../../transport/transport.interface'
 import { listCandidateDevices, requestUsbPermission } from '../../resolver/list-candidate-devices'
@@ -12,6 +12,7 @@ import { UsbSerialTransport } from '../../transport/usb-serial-transport'
 import { ToFClient } from '../client/tof-client'
 import type {
   HeightCalculationResult,
+  HeightEngineConfig,
   IToFDistanceDevice,
   VL53L5CXFramePayload,
 } from '../types/tof.types'
@@ -28,13 +29,18 @@ export class ToFDistanceDevice implements IToFDistanceDevice {
   private unsubscribeTransportClose: (() => void) | null = null
   private unsubscribeTransportError: (() => void) | null = null
 
-  constructor() {
+  constructor(config?: Partial<HeightEngineConfig>) {
     this.transport = new UsbSerialTransport()
-    this.client = new ToFClient()
+    this.client = new ToFClient(config)
 
     this.client.onHeightResult((result) => {
       this.latestResult = result
     })
+  }
+
+  /** Cập nhật cấu hình tham số cho Engine (độ cao trần, gain, offset, calibration) */
+  public updateEngineConfig(config: Partial<HeightEngineConfig>): void {
+    this.client.updateEngineConfig(config)
   }
 
   /**
@@ -163,6 +169,11 @@ export class ToFDistanceDevice implements IToFDistanceDevice {
   /** Đăng ký lắng nghe raw frame */
   public onFrame(callback: (frame: VL53L5CXFramePayload) => void): () => void {
     return this.client.onFrame(callback)
+  }
+
+  /** Đăng ký lắng nghe kết quả đo chiều cao và tiến trình ổn định */
+  public onHeightResult(callback: (result: HeightCalculationResult) => void): () => void {
+    return this.client.onHeightResult(callback)
   }
 
   /** Đăng ký lắng nghe thay đổi trạng thái kết nối */

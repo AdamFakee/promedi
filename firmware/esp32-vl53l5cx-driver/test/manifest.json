@@ -1,170 +1,142 @@
 {
-  "totalCases": 23,
-  "framesPerCase": 5,
-  "totalFrames": 115,
+  "totalCases": 19,
+  "framesPerCase": 30,
+  "totalFrames": 570,
   "packetBytes": 204,
   "crc": "CRC16-Modbus over bytes[0..201], little-endian (lo, hi)",
   "cases": [
     {
       "id": "EMPTY_FLOOR",
-      "desc": "San trong, khong ai",
+      "desc": "Sàn nhà trống, không có người đứng",
       "tags": ["presence"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 101
     },
     {
       "id": "SENSOR_BLOCKED",
-      "desc": "Che cam bien: distance=0, status=255 toan bo",
+      "desc": "Che cảm biến: distance=0, status=255 toàn bộ 64 zones",
       "tags": ["invalid"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 201
     },
     {
       "id": "INVALID_STATUS_FAKE_PEAK_EMPTY",
-      "desc": "San trong nhung 4 zone co khoang cach gia ~250mm voi status 0/2/3/255",
+      "desc": "Sàn trống nhưng 4 zone có khoảng cách giả ~250mm với status 0/2/3/255",
       "tags": ["invalid"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 301
     },
     {
       "id": "STANDING_1700_CENTER",
-      "desc": "Nguoi 1700mm dung giua",
+      "desc": "Người cao 1700mm đứng giữa cảm biến",
       "tags": ["height"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 401
     },
     {
       "id": "STANDING_1500_CENTER",
-      "desc": "Nguoi thap 1500mm dung giua",
+      "desc": "Người thấp 1500mm đứng giữa cảm biến",
       "tags": ["height"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 501
     },
     {
       "id": "STANDING_1900_CENTER",
-      "desc": "Nguoi cao 1900mm dung giua",
+      "desc": "Người cao 1900mm đứng giữa cảm biến",
       "tags": ["height"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 601
     },
     {
       "id": "TALL_2000_NEAR_CEILING",
-      "desc": "Nguoi 2000mm, dinh dau cach cam bien ~200mm (vung xtalk kinh)",
+      "desc": "Người cao 2000mm, đỉnh đầu cách cảm biến ~200mm (Vùng Xtalk kính)",
       "tags": ["height", "xtalk"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 701
     },
     {
       "id": "STANDING_1700_OFFSET_X80",
-      "desc": "Cung 1700mm nhung lech phai 80mm (Test 2 cos theta)",
+      "desc": "Người cao 1700mm đứng lệch phải 80mm",
       "tags": ["cos"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 801
     },
     {
       "id": "STANDING_1700_OFFSET_Y60",
-      "desc": "1700mm lech truoc 60mm",
+      "desc": "Người cao 1700mm đứng lệch trước 60mm",
       "tags": ["cos"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 901
     },
     {
       "id": "STANDING_1700_DARK_HAIR_STATUS9",
-      "desc": "Toc den: moi zone dinh dau status 9",
+      "desc": "Tóc đen: mọi zone đỉnh đầu có status 9",
       "tags": ["status"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 1001
     },
     {
       "id": "BROAD_SHOULDERS_SINGLE",
-      "desc": "1 nguoi vai rong: KHONG duoc bao 2 nguoi",
+      "desc": "1 người bờ vai rộng: KHÔNG được báo 2 người",
       "tags": ["negative", "multi"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 1101
     },
     {
       "id": "WRONG_POSITION_RIGHT",
-      "desc": "Dung lech RIGHT 160mm, dau cham ria",
+      "desc": "Đứng lệch RIGHT 160mm, đầu chạm mép ma trận",
       "tags": ["position"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 1201
     },
     {
       "id": "WRONG_POSITION_LEFT",
-      "desc": "Dung lech LEFT 160mm, dau cham ria",
+      "desc": "Đứng lệch LEFT 160mm, đầu chạm mép ma trận",
       "tags": ["position"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 1301
     },
     {
       "id": "WRONG_POSITION_FRONT",
-      "desc": "Dung lech FRONT 160mm, dau cham ria",
+      "desc": "Đứng lệch FRONT 160mm, đầu chạm mép ma trận",
       "tags": ["position"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 1401
     },
     {
       "id": "WRONG_POSITION_BACK",
-      "desc": "Dung lech BACK 160mm, dau cham ria",
+      "desc": "Đứng lệch BACK 160mm, đầu chạm mép ma trận",
       "tags": ["position"],
-      "frames": 5,
+      "frames": 30,
       "firstFrameId": 1501
     },
     {
-      "id": "HAND_RAISED_LEFT",
-      "desc": "Gio tay cao hon dau 200mm, lech trai-truoc",
-      "tags": ["hand"],
-      "frames": 5,
+      "id": "LOW_OBJECT_BELOW_MIN",
+      "desc": "Vật thấp 600mm (Túi xách / Ghế ngồi): dưới minPersonHeight 800mm",
+      "tags": ["presence", "negative"],
+      "frames": 30,
       "firstFrameId": 1601
     },
     {
-      "id": "HAND_RAISED_MIN_60",
-      "desc": "Tay cao hon dau 60mm (sat nguong 50mm)",
-      "tags": ["hand", "boundary"],
-      "frames": 5,
+      "id": "GLITCH_MIDSTREAM",
+      "desc": "Frame 3 mất toàn bộ status=255 giữa luồng bình thường",
+      "tags": ["glitch"],
+      "frames": 30,
       "firstFrameId": 1701
     },
     {
-      "id": "TWO_PEOPLE_VALLEY",
-      "desc": "2 nguoi sat nhau, chung blob, valley ~200mm",
-      "tags": ["multi"],
-      "frames": 5,
+      "id": "UNSTABLE_SWAYING",
+      "desc": "Đứng đung đưa: đỉnh đầu +-28mm, lệch ngang +-25mm",
+      "tags": ["stability"],
+      "frames": 30,
       "firstFrameId": 1801
     },
     {
-      "id": "TWO_PEOPLE_ADULT_CHILD",
-      "desc": "Nguoi lon + tre 1100mm dung canh (2 blob rieng)",
-      "tags": ["multi"],
-      "frames": 5,
-      "firstFrameId": 1901
-    },
-    {
-      "id": "LOW_OBJECT_BELOW_MIN",
-      "desc": "Vat thap 600mm (tui/nguoi ngoi): duoi minPersonHeight",
-      "tags": ["presence", "negative"],
-      "frames": 5,
-      "firstFrameId": 2001
-    },
-    {
-      "id": "GLITCH_MIDSTREAM",
-      "desc": "Frame 3 mat toan bo status=255 giua luong binh thuong",
-      "tags": ["glitch"],
-      "frames": 5,
-      "firstFrameId": 2101
-    },
-    {
-      "id": "UNSTABLE_SWAYING",
-      "desc": "Dung dung dua: dinh dau +-28mm, lech ngang +-25mm",
-      "tags": ["stability"],
-      "frames": 5,
-      "firstFrameId": 2201
-    },
-    {
       "id": "ENTERING_WALKING",
-      "desc": "Di vao tu mep trai den giua",
+      "desc": "Đi vào từ mép trái đến giữa cảm biến",
       "tags": ["transition"],
-      "frames": 5,
-      "firstFrameId": 2301
+      "frames": 30,
+      "firstFrameId": 1901
     }
   ]
 }

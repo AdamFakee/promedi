@@ -4,8 +4,7 @@
  */
 
 import type { InBodyClient } from '../client/inbody-client'
-import type { PatientInfo, InBodyResult, InBodyErrorCode } from '../types/inbody.types'
-import type { TransportConfig } from '../transport/transport.interface'
+import type { InBodyErrorCode, InBodyResult, PatientInfo } from '../types/inbody.types'
 
 /** Context dữ liệu trạng thái của Session Machine */
 export interface InBodyMachineContext {

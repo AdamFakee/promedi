@@ -38,6 +38,7 @@ void test_driver_initialization() {
 void test_mock_frame_generation() {
     std::cout << "[KIỂM THỬ 2] Sinh dữ liệu Frame Giả lập (Người cao 1m75 đứng dưới cảm biến trần)..." << std::endl;
     VL53L5CXDriver driver;
+    driver.setReferenceHeight(2200);
     driver.init(true);
 
     VL53L5CXFrame frame;

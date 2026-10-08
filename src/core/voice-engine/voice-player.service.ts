@@ -1,15 +1,27 @@
 import * as Speech from 'expo-speech'
 import { VOICE_PROMPTS, VoicePromptKey } from './voice-prompts.const'
+import { formatHeightToSpeechText } from './utils/height-voice-formatter.util'
 
 class VoicePlayerService {
   private currentPromptKey: VoicePromptKey | null = null
+  private lastSpeakTime = 0
 
   /**
    * Immediately stops any active speech and speaks the specified voice prompt key.
    */
-  public async speak(key: VoicePromptKey, options?: { force?: boolean }): Promise<void> {
+  public async speak(
+    key: VoicePromptKey,
+    options?: { force?: boolean; minIntervalMs?: number },
+  ): Promise<void> {
     try {
+      const now = Date.now()
+      const minInterval = options?.minIntervalMs ?? 2000
+
       if (this.currentPromptKey === key && !options?.force) {
+        return
+      }
+
+      if (now - this.lastSpeakTime < minInterval && !options?.force) {
         return
       }
 
@@ -20,6 +32,7 @@ class VoicePlayerService {
       if (!text) return
 
       this.currentPromptKey = key
+      this.lastSpeakTime = now
 
       Speech.speak(text, {
         language: 'vi-VN',
@@ -71,6 +84,17 @@ class VoicePlayerService {
     } catch (err) {
       console.warn('[VoicePlayerService] Failed to speak text:', err)
     }
+  }
+
+  /**
+   * Phát âm thông báo kết quả chiều cao chi tiết bằng tiếng Việt chuẩn
+   * (Ví dụ: "Đã đo xong chiều cao. Chiều cao của quý khách là một trăm bảy mươi xăng ti mét.")
+   *
+   * @param heightCm Chiều cao tính bằng centimet
+   */
+  public async speakHeightResult(heightCm: number): Promise<void> {
+    const text = formatHeightToSpeechText(heightCm)
+    await this.speakText(text)
   }
 }
 

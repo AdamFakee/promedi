@@ -90,10 +90,6 @@ export class UsbSerialTransport implements DeviceTransport {
   async write(data: Uint8Array): Promise<void> {
     if (!this.connected || !this.portId) throw new TransportError('Chưa kết nối', 'WRITE_FAILED')
     try {
-      const hexStr = Array.from(data, (b) => b.toString(16).padStart(2, '0').toUpperCase()).join(
-        ' ',
-      )
-      console.log(`[USB-SERIAL SEND] [Port: ${this.portId}] (${data.length} bytes): ${hexStr}`)
       // Native Bridge nhận mảng số ByteArray
       await UsbSerialBridge.write(this.portId, Array.from(data))
     } catch (e: any) {
@@ -111,8 +107,6 @@ export class UsbSerialTransport implements DeviceTransport {
     const sub = emitter.addListener('onData', (e: { portId: string; bytes: number[] }) => {
       // Lọc chính xác portId để dữ liệu từ cổng khác không lọt sang codec này
       if (e.portId === this.portId) {
-        const hexStr = e.bytes.map((b) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
-        console.log(`[USB-SERIAL RECV] [Port: ${this.portId}] (${e.bytes.length} bytes): ${hexStr}`)
         cb(new Uint8Array(e.bytes))
       }
     })

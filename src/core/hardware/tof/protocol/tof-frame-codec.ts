@@ -145,10 +145,10 @@ export class ToFStreamFramer {
 
     const frames: VL53L5CXFramePayload[] = []
 
-    while (this.buffer.length >= TOF_PACKET_SIZE) {
-      // Tìm vị trí Header 0xAA 0x55
+    while (this.buffer.length >= 2) {
+      // Tìm vị trí Header 0xAA 0x55 trong toàn bộ buffer
       let headerIdx = -1
-      for (let i = 0; i <= this.buffer.length - TOF_PACKET_SIZE; i++) {
+      for (let i = 0; i < this.buffer.length - 1; i++) {
         if (this.buffer[i] === TOF_HEADER_0 && this.buffer[i + 1] === TOF_HEADER_1) {
           headerIdx = i
           break
@@ -165,16 +165,26 @@ export class ToFStreamFramer {
         break
       }
 
+      // Bỏ các byte rác đứng trước Header 0xAA 0x55
+      if (headerIdx > 0) {
+        this.buffer = this.buffer.slice(headerIdx)
+      }
+
+      // Chưa đủ 204 bytes cho một gói tin hoàn chỉnh -> chờ chunk tiếp theo
+      if (this.buffer.length < TOF_PACKET_SIZE) {
+        break
+      }
+
       // Cắt ứng viên gói 204 bytes
-      const packetBytes = this.buffer.slice(headerIdx, headerIdx + TOF_PACKET_SIZE)
+      const packetBytes = this.buffer.slice(0, TOF_PACKET_SIZE)
       const decoded = decodeToFFrame(packetBytes)
 
       if (decoded) {
         frames.push(decoded)
-        this.buffer = this.buffer.slice(headerIdx + TOF_PACKET_SIZE)
+        this.buffer = this.buffer.slice(TOF_PACKET_SIZE)
       } else {
-        // Bỏ byte header sai và tiếp tục tìm tiếp ở các byte sau
-        this.buffer = this.buffer.slice(headerIdx + 1)
+        // CRC không khớp hoặc dữ liệu sai -> bỏ 2 byte header giả và tiếp tục tìm tiếp
+        this.buffer = this.buffer.slice(2)
       }
     }
 
@@ -185,4 +195,43 @@ export class ToFStreamFramer {
   public reset(): void {
     this.buffer = new Uint8Array(0)
   }
+}
+
+/**
+ * Định dạng một VL53L5CXFramePayload 8x8 thành chuỗi bảng ma trận ASCII trực quan để debug / log.
+ * @param frame Frame payload dữ liệu 8x8
+ * @return Chuỗi bảng ma trận ASCII hiển thị đầy đủ 64 vùng đo
+ */
+export function formatToFFrame(frame: VL53L5CXFramePayload): string {
+  let minDist = Infinity
+  let maxDist = -Infinity
+  let validCount = 0
+
+  for (let i = 0; i < frame.zoneCount; i++) {
+    const d = frame.distances[i]
+    const s = frame.targetStatuses[i]
+    if (s === 5 || s === 6 || s === 9) {
+      validCount++
+      if (d < minDist) minDist = d
+      if (d > maxDist) maxDist = d
+    }
+  }
+
+  const centerDist = frame.distances[27] ?? 0
+  const header = `=== [VL53L5CX FRAME #${frame.frameId}] TS: ${frame.timestampMs}ms | Valid: ${validCount}/${frame.zoneCount} | Min: ${minDist === Infinity ? 0 : minDist}mm | Max: ${maxDist === -Infinity ? 0 : maxDist}mm | Center: ${centerDist}mm ===`
+  const separator = '+------+------+------+------+------+------+------+------+'
+
+  const rows: string[] = [header, separator]
+  for (let r = 0; r < 8; r++) {
+    const cells: string[] = []
+    for (let c = 0; c < 8; c++) {
+      const idx = r * 8 + c
+      const d = frame.distances[idx] ?? 0
+      cells.push(` ${String(d).padStart(4, ' ')} `)
+    }
+    rows.push(`|${cells.join('|')}|`)
+    rows.push(separator)
+  }
+
+  return rows.join('\n')
 }

@@ -1,120 +1,243 @@
-# Đặc Tả Kiến Trúc & Lý Giải Thiết Kế Đo Chiều Cao Cảm Biến ToF VL53L5CX/L8CX (Architecture Spec & ADR)
+# Đặc Tả Kiến Trúc & Lý Giải Kỹ Thuật Đo Chiều Cao Cảm Biến ToF VL53L5CX/VL53L8CX (Architecture Spec & ADR)
 
-- **Phiên bản**: V5.1 Production
-- **Phân lớp**: Layer 2 Core Hardware Engine (`src/core/hardware/tof/`)
-- **Tài liệu tham chiếu**:
-  - `AGENTS.md` (Chuẩn mực tài liệu 3 tầng ProMedi)
-  - `docs/hard-ware/vl53l5cx-distance-sensor-spec.md`
-  - `docs/plans/tof-height-measurement-runbook.md`
+- **Mã Tài Liệu**: `SPEC-PROMEDI-TOF-HEIGHT-V6.1`
+- **Phiên Bản**: **V6.1 Production (Real-World Calibrated & Multi-Status Verified Edition)**
+- **Cập Nhật Lần Cuối**: 2026-10-08 (GMT+7)
+- **Trạng Thái**: CHÍNH THỨC / ĐÃ TRIỂN KHAI VÀ NGHIỆM THU TRÊN MÁY THẬT
+- **Phân Lớp Kiến Trúc**: Layer 2 Core Hardware Engine (`src/core/hardware/tof/`)
+- **Tài Liệu Tham Chiếu**:
+  - [AGENTS.md](file:///d:/promedi/AGENTS.md) (Quy tắc & Chuẩn Mực Tài Liệu 3 Tầng)
+  - [Runbook Nghiệm Thu Phần Cứng Máy Thật](file:///d:/promedi/docs/plans/tof-height-measurement-runbook.md)
+  - [Đặc Tả Kỹ Thuật Chip ST VL53L5CX](file:///d:/promedi/docs/hard-ware/vl53l5cx-distance-sensor-spec.md)
+  - [Mã Nguồn C++ Firmware ESP32 Driver](file:///d:/promedi/firmware/esp32-vl53l5cx-driver/README.md)
+  - [Đặc Tả Use Case Nghiệp Vụ V4.0](file:///d:/promedi/docs/specs/usecase-specification-v4.0.md)
 
 ---
 
-## 📌 Scope & Boundaries (Ranh Giới Trách Nhiệm Mô-đun)
+## 📌 Scope & Boundaries (Ranh Giới Trách Nhiệm Mô-Đun)
 
 ### 🟢 Mô-đun LÀM (In-Scope):
 
-1. Nhận diện cổng phần cứng linh hoạt bằng cơ chế **Device Resolver Probe Signature PING-PONG** (Gửi lệnh `0xAA 0x55 'P' 'G'` $\rightarrow$ Phản hồi `0xAA 0x55 'O' 'K'` @ 460800 baud).
-2. Nhận luồng dữ liệu byte thô từ kết nối USB Serial (`UsbSerialTransport` @ 460800 baud).
-3. Gom buffer và cắt gói nhị phân cố định 204 Bytes (`ToFStreamFramer`).
-4. Kiểm tra tính toàn vẹn dữ liệu bằng mã kiểm tra lỗi CRC16-Modbus (`decodeToFFrame`).
-5. Ánh xạ lật thấu kính quang học Rx 180 độ (`flipLensOrientation`).
-6. Quy đổi khoảng cách xiên r sang độ sâu thẳng đứng $z = r \times \cos\theta$ dựa trên mảng tra cứu trước `cosLookupTable[8][8]`.
-7. Nhận diện cụm đỉnh đầu người (Peak Head Cluster Blob) và lọc nhiễu cử chỉ giơ tay (Hand Gesture Filter $>50\text{mm}$).
-8. Cung cấp API Stream `onFrame` / `onHeightResult` và báo lỗi `TransportError` / trạng thái `'error'` khi phần cứng hỏng (Không tự động ngầm fallback sang Mock mode).
+1. **Giao thức Nhị Phân 204 Bytes & Streaming Framer**:
+   - Nhận diện cổng phần cứng tự động bằng **Probe Signature Handshake PING-PONG** (`0xAA 0x55 'P' 'G'` $\rightarrow$ `0xAA 0x55 'O' 'K'` @ 460800 baud).
+   - Tiếp nhận luồng byte phân mảnh từ Android USB Serial (`UsbSerialTransport` @ 460800 baud).
+   - Thuật toán `ToFStreamFramer` chống trôi offset, tự động đồng bộ Header `0xAA 0x55` trên dòng byte phân mảnh 32B từ chip CH340/CP210x.
+   - Kiểm tra mã toàn vẹn dữ liệu **CRC16-Modbus** (`decodeToFFrame`).
+   - Lật thấu kính quang học Rx 180 độ theo cấu hình thấu kính quang học ST (`flipLensOrientation`).
+
+2. **Thuật Toán Xử Lý Chiều Cao Toán Học Tối Giản (`HeightMeasurementEngine`)**:
+   - Engine được thiết kế tập trung 100% vào **đo chiều cao**, loại bỏ các logic nhận diện cử chỉ (giơ tay) hay đếm người phức tạp để đảm bảo hiệu năng và độ ổn định cao nhất.
+   - **Bước 0 (Hiệu chuẩn sàn động)**: Hỗ trợ nạp baseline nạp sẵn (`config.calibration`) hoặc tự đo 30 frames sàn trống (`floorZ[64]`, median 30 frames, `floorOk[64]`). Nới lỏng điều kiện kiểm tra mặt sàn thực tế (`stdDev <= 80mm`, tối thiểu $\ge 4$ zones hợp lệ).
+   - **Bước 1 (Quy đổi 3D Ray-Tracing)**: Bảng tra cứu trước góc nón chùm tia $\cos\theta[8][8]$ và đổi tọa độ thế giới 3D ($x, y, z$).
+   - **Bước 2 (Tách đối tượng)**: Tách đối tượng người so với sàn ($h_i = \text{floorZ}_i - z_i$, ngưỡng $80\text{cm}$).
+   - **Bước 3 (Nhận diện chóp đỉnh đầu đa trạng thái)**: Tìm chóp đỉnh đầu bằng thuật toán Band Zones (tìm top K điểm cao nhất). Mở rộng bộ lọc `targetStatus` chấp nhận các mã phản xạ hợp lệ: **5, 6, 9, 10, 12, 13** (đặc biệt mã **10 - SNR Low** và **9 - 50% Valid** do tóc đen/sẫm màu hấp thụ quang học hồng ngoại mạnh); kiên quyết loại bỏ mã **7, 8** (Wrap-around) và **255** (No target).
+   - **Bước 4 (FSM & Guidance)**: Điều phối trạng thái FSM (`IDLE` $\rightarrow$ `MEASURING` $\rightarrow$ `LOCKED` / `TIMEOUT`) và kích hoạt ma trận hướng dẫn giọng nói Tiếng Việt.
+   - **Bước 5 (Ổn định chuỗi thời gian MAD)**: Cửa sổ trượt ổn định $1500\text{ms}$ sử dụng bộ lọc Median Absolute Deviation (MAD), dải dao động $\le 15\text{mm}$, độ dốc $\le 8\text{mm/s}$, ân hạn 3 frames nhiễu.
+   - **Bước 6 (Chốt chiều cao)**: Chốt chiều cao bằng Trimmed Mean 10% và áp dụng hệ số hiệu chuẩn thực nghiệm (`gainScale`, `offsetMm`).
+   - **Bước 7 (Giám sát trôi sàn)**: Tự động phát hiện trôi sàn khi sàn trống (`needsRecalibration`).
+
+3. **Cung cấp API, Trực quan hóa & Công cụ Ghi Log Thao trường (Field Diagnosis)**:
+   - Cập nhật tham số trần động: `updateConfig({ expectedFloorMm, gainScale, offsetMm, calibration })`.
+   - Ghi log frame chi tiết ra file JSONL trực tiếp (`FileSystem.writeAsStringAsync` chế độ Append), tránh nghẽn luồng UI hoặc treo app trên máy Kiosk.
+   - Hỗ trợ Mock Stream phục vụ unit test tích hợp.
 
 ### 🔴 Mô-đun KHÔNG LÀM (Out-of-Scope):
 
-1. KHÔNG chứa UI Components hoặc màn hình render JSX (UI màn hình đo đặt tại `src/features/measure-height/`).
-2. KHÔNG điều phối State Machine phiên khám Kiosk (Thuộc trách nhiệm của XState Session Machine tại `src/core/machines/`).
-3. KHÔNG lưu trữ SQLite / WatermelonDB (Thuộc Layer 2 Store & Service).
+1. **KHÔNG** nhận diện cử chỉ giơ tay hay số lượng người (hệ thống được thiết kế tối giản, tập trung thuần túy vào thuật toán đo chiều cao).
+2. **KHÔNG** chứa UI Components hoặc màn hình render JSX.
+3. **KHÔNG** điều phối toàn bộ phiên khám Kiosk (Thuộc trách nhiệm của XState Session Orchestrator).
+4. **KHÔNG** trực tiếp ghi cơ sở dữ liệu SQLite / WatermelonDB.
 
 ---
 
-## 1. Đường Ống & Luồng Dữ Liệu (Data Pipeline & FSM)
+## 📐 Bảng Tham Số Độ Cao Lắp Đặt Cảm Biến Thực Tế (Elevation Presets)
+
+| Mốc Độ Cao                | Giá Trị (`expectedFloorMm`) | Đặc Điểm Vị Trí Lắp Đặt                                       | Ứng Dụng                                        |
+| :------------------------ | :-------------------------: | :------------------------------------------------------------ | :---------------------------------------------- |
+| **Setup Thực Nghiệm Mới** |  **`2457 mm` (245.7 cm)**   | Mốc chiều cao thực tế Kiosk đo được                           | **Mặc định hiện tại trên Kiosk & Firmware C++** |
+| Mốc Thử Nghiệm Cũ         |    `2445 mm` (244.5 cm)     | Giá đỡ trung gian                                             | Lưu làm preset so sánh                          |
+| Mốc Kiosk Cột Mini        |    `1847 mm` (184.7 cm)     | Gắn trên đỉnh cột Sunmi K2 Mini (168cm thân + 16.7cm bracket) | Kiosk không có trần treo                        |
+| Mốc Trần Tiêu Chuẩn       |    `2200 mm` (220.0 cm)     | Trần phòng khám tiêu chuẩn                                    | Bộ Test Fixture cũ                              |
+
+---
+
+## 1. Máy Trạng Thái FSM Đo Chiều Cao (`EngineState`)
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant HW as Hardware ESP32 / ToF Sensor
-    participant RES as DeviceResolver & Probe Signature
-    participant TR as UsbSerialTransport (460800 baud)
-    participant FR as ToFStreamFramer (204B Framer)
-    participant CD as Frame Codec (CRC16 & Lens Flip)
-    participant EN as HeightMeasurementEngine (cosθ & Hand Filter)
-    participant CL as ToFClient / Device Adapter
-    participant UI as Kiosk UI Screen (Step 4)
+stateDiagram-v2
+    [*] --> IDLE: Khởi động hệ thống (nạp baseline)
+    IDLE --> MEASURING: Nhận diện người bước vào (h > 80cm)
+    MEASURING --> IDLE: Người bước ra / Reset
 
-    RES->>HW: Gửi TOF_PING_COMMAND (0xAA 0x55 'P' 'G')
-    HW->>RES: Phản hồi TOF_PONG_RESPONSE (0xAA 0x55 'O' 'K') trong 1200ms
-    RES->>TR: Gán deviceKey thành công cho role 'tof'
-    HW->>TR: Phát luồng nhị phân 15Hz (66ms/frame)
-    TR->>FR: pushData(chunk: Uint8Array)
-    FR->>CD: Cắt khung 204B (Header 0xAA 0x55)
-    CD->>CD: Đối chiếu Checksum CRC16 Modbus
-    alt CRC16 Khớp (Valid Packet)
-        CD->>EN: VL53L5CXFramePayload (64 zones)
-        EN->>EN: Tính z = r * cosθ & Lọc bàn tay (>50mm)
-        EN->>CL: HeightCalculationResult (Height cm, isStable, hasHandRaised)
-        CL->>UI: Callback notify (Frame 8x8 Heatmap + Chiều cao final)
-    else CRC16 Lỗi (Corrupted Packet)
-        CD-->>FR: Bỏ qua byte lỗi, tiếp tục tìm Header kế tiếp
-    end
+    state MEASURING {
+        [*] --> HOLD_STILL: Nhận diện đỉnh đầu (TargetStatus 5/6/9/10/12/13)
+        HOLD_STILL --> STABILIZING: Lọc nhiễu chuỗi thời gian (MAD, Median)
+        STABILIZING --> HOLD_STILL: Không đạt điều kiện (Range > 15mm, Slope > 8mm/s)
+    }
+
+    MEASURING --> LOCKED: Giữ yên đủ 1000ms trong cửa sổ 1500ms
+    MEASURING --> TIMEOUT: Quá 15000ms không ổn định
+    TIMEOUT --> IDLE: Reset phiên đo
+    LOCKED --> IDLE: Rời thảm / Reset
 ```
 
 ---
 
-## 2. Bảng Cấu Trúc Dữ Liệu & API Payloads
+## 2. Chi Tiết Thuật Toán Xử Lý Chiều Cao Thực Tế (Production ADR)
 
-### 2.1 Cấu trúc Gói Lệnh Bắt Tay Handshake (4 Bytes Payload)
+### Bước 0: Hiệu Chuẩn Sàn Động & Nạp Baseline (Floor Baseline Calibration)
 
-| Kiểu Gói                                      | Header (2 Bytes) | Payload (2 Bytes)    | Tổng        | Mô tả                        |
-| :-------------------------------------------- | :--------------- | :------------------- | :---------- | :--------------------------- |
-| **PING Command** (Kiosk $\rightarrow$ ESP32)  | `0xAA 0x55`      | `0x50 0x47` (`"PG"`) | **4 Bytes** | Gửi hỏi thử thiết bị ToF     |
-| **PONG Response** (ESP32 $\rightarrow$ Kiosk) | `0xAA 0x55`      | `0x4F 0x4B` (`"OK"`) | **4 Bytes** | Phản hồi xác nhận thành công |
+- **Mục đích**: Triệt tiêu độ nghiêng vật lý khi bắt vít cảm biến lên trần và độ mấp mô của thảm/nền gạch/đế máy InBody.
+- **Quy trình nạp sẵn**: Có thể truyền trực tiếp `config.calibration` khi khởi tạo hoặc gọi `updateConfig()`.
+- **Quy trình tự động**: Thu thập 30 frames liên tiếp khi sàn trống:
+  - Chỉ chấp nhận các zone có `stdDev <= 80mm` (nới lỏng từ 30mm nhằm thích ứng bề mặt sàn phòng khám thực tế).
+  - Tối thiểu cần $\ge 4$ zones hợp lệ (thay vì 16 zones khắt khe) để hoàn tất baseline.
 
-### 2.2 Cấu trúc Gói tin Nhị phân 204 Bytes (Serial Protocol Payload)
+### Bước 1: Quy Đổi Hình Học Không Gian 3D Ray-Tracing
 
-| Offset (Bytes) | Tên Trường       | Kiểu Dữ Liệu   | Mô Tả                                                |
-| :------------- | :--------------- | :------------- | :--------------------------------------------------- |
-| `0..1`         | `Header`         | `uint8_t[2]`   | Cố định `0xAA 0x55`                                  |
-| `2..5`         | `FrameID`        | `uint32_t`     | Số thứ tự frame tăng dần (Little Endian)             |
-| `6..9`         | `TimestampMs`    | `uint32_t`     | Thời gian đo tính từ lúc khởi động (ms)              |
-| `10..137`      | `Distances`      | `uint16_t[64]` | Mảng 64 khoảng cách mm từ thấu kính tới mục tiêu     |
-| `138..201`     | `TargetStatuses` | `uint8_t[64]`  | Mảng 64 mã trạng thái độ tin cậy (`5`=100%, `9`=50%) |
-| `202..203`     | `CRC16`          | `uint16_t`     | Mã kiểm tra lỗi CRC16-Modbus over bytes `0..201`     |
+- Tính chiều cao thực $z$ bằng cách nhân khoảng cách xiên $d$ với hệ số $\cos\varphi$.
+- **Tối ưu Hiệu năng**: Engine tiền tính toán bảng tra cứu (Pre-compute LUT) `cosLUT[8][8]` khi khởi tạo.
 
-### 2.3 Domain TypeScript Interface (`HeightCalculationResult`)
+### Bước 2: Tách Đối Tượng Người và Mặt Sàn
+
+- Tính $h_i = \text{floorZ}[i] - z_i$.
+- Loại bỏ các vùng nằm ở viền (chỉ giữ `roiRows 1..6`, `roiCols 1..6`).
+- Lọc nhiễu mặt sàn: $h_i < \text{minPersonMm}$ ($80\text{cm}$) bị loại bỏ.
+
+### Bước 3: Tìm Chóp Đỉnh Đầu (Top-K Band & Target Status Matrix)
+
+- Nhóm các điểm ảnh cao nhất (Top $K=3$ điểm) nằm trong dải $\text{headBandMm} = 80\text{mm}$ từ điểm cực đại (Peak).
+- **Quy tắc Lọc Target Status (Kinh nghiệm thực nghiệm STMicroelectronics)**:
+  - Tóc người, đặc biệt là tóc người châu Á sẫm màu, hấp thụ tia hồng ngoại $940\text{nm}$ rất mạnh, dẫn đến tỉ lệ trả về trạng thái **Target Status 10 (SNR Low)** rất cao (chiếm $>40\%$ số khung hình đỉnh đầu).
+  - **Chấp nhận**: `5` (Valid 100%), `6` (Phase consistency low), `9` (Valid 50%), `10` (SNR low), `12` (Range valid), `13` (Target found).
+  - **Loại bỏ tuyệt đối**: `7`, `8` (Wrap-around / Ambiguity error) và `255` (Không có tín hiệu phản hồi).
+- Kiểm tra nhiễu khung hình (Glitch Rejection):
+  - **SPIKE**: Chóp đỉnh đầu quá nhọn (ít hơn 2 zones).
+  - **OUT_OF_RANGE**: Chiều cao chóp nằm ngoài vùng hợp lệ ($80\text{cm} - 230\text{cm}$).
+  - **JUMP**: Biến thiên chiều cao tức thời giữa 2 frames quá lớn ($> 60\text{mm}$).
+
+### Bước 4: Lọc Nhiễu Chuỗi Thời Gian MAD & Ổn Định
+
+- **Median Absolute Deviation (MAD)**: Loại bỏ các frames bất thường trong chuỗi lịch sử $1500\text{ms}$ dựa trên trung vị (Median) và dung sai $\text{madFactor} = 3$. Đảm bảo bộ dữ liệu "sạch" không bị kéo lệch bởi outlier.
+- **Tiêu Chí Khóa Kết Quả**:
+  - Thời gian giữ yên: $\ge 1000\text{ms}$
+  - Dải dao động: $\le 15\text{mm}$
+  - Độ dốc xu hướng (Slope): $\le 8.0\text{ mm/s}$
+
+### Bước 5: Chốt Kết Quả & Hiệu Chỉnh
+
+- Cắt bỏ (Trim) $10\%$ giá trị đầu/cuối của chuỗi $1000\text{ms}$ để ra Trimmed Mean ($H_{\text{raw}}$).
+- Áp dụng hệ số: $H_{\text{final}} = (H_{\text{raw}} \times \text{gainScale}) + \text{offsetMm}$.
+
+---
+
+## 3. Cấu Trúc Gói Tin Nhị Phân & `ToFStreamFramer`
+
+### 3.1 Cấu Trúc Gói Tin 204 Bytes
+
+Kiosk nhận các gói tin nhị phân qua cổng Serial (baud 460800):
+`[0xAA 0x55] [FrameID: 4B] [Timestamp: 4B] [Distances: 128B] [Statuses: 64B] [CRC16: 2B]`
+
+### 3.2 Chống Lệch Offset Dòng Serial
+
+Trên Android, dữ liệu USB Serial được truyền dưới dạng chunk rời rạc 32 bytes (từ chip CH340). `ToFStreamFramer` luôn luôn:
+
+1. Scan Header `0xAA 0x55`.
+2. Dồn đủ bộ đệm 204 Bytes.
+3. Chạy kiểm tra CRC16-Modbus đa thức `0xA001`. Nếu sai, bỏ 2 bytes đầu để reset dò tìm lại.
+4. Xử lý hàm `flipLensOrientation` lật 180 độ.
+
+---
+
+## 4. Giao Diện & Bảng Cấu Trúc Typescript
+
+### 4.1 Cấu Hình `HeightEngineConfig`
 
 ```typescript
-export interface HeightCalculationResult {
-  measuredHeightCm: number // Chiều cao chốt (cm, chính xác 0.1cm)
-  headDistanceMm: number // Khoảng cách từ cảm biến trần tới đỉnh đầu (mm)
-  floorDistanceMm: number // Khoảng cách trần tới mặt sàn (2200mm)
-  confidence: number // Độ tin cậy tính toán (0.0 .. 1.0)
-  hasHandRaised: boolean // Cờ phát hiện bàn tay giơ cao > 50mm
-  isStable: boolean // Cờ kiểm tra tính ổn định (độ lệch <= 15mm)
-  personCount: number // Số lượng người đứng dưới cảm biến
-  rawFrame: VL53L5CXFramePayload // Payload thấu kính raw 8x8
+export interface HeightEngineConfig {
+  expectedFloorMm: number // Độ cao cảm biến chuẩn (2457 mm)
+  roiRowStart: number // 1
+  roiRowEnd: number // 6
+  roiColStart: number // 1
+  roiColEnd: number // 6
+  minPersonMm: number // 800 mm
+  presentFrames: number // 3 frames
+  absentFrames: number // 15 frames
+  validHeightMinMm: number // 800 mm
+  validHeightMaxMm: number // 2300 mm
+  stabilityWindowMs: number // 1500 ms
+  stabilityMinHoldMs: number // 1000 ms
+  stabilityRangeMm: number // 15 mm
+  stabilityMaxSlopeMmPerSec: number // 8.0 mm/s
+  glitchGrace: number // 3 frames
+  gainScale: number // 1.0
+  offsetMm: number // 0.0
+  calibration?: FloorCalibrationData // Dữ liệu baseline sàn đã hiệu chuẩn
 }
 ```
 
+### 4.2 Ma Trận Giọng Nói (Guidance)
+
+Hệ thống rút gọn Voice Matrix để phù hợp với thuật toán chuyên biệt đo chiều cao:
+
+- `STEP_ON`: "Xin mời bước lên bàn cân, đứng thẳng, thả lỏng tay"
+- `HOLD_STILL`: "Vui lòng đứng thẳng lưng, giữ yên vị trí và nhìn thẳng"
+- `LOCKED`: "Đã hoàn thành đo chiều cao" (được kết hợp đọc con số)
+- `TIMEOUT`: "Quá thời gian đo, vui lòng thử lại"
+
 ---
 
-## 3. Giải Trình Lý Do Thiết Kế (Design Rationale / HOW & WHY)
+## 5. Bằng Chứng Nghiệm Thu Trên Máy Thật (Real Kiosk Verification Log)
 
-### 3.1 Tự Động Dò Cổng Qua PING/PONG Probe Signature (Zero-Touch Kiosk Fleet)
+Chi tiết đầy đủ xem tại báo cáo độc lập: [tof-real-verification-report.md](./tof-real-verification-report.md).
 
-- Các dongle USB-to-Serial trên trần Kiosk có thể chung chip CH340 (`1A86:7523`). Hệ điều hành Android Kiosk không thể phân biệt dây nào nối xuống InBody, dây nào nối xuống Huyết áp, dây nào nối lên trần ToF.
-- **Giải pháp**: `device-probes.ts` định nghĩa Probe Signature riêng cho `'tof'` ở tốc độ `460800` baud. Bộ dò gửi `TOF_PING_COMMAND` (`0xAA 0x55 'P' 'G'`) và chờ trong 1200ms để xác minh xem cổng đó có đang trả về `TOF_PONG_RESPONSE` (`0xAA 0x55 'O' 'K'`) hoặc luồng 204B hợp lệ hay không $\rightarrow$ Đồng bộ kiến trúc Handshake 100% với InBody và BPBIO.
+### 5.1 Tệp Log 1: `tof_recording_1791438073806.jsonl` (263 frames - Phiên đơn)
 
-### 3.2 Tại sao loại bỏ Fallback ngầm sang Mock Mode khi kết nối phần cứng lỗi?
+| Tiêu Chí                     |   Kết Quả Thực Tế   | Nhận Xét                                                                      |
+| :--------------------------- | :-----------------: | :---------------------------------------------------------------------------- |
+| **Tổng số frames phân tích** |   **263 frames**    | Dòng dữ liệu 15Hz mượt mà, zero frame drop                                    |
+| **Giai đoạn `IDLE`**         |    **62 frames**    | Nhận diện sàn trống chuẩn xác                                                 |
+| **Giai đoạn `MEASURING`**    |   **149 frames**    | Bắt đỉnh đầu nhanh khi đối tượng bước vào                                     |
+| **Giai đoạn `LOCKED`**       |    **52 frames**    | Khóa kết quả hoàn hảo                                                         |
+| **Chiều cao chốt**           |   **`177.9 cm`**    | So với Ground Truth 178.3 cm: lệch **$-4.0\text{ mm}$** (Độ chính xác 99.78%) |
+| **Target Status ghi nhận**   | `Status 10, 5, 255` | Chứng minh thực nghiệm việc hỗ trợ Status 10 là quyết định đúng đắn           |
 
-- Trước đây khi kết nối cổng Serial lỗi, `ToFDistanceDevice` tự động bật Mock stream ngầm làm kỹ thuật viên/QA không phát hiện ra dây USB bị đứt hoặc tuột chốt.
-- **Cải tiến Production**: Loại bỏ hoàn toàn fallback ngầm. Nếu kết nối phần cứng lỗi, Device Adapter sẽ cập nhật trạng thái `'error'` và ném `TransportError` để State Machine điều hướng người dùng/kỹ thuật viên sang màn hình báo lỗi phần cứng `hardware-error.tsx`.
+### 5.2 Tệp Log 2: `tof_recording_1791439209621.jsonl` (3,847 frames - Đa phiên 7 lần đo)
 
-### 3.3 Bảng tra cứu trước Bù góc Quang học ($\cos\theta$ Lookup Table)
+| Tiêu Chí                           | Kết Quả Thực Tế  | Nhận Xét                                                           |
+| :--------------------------------- | :--------------: | :----------------------------------------------------------------- |
+| **Tổng số frames phân tích**       | **3,847 frames** | Phiên đo liên tục gần 4 phút                                       |
+| **Số lần khóa (Lock Sessions)**    |  **7 lần chốt**  | Khớp 100% với số lần bước lên cân thực tế của người dùng           |
+| **Hiện tượng ngước đầu (Frame 9)** |  **`176.0 cm`**  | Tự động phát hiện góc ngẩng đầu khi nhìn vào cảm biến              |
+| **Chiều cao trung bình 7 lần**     | **`178.74 cm`**  | So với Ground Truth 178.3 cm: lệch trung bình **$+4.4\text{ mm}$** |
+| **Độ chính xác trung bình**        |   **`99.75%`**   | Độ lặp lại cực cao ($177.9\text{ cm} \rightarrow 179.3\text{ cm}$) |
 
-- Do cảm biến lắp đặt trên trần nhà phát ra chùm tia hình nón góc quét $45^\circ \times 45^\circ$, khoảng cách $r$ đo được ở các zone góc rìa là khoảng cách xiên.
-- Khoảng cách độ sâu thẳng đứng $z$ được tính theo công thức:
-  $$z(r, c) = r(r, c) \times \cos\left(\theta(r, c)\right)$$
-- Để tránh chi phí tính toán hàm lượng giác `Math.tan()` và `Math.sqrt()` liên tục 64 lần mỗi 66ms trên vi xử lý Android Kiosk, Engine pre-compute mảng 2 chiều `cosLookupTable[8][8]` ngay khi khởi tạo instance.
+---
+
+## 6. Hướng Dẫn Kiểm Thử & Nghiệm Thu
+
+```bash
+# 1. Trích xuất file ghi log từ Kiosk Android về máy tính qua ADB:
+adb exec-out "run-as com.anonymous.promedi cat files/tof_recording_<timestamp>.jsonl" > record.jsonl
+
+# 2. Chạy bài test nghiệm thu đối soát 2 tệp log thực tế (PASS 100%):
+npx jest src/core/hardware/tof/__tests__/tof-recording-verify.test.ts
+
+# 3. Chạy Integration Test Fixtures (21 tests PASS 100%):
+npx jest src/core/hardware/tof/__tests__/tof-fixture-suite.test.ts
+
+# 4. Kiểm tra TypeScript strict mode:
+npx tsc --noEmit
+```
+
+---
+
+## 7. Lịch Sử Phiên Bản
+
+| Phiên Bản      |    Ngày    | Nội Dung Cải Tiến Chính                                                                                                                                                                                                                                                                                                                                                                                             |
+| :------------- | :--------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **V5.0 - 5.1** | 2026-10-06 | Khởi tạo mô-đun ToF, giải mã CRC16-Modbus, chống trôi bù trừ offset. Bổ sung bộ lọc cử chỉ và phân tách người.                                                                                                                                                                                                                                                                                                      |
+| **V5.2**       | 2026-10-07 | Tối ưu hóa Stream Framer, Voice Matrix tiếng Việt.                                                                                                                                                                                                                                                                                                                                                                  |
+| **V6.0**       | 2026-10-08 | **Simplified Height-Only Edition**: Loại bỏ hoàn toàn tracking cử chỉ giơ tay và nhiều người để đơn giản hoá hệ thống. Cập nhật độ cao cảm biến chuẩn thành `2457 mm`. Tích hợp bộ giả lập Test Fixture Ray-Tracing quang học (570 frames, 19 cases).                                                                                                                                                               |
+| **V6.1**       | 2026-10-08 | **Real-World Calibrated & Multi-Status Edition**: Nới lỏng hiệu chuẩn sàn (`stdDev <= 80mm`, $\ge 4$ zones). Bổ sung nạp baseline `config.calibration`. Mở rộng bộ lọc `targetStatus` (chấp nhận 5, 6, 9, 10, 12, 13 khắc phục triệt để hiện tượng tóc người hấp thụ tia IR). Bổ sung bộ ghi log JSONL dung lượng nhẹ và nghiệm thu thành công trên máy thật Kiosk Sunmi K2 mini (263 frames, khóa chuẩn 177.9 cm). |
+| **V6.2**       | 2026-10-08 | **Multi-Session Field Verification**: Nghiệm thu tệp log đa phiên 3,847 frames, đối soát 7 lần đo liên tục so với người thử 178.3 cm (đạt độ chính xác 99.75%, sai số trung bình 4.4mm). Lập báo cáo nghiệm thu [tof-real-verification-report.md](./tof-real-verification-report.md) và bộ test Jest kiểm thử tự động.                                                                                              |

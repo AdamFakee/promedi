@@ -5,9 +5,10 @@
  */
 
 import { HeightMeasurementEngine } from '../engine/height-measurement.engine'
-import { ToFStreamFramer } from '../protocol/tof-frame-codec'
+import { formatToFFrame, ToFStreamFramer } from '../protocol/tof-frame-codec'
 import type {
   HeightCalculationResult,
+  HeightEngineConfig,
   ToFTargetStatus,
   VL53L5CXFramePayload,
 } from '../types/tof.types'
@@ -28,9 +29,35 @@ export class ToFClient {
   /** Bộ đếm frame giả lập */
   private mockFrameCounter = 0
 
-  constructor() {
+  constructor(config?: Partial<HeightEngineConfig>) {
     this.framer = new ToFStreamFramer()
-    this.engine = new HeightMeasurementEngine(2200)
+    this.engine = new HeightMeasurementEngine(config)
+  }
+
+  /**
+   * Cập nhật động tham số cấu hình cho Engine đo chiều cao (chiều cao trần, gain, offset, calibration).
+   * @param config Cấu hình cập nhật
+   */
+  public updateEngineConfig(config: Partial<HeightEngineConfig>): void {
+    this.engine.updateConfig(config)
+  }
+
+  /** Lấy cấu hình hiện tại của Engine */
+  public getEngineConfig() {
+    return this.engine.getConfig()
+  }
+
+  /**
+   * Cân chuẩn mặt sàn (Tare). Cần truyền vào một loạt frame không có người đứng.
+   * @param frames Mảng các raw frame để cân sàn
+   */
+  public calibrateFloor(frames: VL53L5CXFramePayload[]) {
+    return this.engine.calibrateFloor(frames)
+  }
+
+  /** Xóa dữ liệu cân sàn */
+  public clearCalibration(): void {
+    this.engine.clearCalibration()
   }
 
   /**
@@ -52,6 +79,16 @@ export class ToFClient {
     this.frameListeners.forEach((listener) => listener(frame))
 
     const result = this.engine.calculateHeight(frame)
+
+    if (process.env.NODE_ENV !== 'test') {
+      const frameTable = formatToFFrame(frame)
+      const heightStr =
+        result.measuredHeightCm > 0 ? `${result.measuredHeightCm.toFixed(1)}cm` : '---'
+      const lockedStr = result.result ? ` [LOCKED: ${result.result.heightCm.toFixed(1)}cm]` : ''
+      const summary = `[ENGINE RESULT] State: ${result.state} | Guidance: ${result.guidance} | Progress: ${result.progress}% | Height: ${heightStr}${lockedStr}`
+      console.log(`\n${frameTable}\n${summary}\n`)
+    }
+
     this.resultListeners.forEach((listener) => listener(result))
   }
 
@@ -110,9 +147,9 @@ export class ToFClient {
 
   /** Sinh frame giả lập ma trận 8x8 với chiều cao người đứng chỉ định */
   private generateSyntheticFrame(frameId: number, personHeightCm: number): VL53L5CXFramePayload {
-    const ceilingHeightMm = 2200
+    const expectedFloorMm = this.engine.getConfig().expectedFloorMm
     const targetHeadHeightMm = personHeightCm * 10
-    const verticalHeadDepthMm = ceilingHeightMm - targetHeadHeightMm
+    const verticalHeadDepthMm = expectedFloorMm - targetHeadHeightMm
 
     const distances: number[] = new Array(64)
     const targetStatuses: ToFTargetStatus[] = new Array(64)
@@ -132,7 +169,7 @@ export class ToFClient {
           distances[idx] = Math.round(rawHeadDist + 300)
           targetStatuses[idx] = 5
         } else {
-          distances[idx] = Math.round(ceilingHeightMm / 0.995)
+          distances[idx] = Math.round(expectedFloorMm / 0.995)
           targetStatuses[idx] = 5
         }
       }

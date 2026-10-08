@@ -37,12 +37,17 @@ export const useVoiceGuidance = (options: UseVoiceGuidanceOptions = {}) => {
     voicePlayerService.speak(key, { force })
   }
 
+  const speakHeightResult = (heightCm: number) => {
+    voicePlayerService.speakHeightResult(heightCm)
+  }
+
   const stopVoice = () => {
     voicePlayerService.stop()
   }
 
   return {
     speakPrompt,
+    speakHeightResult,
     stopVoice,
     voicePlayerService,
   }

@@ -112,14 +112,24 @@ export default function KioskIdleRoute() {
         className="absolute inset-0"
       />
 
-      {/* Floating Dev Hardware Test Button on Idle Screen */}
-      <Pressable
-        onPress={() => setTestModalVisible(true)}
-        style={styles.floatingDevBtn}
-        hitSlop={10}
-      >
-        <Text style={styles.floatingDevBtnText}>🛠 TEST HARDWARE (15 UCs)</Text>
-      </Pressable>
+      {/* Floating Dev Buttons Container on Idle Screen */}
+      <View style={styles.floatingDevContainer}>
+        <Pressable
+          onPress={() => navigateTo('KIOSK_HEIGHT_DEMO')}
+          style={styles.floatingHeightDemoBtn}
+          hitSlop={10}
+        >
+          <Text style={styles.floatingHeightDemoBtnText}>📏 DEMO ĐO CHIỀU CAO (TOF)</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setTestModalVisible(true)}
+          style={styles.floatingDevBtn}
+          hitSlop={10}
+        >
+          <Text style={styles.floatingDevBtnText}>🛠 TEST HARDWARE (15 UCs)</Text>
+        </Pressable>
+      </View>
 
       {/* Fullscreen Touchable Backdrop to start session on tap anywhere */}
       <Pressable className="absolute inset-0" onPress={handleStartSession} />
@@ -160,6 +170,32 @@ export default function KioskIdleRoute() {
 }
 
 const styles = StyleSheet.create({
+  floatingDevContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    position: 'absolute',
+    right: 24,
+    top: 24,
+    zIndex: 999,
+  },
+  floatingHeightDemoBtn: {
+    backgroundColor: '#0F172A',
+    borderColor: '#34D399',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    elevation: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  floatingHeightDemoBtnText: {
+    color: '#34D399',
+    fontSize: 13,
+    fontWeight: '800',
+  },
   floatingDevBtn: {
     backgroundColor: '#0F172A',
     borderColor: '#38BDF8',
@@ -168,14 +204,10 @@ const styles = StyleSheet.create({
     elevation: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    position: 'absolute',
-    right: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
-    top: 24,
-    zIndex: 999,
   },
   floatingDevBtnText: {
     color: '#38BDF8',
