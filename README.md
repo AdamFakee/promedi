@@ -476,14 +476,19 @@ export { useAuthStore } from './stores/auth.store'
 ## 🤝 Contributing
 
 ```bash
-# Create a feature branch
+# Tạo nhánh mới
 git checkout -b feat/your-feature
 
-# Commit using conventional commits
-git commit -m "feat: add your feature"
+# Commit theo chuẩn tiếng Việt:
+# 1. Đơn giản (chỉ có title):
+git commit -m "tiêu đề commit"
 
-# Push and open PR
+# 2. Chi tiết (title kèm các subtitle gạch đầu dòng bên dưới):
+git commit -m "thêm tính năng order" -m "- tạo màn hình chọn món
+- tích hợp thanh toán mã QR"
+
+# Push và mở PR
 git push origin feat/your-feature
 ```
 
-Commit message format follows [Conventional Commits](https://www.conventionalcommits.org/).
+Quy chuẩn commit message: Tiếng Việt 100%, dòng 1 là `title`, các dòng dưới là `subtitle` (dạng bullet points `- xxx`, tuỳ chọn, chỉ thêm khi nội dung quá chi tiết).

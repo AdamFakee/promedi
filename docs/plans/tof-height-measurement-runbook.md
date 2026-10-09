@@ -36,13 +36,26 @@ Tài liệu Runbook này hướng dẫn quy trình từng bước (Step-by-step)
 
 ## 3. Hướng dẫn thực thi từng bước (Step-by-Step Execution Guide)
 
-### Bước 3.1: Nạp Firmware và Kiểm tra Luồng Nhị phân trên ESP32
+### Bước 3.1: Đấu Nối Phần Cứng & Nạp Firmware ESP32
+
+- **Sơ đồ đấu nối chân I2C (Áp dụng riêng cho module VL53L5CX - Bản L5)**:
+
+  | Chân trên ESP32 DevKit | Chân trên Module VL53L5CX     | Chức năng / Ghi chú                              |
+  | :--------------------- | :---------------------------- | :----------------------------------------------- |
+  | **`3V3`**              | **`VIN`** _(hoặc AVDD/IOVDD)_ | Nguồn 3.3V _(⚠️ Tuyệt đối không cắm vào 5V/VIN)_ |
+  | **`GND`**              | **`GND`**                     | Nối đất chung                                    |
+  | **`GPIO 21`**          | **`SDA`**                     | Tuyến dữ liệu I2C Data (mặc định Wire ESP32)     |
+  | **`GPIO 22`**          | **`SCL`**                     | Tuyến xung nhịp I2C Clock (1MHz Fast Mode Plus)  |
+  | **`GPIO 4`**           | **`LPn`**                     | Low Power Enable (kéo lên 3.3V nếu cần)          |
+  | **Không cắm**          | **`INT`**                     | Chân ngắt (firmware dùng polling 15Hz)           |
 
 - **Lệnh thực thi nạp code**:
+
   ```bash
   cd firmware/esp32-vl53l5cx-driver
   pio run -t upload
   ```
+
 - **Lệnh kiểm tra Serial Monitor**:
   ```bash
   pio device monitor -b 460800

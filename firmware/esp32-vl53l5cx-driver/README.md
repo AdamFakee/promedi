@@ -49,7 +49,22 @@
 
 ---
 
-## 3. Hướng dẫn kiểm thử & Chạy lệnh (Testing & Commands)
+## 3. Sơ đồ Đấu Nối Phần Cứng Bản VL53L5CX (L5 Pinout)
+
+> ℹ️ **Lưu ý**: Sơ đồ chân dưới đây áp dụng riêng cho module **VL53L5CX (L5)**.
+
+| Chân trên ESP32 DevKit | Chân trên Module VL53L5CX     | Chức năng / Ghi chú                                                              |
+| :--------------------- | :---------------------------- | :------------------------------------------------------------------------------- |
+| **`3V3`**              | **`VIN`** _(hoặc AVDD/IOVDD)_ | Nguồn 3.3V _(⚠️ Tuyệt đối không cắm vào chân 5V/VIN)_                            |
+| **`GND`**              | **`GND`**                     | Nối đất chung                                                                    |
+| **`GPIO 21`**          | **`SDA`**                     | Tuyến dữ liệu I2C Data (mặc định Wire ESP32)                                     |
+| **`GPIO 22`**          | **`SCL`**                     | Tuyến xung nhịp I2C Clock (tần số Fast Mode Plus 1MHz)                           |
+| **`GPIO 4`**           | **`LPn`**                     | Low Power Enable (nếu module breakout không có, thường đã được kéo sẵn lên 3.3V) |
+| **Không cắm**          | **`INT`**                     | Chân ngắt (firmware dùng chế độ continuous polling 15Hz nên không cần)           |
+
+---
+
+## 4. Hướng dẫn kiểm thử & Chạy lệnh (Testing & Commands)
 
 ### A. Chạy Native Unit Test trên Máy tính (MinGW / GCC)
 

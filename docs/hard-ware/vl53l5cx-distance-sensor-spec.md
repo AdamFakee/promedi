@@ -36,18 +36,27 @@ Do cả 2 con chip của hãng STMicroelectronics có cùng các thông số qua
 
 ---
 
-## 🔌 1. Sơ đồ Đấu Nối Phần Cứng ESP32 với VL53L5CX
+## 🔌 1. Sơ đồ Đấu Nối Phần Cứng ESP32 với VL53L5CX (Áp dụng riêng bản L5)
 
-Cảm biến VL53L5CX giao tiếp với ESP32 qua bus I2C chuẩn (địa chỉ mặc định `0x52`):
+> ℹ️ **Lưu ý**: Sơ đồ chân dưới đây áp dụng riêng cho cảm biến **VL53L5CX (bản L5)** qua bus I2C chuẩn (địa chỉ mặc định `0x52`), phân biệt với cấu hình SPI của bản L8:
+
+| Chân trên ESP32 DevKit | Chân trên Module VL53L5CX     | Chức năng / Ghi chú                                                              |
+| :--------------------- | :---------------------------- | :------------------------------------------------------------------------------- |
+| **`3V3`**              | **`VIN`** _(hoặc AVDD/IOVDD)_ | Nguồn 3.3V _(⚠️ Tuyệt đối không cắm vào chân 5V/VIN)_                            |
+| **`GND`**              | **`GND`**                     | Nối đất chung                                                                    |
+| **`GPIO 21`**          | **`SDA`**                     | Tuyến dữ liệu I2C Data (mặc định Wire ESP32)                                     |
+| **`GPIO 22`**          | **`SCL`**                     | Tuyến xung nhịp I2C Clock (tần số Fast Mode Plus 1MHz)                           |
+| **`GPIO 4`**           | **`LPn`**                     | Low Power Enable (nếu module breakout không có, thường đã được kéo sẵn lên 3.3V) |
+| **Không cắm**          | **`INT`**                     | Chân ngắt (firmware dùng chế độ continuous polling 15Hz nên không cần)           |
 
 ```text
 ESP32 DevKit                  VL53L5CX Module
-  3V3        ───────────────►  AVDD / IOVDD (3.3V)
+  3V3        ───────────────►  VIN (Nguồn 3.3V)
   GND        ───────────────►  GND
-  GPIO 21    ───────────────►  SDA (I2C Data)   [Cần trở treo 2.2k - 4.7k]
-  GPIO 22    ───────────────►  SCL (I2C Clock)  [Cần trở treo 2.2k - 4.7k]
+  GPIO 21    ───────────────►  SDA (I2C Data)
+  GPIO 22    ───────────────►  SCL (I2C Clock)
   GPIO 4     ───────────────►  LPn (Low Power Enable)
-  GPIO 5     ───────────────►  I2C_RST (Reset Pin)
+  (Không cắm)                  INT (Chân ngắt)
 ```
 
 ---

@@ -152,3 +152,32 @@ export function ExampleComponent({ id, initialData }: Props) {
 - **Comment:**
   - Không comment code mô tả "Làm gì" (Code phải tự giải thích).
   - Chỉ comment "Tại sao" (Giải thích nghiệp vụ phức tạp hoặc workaround).
+
+## 5. Quy chuẩn Commit Git (Git Commit Standards)
+
+- **Ngôn ngữ**: Toàn bộ commit message viết bằng **Tiếng Việt 100%**.
+- **Cấu trúc thông điệp**:
+  - Dòng 1: `<title>` (Tiêu đề ngắn gọn, khái quát).
+  - Các dòng dưới: `<subtitle>` (Các gạch đầu dòng `- xxx` mô tả chi tiết).
+- **Quy tắc Subtitle**:
+  - Subtitle là **tuỳ chọn (optional)**.
+  - **Chỉ khi nội dung quá chi tiết** hoặc nhiều đầu việc cần liệt kê thì mới cần thêm subtitle gạch đầu dòng bên dưới. Nếu ngắn gọn thì chỉ cần 1 dòng title.
+- **Ví dụ minh họa**:
+  - ✅ **Ngắn gọn (chỉ cần title)**:
+    ```bash
+    git commit -m "cập nhật sơ đồ chân cảm biến L5"
+    git commit -m "bật tiếng cho video ở màn chờ"
+    ```
+  - ✅ **Chi tiết (có subtitle gạch đầu dòng)**:
+    ```bash
+    git commit -m "thêm tính năng order" -m "- tạo màn hình chọn món
+    - tích hợp thanh toán mã QR
+    - lưu phiên gọi món vào database"
+    ```
+    _Hiển thị trong Git log:_
+    ```text
+    thêm tính năng order
+     - tạo màn hình chọn món
+     - tích hợp thanh toán mã QR
+     - lưu phiên gọi món vào database
+    ```

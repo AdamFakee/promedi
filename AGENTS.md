@@ -248,6 +248,41 @@ Tuân thủ nghiêm ngặt các nguyên tắc từ bộ kỹ năng `vercel-react
 - Kiểm tra TypeScript strict mode: `npx tsc --noEmit` (**0 Errors**)
 - Kiểm tra Linter: `npm run lint` (**0 Errors**)
 
+### 11. Quy chuẩn Commit Git (Git Commit Standards)
+
+- **Ngôn ngữ bắt buộc**: Toàn bộ message commit **100% bằng Tiếng Việt**.
+- **Cấu trúc commit**:
+  - Dòng 1: `<title>` (Tiêu đề ngắn gọn, khái quát thay đổi).
+  - Các dòng tiếp theo: `<subtitle>` (Các gạch đầu dòng `- xxx` mô tả chi tiết).
+- **Quy tắc về Subtitle (Phụ đề)**:
+  - Subtitle là **tuỳ chọn (optional)**.
+  - **Chỉ khi nội dung quá chi tiết**, có nhiều hạng mục cần làm rõ thì mới viết thêm các gạch đầu dòng subtitle ở phía dưới.
+  - Nếu thay đổi ngắn gọn, súc tích thì **chỉ cần 1 dòng title duy nhất**.
+- **Ví dụ minh họa**:
+  - ✅ **Dạng đơn giản (chỉ có title, không cần subtitle)**:
+    ```bash
+    git commit -m "cập nhật sơ đồ chân cảm biến L5"
+    git commit -m "bật tiếng cho video ở màn chờ"
+    ```
+  - ✅ **Dạng chi tiết (có title và các bullet point subtitle ở dưới)**:
+    ```bash
+    git commit -m "thêm tính năng order" -m "- tạo màn hình chọn món
+    - tích hợp thanh toán mã QR
+    - lưu phiên gọi món vào database"
+    ```
+    _Dạng hiển thị trong Git log:_
+    ```text
+    thêm tính năng order
+     - tạo màn hình chọn món
+     - tích hợp thanh toán mã QR
+     - lưu phiên gọi món vào database
+    ```
+    ```text
+    nghiệm thu cảm biến đo chiều cao
+     - cấu hình bus I2C 1MHz cho ESP32 và cảm biến L5
+     - cập nhật bộ lọc target status 5 và 9
+    ```
+
 ---
 
 ## 📖 Tham chiếu Nghiệp vụ & Luồng Khám (Business Logic & Spec References)
