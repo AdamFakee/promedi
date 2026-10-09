@@ -53,7 +53,6 @@ export default function KioskIdleRoute() {
         fullName: `Khách hàng (NFC ${event.cardUid.slice(-4).toUpperCase()})`,
         identityCode: event.cardUid,
         age: 30,
-        heightCm: 165.0,
         gender: 'M',
       })
 
@@ -81,9 +80,8 @@ export default function KioskIdleRoute() {
     submitIdentification({
       fullName: data.fullName,
       identityCode: data.identityCode,
-      age: Number(data.age) || 30,
-      heightCm: 165.0,
-      gender: data.gender || 'M',
+      age: Number(data.age),
+      gender: data.gender,
     })
     setTimeout(() => {
       navigateTo('KIOSK_MEASURE')

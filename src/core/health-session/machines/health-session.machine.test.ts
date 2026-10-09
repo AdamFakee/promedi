@@ -34,7 +34,6 @@ describe('healthSessionMachine', () => {
       identityCode: '012345678901',
       sessionId: 'server_rec_8892',
       age: 30,
-      heightCm: 170,
       gender: 'M' as const,
     }
     actor.send({ type: 'SUBMIT_IDENTIFICATION', payload: customer })
@@ -45,7 +44,6 @@ describe('healthSessionMachine', () => {
       fullName: 'Nguyễn Văn A',
       identityCode: '012345678901',
       age: 30,
-      heightCm: 170,
       gender: 'M',
     })
     expect(snapshot.context.sessionId).toBe('server_rec_8892')
@@ -62,7 +60,6 @@ describe('healthSessionMachine', () => {
         fullName: 'Nguyễn Văn A',
         identityCode: '012345678901',
         age: 30,
-        heightCm: 170,
         gender: 'M',
       },
     })
@@ -86,7 +83,6 @@ describe('healthSessionMachine', () => {
         fullName: 'Nguyễn Văn A',
         identityCode: '012345678901',
         age: 30,
-        heightCm: 170,
         gender: 'M',
       },
     })
@@ -131,7 +127,6 @@ describe('healthSessionMachine', () => {
         fullName: 'Nguyễn Văn A',
         identityCode: '012345678901',
         age: 30,
-        heightCm: 170,
         gender: 'M',
       },
     })
@@ -182,7 +177,6 @@ describe('healthSessionMachine', () => {
         fullName: 'Nguyễn Văn A',
         identityCode: '012345678901',
         age: 30,
-        heightCm: 170,
         gender: 'M',
       },
     })
@@ -237,7 +231,6 @@ describe('healthSessionMachine', () => {
         fullName: 'Nguyễn Văn A',
         identityCode: '012345678901',
         age: 30,
-        heightCm: 170,
         gender: 'M',
       },
     })

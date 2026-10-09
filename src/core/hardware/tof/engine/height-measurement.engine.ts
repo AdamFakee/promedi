@@ -12,34 +12,103 @@ import type {
 } from '../types/tof.types'
 
 export const DEFAULT_HEIGHT_ENGINE_CONFIG = {
-  expectedFloorMm: 2457,
+  // ==========================================================================
+  // 1. MỐC VẬT LÝ & VÙNG QUAN TÂM (PHYSICAL BASELINE & ROI)
+  // ==========================================================================
+  /** Mốc chiều cao lắp đặt cảm biến chiếu xuống mặt sàn (210cm trần + 21cm bệ cân + 15cm giá đỡ = 2460mm) */
+  expectedFloorMm: 2460,
+
+  /** Vùng quan tâm ROI: Hàng bắt đầu (chỉ lấy hàng 1..6 trong ma trận 8x8, bỏ viền 0 và 7 để tránh tán xạ tường) */
   roiRowStart: 1,
+  /** Vùng quan tâm ROI: Hàng kết thúc */
   roiRowEnd: 6,
+  /** Vùng quan tâm ROI: Cột bắt đầu (chỉ lấy cột 1..6 trong ma trận 8x8, bỏ viền 0 và 7) */
   roiColStart: 1,
+  /** Vùng quan tâm ROI: Cột kết thúc */
   roiColEnd: 6,
+
+  // ==========================================================================
+  // 2. NHẬN DIỆN NGƯỜI BƯỚC VÀO / RỜI ĐI (PERSON DETECTION)
+  // ==========================================================================
+  /** Chiều cao tối thiểu để nhận diện có người đứng vào bàn cân (800mm = 80cm; dưới 80cm coi như sàn trống) */
   minPersonMm: 800,
+
+  /** Số frame liên tiếp phát hiện có người để chuyển từ IDLE sang MEASURING (3 frames @ 15Hz ~ 200ms) */
   presentFrames: 3,
+
+  /** Số frame liên tiếp KHÔNG thấy người để xác nhận người đã bước ra và reset phiên đo (15 frames ~ 1 giây) */
   absentFrames: 15,
+
+  // ==========================================================================
+  // 3. TÁCH ĐỈNH ĐẦU & LỌC NHIỄU QUANG HỌC (HEAD DETECTION & GLITCH FILTER)
+  // ==========================================================================
+  /** Bề dày dải đỉnh đầu: Lấy từ điểm cao nhất (peak) lùi xuống 80mm để gom các zone thuộc vòm đầu, tránh lấy xuống vai */
   headBandMm: 80,
+
+  /** Số lượng zone cao nhất trong dải đỉnh đầu được lấy để tính trung bình tức thời (lấy 3 zone cao nhất) */
   topK: 3,
+
+  /** Số zone tối thiểu trong dải đỉnh đầu để xác nhận bề mặt đầu thật (tối thiểu 2 zone, tránh tia nhiễu nhọn 1 zone) */
   minBandZones: 2,
+
+  /** Giới hạn chiều cao hợp lệ tối thiểu của con người (800mm = 80cm) */
   validHeightMinMm: 800,
+
+  /** Giới hạn chiều cao hợp lệ tối đa của con người (2300mm = 2m30) */
   validHeightMaxMm: 2300,
+
+  /** Bước nhảy tối đa giữa 2 frame liên tiếp (60mm). Nếu nhảy vọt > 6cm/frame (trong 66ms) coi như nhiễu giật (glitch jump) */
   maxJumpMm: 60,
-  stabilityWindowMs: 1500,
-  stabilityMinHoldMs: 1000,
-  minSamples: 8,
-  stabilityRangeMm: 15,
-  stabilityMaxSlopeMmPerSec: 8.0,
+
+  /** Số frame nhiễu giật liên tiếp được phép bỏ qua trước khi xóa sạch bộ đệm ổn định (3 frames) */
   glitchGrace: 3,
+
+  /** Khoảng cách thời gian tối đa giữa 2 gói tin liên tiếp (300ms). Nếu đứt đoạn > 300ms sẽ reset bộ đệm */
   maxGapMs: 300,
+
+  // ==========================================================================
+  // 4. TIÊU CHÍ ĐỨNG YÊN ĐỂ CHỐT KHÓA CHIỀU CAO (STABILITY & LOCK CRITERIA)
+  // ==========================================================================
+  /** Cửa sổ thời gian trượt (Sliding Window) để gom các mẫu đánh giá độ ổn định (1500ms = 1.5 giây) */
+  stabilityWindowMs: 1500,
+
+  /** Thời gian tối thiểu người dùng phải đứng yên bất động để được phép chốt khóa (500ms = 0.5 giây) */
+  stabilityMinHoldMs: 500,
+
+  /** Số lượng mẫu (frame) hợp lệ tối thiểu trong khoảng thời gian đứng yên (4 mẫu) */
+  minSamples: 4,
+
+  /** Biên độ rung lắc tối đa cho phép (Max - Min) trong lúc đứng yên (10mm = 1cm). Dao động > 10mm coi như đang lắc lư */
+  stabilityRangeMm: 10,
+
+  /** Tốc độ dịch chuyển tối đa theo phương thẳng đứng (8.0 mm/s). Nếu người đang từ từ ngồi xuống/nhổm lên thì chưa khóa */
+  stabilityMaxSlopeMmPerSec: 8.0,
+
+  /** Thời gian chờ tối đa cho 1 phiên đo nếu người đứng cựa quậy quá lâu không khóa được (15000ms = 15 giây) */
   timeoutMs: 15000,
+
+  // ==========================================================================
+  // 5. LỌC THỐNG KÊ MAD & BÙ SAI SỐ (STATISTICAL FILTERING & CALIBRATION)
+  // ==========================================================================
+  /** Số frame ở trạng thái rảnh (IDLE) để kiểm tra xem mốc sàn có bị trôi lệch nhiệt độ/ánh sáng không (150 frames ~ 10s) */
   driftCheckFrames: 150,
+
+  /** Ngưỡng trôi lệch mặt sàn tối đa cho phép trước khi cảnh báo cần hiệu chuẩn lại (15mm) */
   driftThresholdMm: 15,
+
+  /** Hệ số nhân lọc ngoại lai MAD (Median Absolute Deviation): Mẫu lệch khỏi trung vị > 3*MAD sẽ bị loại bỏ */
   madFactor: 3,
+
+  /** Ngưỡng sàn tối thiểu của độ lệch MAD để tránh chia cho 0 hoặc lọc quá gắt khi dữ liệu đứng cực kỳ tĩnh (3mm) */
   madFloorMm: 3,
+
+  /** Tỷ lệ mẫu tối thiểu phải được giữ lại sau khi lọc ngoại lai MAD (0.75 = ít nhất 75% mẫu hợp lệ) */
   minKeptRatio: 0.75,
+
+  /** Hệ số nhân tỉ lệ (Gain Scale) để hiệu chuẩn sai số tỷ lệ khoảng cách quang học (mặc định 1.0) */
   gainScale: 1.0,
+
+  /** Giá trị bù cộng/trừ trực tiếp (Offset mm) vào chiều cao cuối cùng sau khi tính toán (mặc định 0.0mm) */
   offsetMm: 0.0,
 }
 
@@ -102,6 +171,18 @@ export class HeightMeasurementEngine {
     this.initLookupTables()
   }
 
+  /** Lấy baseline hiệu chuẩn hoặc baseline mặc định dựa theo expectedFloorMm */
+  public getEffectiveBaseline(): FloorCalibrationData {
+    if (this.baseline) return this.baseline
+    return {
+      floorZ: new Array(64).fill(this.cfg.expectedFloorMm),
+      floorOk: new Array(64).fill(true),
+      refX0: 0,
+      refY0: 0,
+      calibratedAt: 0,
+    }
+  }
+
   public getConfig(): Required<typeof DEFAULT_HEIGHT_ENGINE_CONFIG> {
     return { ...this.cfg }
   }
@@ -114,6 +195,11 @@ export class HeightMeasurementEngine {
 
     if (newConfig.calibration) {
       this.baseline = newConfig.calibration
+    } else if (newConfig.expectedFloorMm && this.baseline) {
+      this.baseline = {
+        ...this.baseline,
+        floorZ: new Array(64).fill(this.cfg.expectedFloorMm),
+      }
     }
   }
 
@@ -241,10 +327,6 @@ export class HeightMeasurementEngine {
   public push(frame: VL53L5CXFramePayload): HeightEngineOutput {
     if (!this.isEnabled) {
       return this.out('IDLE', 'IDLE', 0, null, 0, false, false, frame)
-    }
-
-    if (this.baseline === null) {
-      return this.out('NEEDS_CALIBRATION', 'IDLE', 0, null, 0, false, false, frame)
     }
 
     if (!frame.isValid || frame.distances.length !== 64) {
@@ -527,7 +609,7 @@ export class HeightMeasurementEngine {
   }
 
   private buildHeightMap(frame: VL53L5CXFramePayload): { h: number; status: number; i: number }[] {
-    if (!this.baseline) return []
+    const baseline = this.getEffectiveBaseline()
     const result: { h: number; status: number; i: number }[] = []
 
     for (let r = this.cfg.roiRowStart; r <= this.cfg.roiRowEnd; r++) {
@@ -536,11 +618,11 @@ export class HeightMeasurementEngine {
         const st = frame.targetStatuses[i]
         // Mở rộng status chấp nhận được (gồm cả 6, 10, 12, 13) để nhận diện tóc/vật liệu phản xạ kém
         if (st < 5 || st > 13 || st === 7 || st === 8) continue
-        if (!this.baseline.floorOk[i]) continue
+        if (!baseline.floorOk[i]) continue
         const d = frame.distances[i]
         if (d <= 50 || d >= 3900) continue
         const z = d * this.cosLUT[r][c]
-        const h = Math.max(0, this.baseline.floorZ[i] - z)
+        const h = Math.max(0, baseline.floorZ[i] - z)
         result.push({ h, status: st, i })
       }
     }

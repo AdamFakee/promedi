@@ -1,4 +1,5 @@
 import { InBodyClient, inbodySessionMachine, type PatientInfo } from '@/core/hardware/inbody'
+import { ToFDistanceDevice } from '@/core/hardware/tof'
 import { bindingStore } from '@/core/hardware/resolver'
 import { createTransport } from '@/core/hardware/transport/transport-factory'
 import { useHealthSession } from '@/core/health-session'
@@ -16,6 +17,11 @@ export function useInBodyMeasurement(isActive: boolean) {
   const client = useMemo(() => {
     const transport = createTransport('usb-serial')
     return new InBodyClient(transport)
+  }, [])
+
+  // Khởi tạo ToFDistanceDevice kết nối cảm biến đo chiều cao ToF VL53L5CX (Mốc lắp đặt: 210cm + 21cm + 15cm = 2460mm)
+  const tofDevice = useMemo(() => {
+    return new ToFDistanceDevice({ expectedFloorMm: 2460 })
   }, [])
 
   const [state, send] = useMachine(
@@ -51,6 +57,7 @@ export function useInBodyMeasurement(isActive: boolean) {
     {
       input: {
         client,
+        tofDevice,
         getDeviceKey: async () => {
           const bindings = await bindingStore.getAll()
           return bindings.find((b) => b.role === 'inbody')?.deviceKey
@@ -84,7 +91,7 @@ export function useInBodyMeasurement(isActive: boolean) {
       const patientInfo: PatientInfo = {
         id: customer.identityCode || '000000000000',
         age: customer.age,
-        heightCm: customer.heightCm,
+        heightCm: 0,
         gender: customer.gender,
       }
 
@@ -111,6 +118,9 @@ export function useInBodyMeasurement(isActive: boolean) {
     status,
     progress: state.context.progress,
     errorCode: state.context.lastErrorCode,
+    tofHeightCm: state.context.tofHeightCm,
+    tofState: state.context.tofState,
+    tofProgress: state.context.tofProgress,
     handleReset,
   }
 }

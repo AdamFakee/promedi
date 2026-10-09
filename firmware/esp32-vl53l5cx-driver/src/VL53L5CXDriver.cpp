@@ -29,7 +29,7 @@ VL53L5CXDriver::VL53L5CXDriver()
     : m_state(VL53L5CX_STATE_UNINITIALIZED),
       m_mockMode(false),
       m_frameCounter(0),
-      m_ceilingHeightMm(VL53L5CX_BASE_HEIGHT_MM) { // 2457mm = 245.7cm (Độ cao lắp đặt cảm biến)
+      m_ceilingHeightMm(VL53L5CX_BASE_HEIGHT_MM) { // 2460mm = 246.0cm (210cm trần + 21cm bệ + 15cm giá đỡ)
 }
 
 VL53L5CXDriver::~VL53L5CXDriver() {
@@ -321,7 +321,7 @@ void VL53L5CXDriver::printFrameLog(const VL53L5CXFrame& frame, uint16_t refHeigh
     Serial.println(F("\n================= [VL53L5CX DATA LOG] ================="));
     Serial.printf("Frame ID: %u | Timestamp: %ums | Valid: %s\n", 
                   frame.frameId, frame.timestampMs, frame.isValid ? "YES" : "NO");
-    Serial.printf("Base Sensor: %.1fcm (168 + 16.7cm) | Est Person Height: %.1fcm\n", 
+    Serial.printf("Base Sensor: %.1fcm (210 + 21 + 15cm) | Est Person Height: %.1fcm\n", 
                   refHeightMm / 10.0f, estPersonHeightCm);
     Serial.printf("Min Dist: %umm | Max Dist: %umm | Center Dist: %umm\n", 
                   minDist, maxDist, centerDist);

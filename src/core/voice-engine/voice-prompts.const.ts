@@ -30,7 +30,7 @@ export const VOICE_PROMPTS: Record<VoicePromptKey, string> = {
     'Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến. Quý khách vui lòng đẩy tay sâu hơn và ngồi yên.',
   BP_COMPLETE: 'Đã đo xong huyết áp.',
   INBODY_START:
-    'Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày, đứng lên máy InBody và cầm hai tay nắm.',
+    'Phân tích chỉ số cơ thể và chiều cao. Quý khách vui lòng tháo giày, đứng thẳng người trên máy InBody, mắt nhìn phía trước và cầm hai tay nắm.',
   INBODY_CONTACT_ERROR:
     'Cảnh báo: Chưa nhận đủ tiếp xúc điện cực. Quý khách vui lòng cầm chắc thanh nắm và đứng yên.',
   INBODY_COMPLETE: 'Đã phân tích xong chỉ số cơ thể.',

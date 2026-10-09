@@ -38,19 +38,21 @@
 
 ## 2. Các quyết định đã chốt & Lý giải kỹ thuật (HOW & WHY)
 
-1. **Độ cao lắp đặt thực tế `2457 mm` (245.7 cm) & Bảng Presets**:
-   - Mặc định khởi tạo tại `2457 mm` (setup Kiosk thực tế với giá treo trần). Hỗ trợ các mốc preset `244.5 cm`, `210.0 cm`, `184.7 cm` (cột Kiosk K2 mini), và `220.0 cm` (trần tiêu chuẩn).
+1. **Độ cao lắp đặt thực tế `2460 mm` (246.0 cm) & Bảng Presets**:
+   - Mặc định khởi tạo tại `2460 mm` (setup Kiosk thực tế: 210cm trần + 21cm bệ InBody + 15cm giá đỡ). Hỗ trợ các mốc preset `245.7 cm`, `210.0 cm`, `184.7 cm` (cột Kiosk K2 mini), và `220.0 cm` (trần tiêu chuẩn).
 2. **Hiệu chuẩn sàn theo từng zone (`floorZ[64]` baseline) & Nạp sẵn Baseline**:
    - Triệt tiêu độ nghiêng vật lý của cảm biến và mấp mô sàn. Hỗ trợ truyền `config.calibration` trực tiếp hoặc tự đo 30 frames sàn trống với điều kiện thích ứng thực tế (`stdDev <= 80mm`, $\ge 4$ zones hợp lệ).
 3. **Mở rộng lọc `targetStatus` (Đặc biệt kháng hấp thụ tia IR của tóc người - Status 10)**:
    - Thay vì chỉ chấp nhận status 5 & 9, hệ thống mở rộng chấp nhận các mã phản xạ quang học hợp lệ: **5, 6, 9, 10, 12, 13** (đặc biệt mã **10 SNR Low** do tóc đen hấp thụ ánh sáng hồng ngoại). Loại bỏ nghiêm ngặt mã **7, 8** (Wrap-around) và **255** (No target).
 4. **Bảng tra cứu $\cos\theta$ cố định & Hệ trục không gian ($x, y, z$)**:
    - Tính toán trước bảng `cosLookupTable[8][8]` và $\tan\theta_{x,y}$ giúp đổi tọa độ sang mm thực tế mà không gây tải CPU 15Hz trên Kiosk.
-5. **Ổn định Chuỗi Thời Gian bằng Cửa sổ trượt & Chốt Trimmed Mean**:
-   - Sử dụng cửa sổ $\ge 1500\text{ms}$ theo `timestampMs`, yêu cầu giữ yên $\ge 1000\text{ms}$, $\text{Range} \le 15\text{mm}$, $|\text{Slope}| \le 8\text{mm/s}$ và chốt kết quả bằng Trimmed Mean 10%.
-6. **Bộ Ghi Log Thao Trường Trực Tiếp (Direct JSONL Recording)**:
+5. **Ổn định Chuỗi Thời Gian & Khóa Nhanh 0.5 Giây (Fast-Lock V6.3)**:
+   - Sử dụng cửa sổ $\ge 1500\text{ms}$ theo `timestampMs`, yêu cầu giữ yên $\ge \mathbf{500\text{ms}}$ (0.5 giây), biên độ rung lắc $\text{Range} \le \mathbf{10\text{mm}}$, tối thiểu 4 mẫu hợp lệ, $|\text{Slope}| \le 8\text{mm/s}$ và chốt kết quả bằng Trimmed Mean 10%.
+6. **Cơ chế Bắt tay Chống "Chốt Vội" Với Máy InBody**:
+   - Khi máy InBody cân xong tải trọng (`STATUS 10`), FSM tuyệt đối không lấy số đo tức thời khi chưa khóa. FSM bắt buộc đợi ToF bắn sự kiện `TOF_LOCKED` (đã đứng yên đủ 0.5s và rung lắc $\le 10$mm) mới nạp chiều cao sang InBody. Có bộ đếm timeout 3.0s an toàn.
+7. **Bộ Ghi Log Thao Trường Trực Tiếp (Direct JSONL Recording)**:
    - Ghi dữ liệu 64 zones + Target Status + Engine State vào tệp `.jsonl` cục bộ (`FileSystem.writeAsStringAsync` Append mode), tránh giật lag UI và phục vụ phân tích chuyên sâu qua ADB mà không cần mở modal chia sẻ.
-7. **Log Frame Hoàn Chỉnh & Hướng Dẫn Giọng Nói Tiếng Việt**:
+8. **Log Frame Hoàn Chỉnh & Hướng Dẫn Giọng Nói Tiếng Việt**:
    - In log ma trận 8x8 ASCII hoàn chỉnh `=== [VL53L5CX FRAME #...] ===`. Tích hợp Voice Engine đọc chi tiết số đo (ví dụ: _"Một mét bảy mươi bảy phẩy chín cen-ti-mét"_).
 
 ---

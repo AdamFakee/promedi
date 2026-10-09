@@ -5,11 +5,15 @@ import { useHealthSession } from '@/core/health-session'
 import { voicePlayerService } from '@/core/voice-engine'
 import { useAppNavigation } from '@/shared/hooks'
 import { useMachine } from '@xstate/react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
+/** Cờ bật chế độ Mock Auto-Complete đo Huyết áp (không cần cắm máy BPBIO thật) */
+const MOCK_BP_AUTO_COMPLETE = true
 
 export function useBpMeasurement(isActive: boolean) {
   const { completeBp, resetSession } = useHealthSession()
   const { replaceTo } = useAppNavigation()
+  const [mockStatus, setMockStatus] = useState<'idle' | 'measuring' | 'completed'>('idle')
 
   // Khởi tạo BpbioClient và machine đồng bộ (synchronously)
   const client = useMemo(() => {
@@ -21,12 +25,10 @@ export function useBpMeasurement(isActive: boolean) {
     bpbioSessionMachine.provide({
       actions: {
         onMeasuringStart: () => {
-          // 1. Khi máy bắt đầu đo -> Ngắt ngay voice hướng dẫn nếu đang phát
           voicePlayerService.stop()
         },
         onMeasurementCompleted: ({ context }) => {
           voicePlayerService.speak('BP_COMPLETE')
-          // Đợi 3 giây để khách hàng kịp nhìn thấy màn hình "Đo hoàn tất" rồi mới tự động nhảy bước
           setTimeout(() => {
             if (context.result) {
               completeBp({
@@ -38,14 +40,13 @@ export function useBpMeasurement(isActive: boolean) {
           }, 3000)
         },
         onErrorAlert: ({ event }) => {
-          // Nếu thiết bị báo lỗi nhúc nhích tay / rụt cùi chỏ
           if (event.type === 'BP_EVENT' && event.payload.type === 'DEVICE_ERROR') {
             voicePlayerService.speak('BP_ELBOW_OFF')
           }
         },
         onConnectionError: ({ context }) => {
+          if (MOCK_BP_AUTO_COMPLETE) return
           resetSession()
-          // 3. Nếu kết nối thất bại -> Đá qua màn hình lỗi
           const errMsg = context.errorMessage || 'Lỗi kết nối máy huyết áp không rõ nguyên nhân.'
           replaceTo('KIOSK_HARDWARE_ERROR', {
             error: errMsg,
@@ -65,9 +66,34 @@ export function useBpMeasurement(isActive: boolean) {
     },
   )
 
-  // Quản lý lifecycle kết nối Serial dựa theo prop isActive
+  // Xử lý luồng Mock Auto-Complete khi không cắm máy thật
   useEffect(() => {
-    if (!isActive) return
+    if (!isActive || !MOCK_BP_AUTO_COMPLETE) return
+
+    setMockStatus('measuring')
+
+    const timer1 = setTimeout(() => {
+      setMockStatus('completed')
+      voicePlayerService.speak('BP_COMPLETE')
+    }, 1500)
+
+    const timer2 = setTimeout(() => {
+      completeBp({
+        systolic: 120,
+        diastolic: 80,
+        pulse: 72,
+      })
+    }, 3500)
+
+    return () => {
+      clearTimeout(timer1)
+      clearTimeout(timer2)
+    }
+  }, [isActive, completeBp])
+
+  // Quản lý lifecycle kết nối Serial thật khi tắt Mock
+  useEffect(() => {
+    if (!isActive || MOCK_BP_AUTO_COMPLETE) return
 
     send({ type: 'START' })
 
@@ -78,13 +104,21 @@ export function useBpMeasurement(isActive: boolean) {
   }, [isActive, client, send])
 
   const handleReset = () => {
-    send({ type: 'RESET' })
+    if (MOCK_BP_AUTO_COMPLETE) {
+      setMockStatus('idle')
+    } else {
+      send({ type: 'RESET' })
+    }
   }
 
   let status: 'idle' | 'measuring' | 'error' | 'completed' = 'idle'
-  if (state.matches({ active: 'measuring' })) status = 'measuring'
-  if (state.matches({ active: 'error' })) status = 'error'
-  if (state.matches({ active: 'completed' })) status = 'completed'
+  if (MOCK_BP_AUTO_COMPLETE) {
+    status = mockStatus
+  } else {
+    if (state.matches({ active: 'measuring' })) status = 'measuring'
+    if (state.matches({ active: 'error' })) status = 'error'
+    if (state.matches({ active: 'completed' })) status = 'completed'
+  }
 
   return {
     status,

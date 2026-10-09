@@ -5,6 +5,7 @@ import type { InBodyResult } from '../types/inbody.types'
 
 describe('inbodySessionMachine (XState v5 FSM)', () => {
   let mockClient: jest.Mocked<InBodyClient>
+  let mockTofDevice: any
 
   beforeEach(() => {
     mockClient = {
@@ -17,12 +18,19 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
       requestResult: jest.fn(),
       isConnected: jest.fn().mockReturnValue(true),
     } as any
+
+    mockTofDevice = {
+      connect: jest.fn().mockResolvedValue(undefined),
+      disconnect: jest.fn().mockResolvedValue(undefined),
+      onHeightResult: jest.fn().mockReturnValue(() => {}),
+    } as any
   })
 
   it('khởi tạo ở trạng thái disconnected và chuyển sang connecting khi gửi CONNECT', async () => {
     const actor = createActor(inbodySessionMachine, {
       input: {
         client: mockClient,
+        tofDevice: mockTofDevice,
         getDeviceKey: async () => 'test-device-key',
         baudRate: 19200,
       },
@@ -46,6 +54,7 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
     const actor = createActor(inbodySessionMachine, {
       input: {
         client: mockClient,
+        tofDevice: mockTofDevice,
         getDeviceKey: async () => 'test-device-key',
         baudRate: 19200,
       },
@@ -112,6 +121,7 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
     const actor = createActor(inbodySessionMachine, {
       input: {
         client: mockClient,
+        tofDevice: mockTofDevice,
         getDeviceKey: async () => 'test-device-key',
         baudRate: 19200,
       },
@@ -126,11 +136,17 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
       patientInfo: { id: 'TEST_001', gender: 'M', heightCm: 175.0, age: 25 },
     })
 
+    // Giả lập ToF đo và khóa chiều cao trước khi InBody cân xong
+    actor.send({ type: 'TOF_LOCKED', heightCm: 173.5 })
+    expect(actor.getSnapshot().context.tofHeightCm).toBe(173.5)
+    expect(actor.getSnapshot().context.tofState).toBe('LOCKED')
+
     // Giả lập poller gửi STATUS '1' (Đã cân xong)
     actor.send({ type: 'STATUS_UPDATE', status: '1' })
 
     // Đợi sendInfoActor hoàn thành
     await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(mockClient.sendInfo).toHaveBeenCalledWith(expect.objectContaining({ heightCm: 173.5 }))
     expect(actor.getSnapshot().value).toBe('measuring')
 
     // Giả lập poller gửi STATUS '3' (Đo hoàn tất BIA)
@@ -143,14 +159,46 @@ describe('inbodySessionMachine (XState v5 FSM)', () => {
     // Giả lập poller gửi STATUS '0' (Ready) sau khi hoàn tất
     actor.send({ type: 'STATUS_UPDATE', status: '0' })
     expect(actor.getSnapshot().value).toBe('completed')
-    expect(actor.getSnapshot().context.result).toEqual(mockResult)
+    expect(actor.getSnapshot().context.result?.height).toBe(175.0)
     expect(actor.getSnapshot().context.progress).toBe(100)
+  })
+
+  it('xử lý luồng ToF chưa lock khi cân xong: chuyển sang waitingForTofLock và gửi INFO khi TOF_LOCKED đến', async () => {
+    const actor = createActor(inbodySessionMachine, {
+      input: {
+        client: mockClient,
+        tofDevice: mockTofDevice,
+        getDeviceKey: async () => 'test-device-key',
+        baudRate: 19200,
+      },
+    })
+
+    actor.start()
+    actor.send({ type: 'CONNECT' })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    actor.send({
+      type: 'START',
+      patientInfo: { id: 'TEST_002', gender: 'F', heightCm: 0, age: 28 },
+    })
+
+    // InBody cân xong trước khi ToF lock
+    actor.send({ type: 'STATUS_UPDATE', status: '1' })
+    expect(actor.getSnapshot().value).toBe('waitingForTofLock')
+
+    // ToF lock chiều cao sau đó
+    actor.send({ type: 'TOF_LOCKED', heightCm: 162.0 })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(mockClient.sendInfo).toHaveBeenCalledWith(expect.objectContaining({ heightCm: 162.0 }))
+    expect(actor.getSnapshot().value).toBe('measuring')
   })
 
   it('xử lý trạng thái lỗi STATUS 35: chuyển sang deviceError và tự động gửi SKIP để khôi phục', async () => {
     const actor = createActor(inbodySessionMachine, {
       input: {
         client: mockClient,
+        tofDevice: mockTofDevice,
         getDeviceKey: async () => 'test-device-key',
         baudRate: 19200,
       },

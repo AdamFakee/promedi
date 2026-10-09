@@ -153,10 +153,10 @@ void test_binary_fixture_stream() {
         }
     }
 
-    assert(packetCount == 115);
-    assert(validCount == 115);
+    assert(packetCount == 570);
+    assert(validCount == 570);
 
-    std::cout << "       -> THÀNH CÔNG: Đã đọc và kiểm tra mã CRC16 đạt 100% (115/115 packets) từ Binary Fixture." << std::endl;
+    std::cout << "       -> THÀNH CÔNG: Đã đọc và kiểm tra mã CRC16 đạt 100% (570/570 packets) từ Binary Fixture." << std::endl;
 }
 
 int main() {

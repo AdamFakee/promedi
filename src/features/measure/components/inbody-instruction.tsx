@@ -23,6 +23,9 @@ export interface InBodyInstructionProps {
   progress?: number
   errorCode?: string | null
   gender?: 'M' | 'F'
+  tofHeightCm?: number | null
+  tofState?: string
+  tofProgress?: number
   className?: string
   style?: StyleProp<ViewStyle>
 }
@@ -32,6 +35,9 @@ export const InBodyInstruction = ({
   progress = 0,
   errorCode,
   gender: genderProp,
+  tofHeightCm,
+  tofState = 'IDLE',
+  tofProgress = 0,
   className,
   style,
 }: InBodyInstructionProps) => {
@@ -88,7 +94,7 @@ export const InBodyInstruction = ({
         {/* SVG Scanner Container */}
         <Animated.View
           style={containerPulseStyle}
-          className="relative items-center justify-center overflow-hidden rounded-3xl border-2 border-red-500/30 bg-white/95 p-4 shadow-2xl shadow-red-500/20"
+          className="relative items-center justify-center overflow-hidden rounded-3xl border-2 border-red-500/30 bg-white/95 p-4 "
         >
           {/* Vùng chứa SVG Body với chiều cao cố định để thanh scan chạy */}
           <View className="relative h-[280px] w-[190px] items-center justify-center overflow-hidden">
@@ -129,11 +135,28 @@ export const InBodyInstruction = ({
 
           {/* Badge tiến trình phần trăm góc dưới */}
           {progress > 0 && (
-            <View className="absolute bottom-3 right-3 rounded-full bg-red-600 px-3 py-1 shadow-sm">
+            <View className="absolute bottom-3 right-3 rounded-full bg-red-600 px-3 py-1">
               <Text className="text-xs font-black text-white">{progress}%</Text>
             </View>
           )}
         </Animated.View>
+
+        {/* Real-time ToF Height Badge during measurement */}
+        {tofHeightCm !== undefined && tofHeightCm !== null && tofHeightCm > 0 && (
+          <View className="flex-row items-center gap-2.5 rounded-full border border-emerald-500/30 bg-emerald-50/95 px-5 py-2">
+            <Text className="font-bold text-sm text-emerald-800">Chiều cao:</Text>
+            <Text className="text-xl font-black text-emerald-700">{tofHeightCm.toFixed(1)} cm</Text>
+            <View
+              className={`rounded-full px-2.5 py-0.5 ${
+                tofState === 'LOCKED' ? 'bg-emerald-600' : 'bg-amber-500'
+              }`}
+            >
+              <Text className="text-[10px] font-black uppercase text-white">
+                {tofState === 'LOCKED' ? '✓ Đã khóa' : 'Đang quét'}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Tiêu đề & Cảnh báo */}
         <View className="items-center gap-2">
@@ -154,6 +177,27 @@ export const InBodyInstruction = ({
       className={cn('w-full flex-1 flex-col items-center justify-center gap-2 p-2 pb-6', className)}
       style={style}
     >
+      {/* Real-time Height Detection Banner if ToF has detected height */}
+      {tofHeightCm !== undefined && tofHeightCm !== null && tofHeightCm > 0 && (
+        <View className="w-full flex-row items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50/95 px-5 py-2.5 ">
+          <View className="flex-row items-center gap-2">
+            <Text className="font-bold text-sm text-emerald-900">Chiều cao nhận diện:</Text>
+            <Text className="text-2xl font-black text-emerald-700">
+              {tofHeightCm.toFixed(1)} cm
+            </Text>
+          </View>
+          <View
+            className={`rounded-full px-3 py-1 ${
+              tofState === 'LOCKED' ? 'bg-emerald-600' : 'bg-amber-500'
+            }`}
+          >
+            <Text className="text-xs font-black uppercase text-white">
+              {tofState === 'LOCKED' ? '✓ Đã khóa số đo' : 'Đang quét ổn định...'}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Top: Large InBody Demo Image */}
       <View className="relative w-full flex-1 items-center justify-center overflow-hidden rounded-2xl bg-white">
         <Image
@@ -194,8 +238,8 @@ export const InBodyInstruction = ({
 
       {/* Bottom: 3 Clean Steps */}
       <View className="w-full flex-row items-stretch justify-between gap-3 px-2 pb-2">
-        <View className="flex-1 items-center justify-between rounded-2xl border border-red-100/80 bg-white/95 p-3.5 shadow-sm">
-          <View className="mb-2 rounded-lg bg-red-600 px-3.5 py-1 shadow-sm">
+        <View className="flex-1 items-center justify-between rounded-2xl border border-red-100/80 bg-white/95 p-3.5 ">
+          <View className="mb-2 rounded-lg bg-red-600 px-3.5 py-1 ">
             <Text className="text-xs font-black uppercase tracking-wider text-white">BƯỚC 1</Text>
           </View>
           <Text className="text-center font-bold text-base leading-snug text-slate-800">
@@ -203,8 +247,8 @@ export const InBodyInstruction = ({
           </Text>
         </View>
 
-        <View className="flex-1 items-center justify-between rounded-2xl border border-red-100/80 bg-white/95 p-3.5 shadow-sm">
-          <View className="mb-2 rounded-lg bg-red-600 px-3.5 py-1 shadow-sm">
+        <View className="flex-1 items-center justify-between rounded-2xl border border-red-100/80 bg-white/95 p-3.5 ">
+          <View className="mb-2 rounded-lg bg-red-600 px-3.5 py-1 ">
             <Text className="text-xs font-black uppercase tracking-wider text-white">BƯỚC 2</Text>
           </View>
           <Text className="text-center font-bold text-base leading-snug text-slate-800">
@@ -212,8 +256,8 @@ export const InBodyInstruction = ({
           </Text>
         </View>
 
-        <View className="flex-1 items-center justify-between rounded-2xl border border-red-100/80 bg-white/95 p-3.5 shadow-sm">
-          <View className="mb-2 rounded-lg bg-red-600 px-3.5 py-1 shadow-sm">
+        <View className="flex-1 items-center justify-between rounded-2xl border border-red-100/80 bg-white/95 p-3.5 ">
+          <View className="mb-2 rounded-lg bg-red-600 px-3.5 py-1 ">
             <Text className="text-xs font-black uppercase tracking-wider text-white">BƯỚC 3</Text>
           </View>
           <Text className="text-center font-bold text-base leading-snug text-slate-800">

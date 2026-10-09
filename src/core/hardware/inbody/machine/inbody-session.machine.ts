@@ -22,6 +22,7 @@ export const inbodySessionMachine = setup({
     events: InBodyMachineEvent
     input: {
       client: InBodyMachineContext['client']
+      tofDevice: InBodyMachineContext['tofDevice']
       getDeviceKey: InBodyMachineContext['getDeviceKey']
       baudRate?: number
     }
@@ -33,13 +34,14 @@ export const inbodySessionMachine = setup({
     onDeviceError: () => {},
   },
   actors: {
-    /** Actor thực thi kết nối USB Serial */
+    /** Actor thực thi kết nối USB Serial InBody & ToF (cả hai đều bắt buộc) */
     connectActor: fromPromise(
       async ({
         input,
       }: {
         input: {
           client: InBodyMachineContext['client']
+          tofDevice: InBodyMachineContext['tofDevice']
           getDeviceKey: InBodyMachineContext['getDeviceKey']
           baudRate: number
         }
@@ -50,12 +52,60 @@ export const inbodySessionMachine = setup({
             'Chưa thiết lập được cổng kết nối tới máy InBody! Vui lòng vào màn hình Test Thiết Bị chạy tính năng Dò cổng để kiểm tra.',
           )
         }
-        await input.client.connect({
-          type: 'usb-serial',
-          portId: 'inbody-port',
-          deviceKey,
-          baudRate: input.baudRate,
+        await Promise.all([
+          input.client.connect({
+            type: 'usb-serial',
+            portId: 'inbody-port',
+            deviceKey,
+            baudRate: input.baudRate,
+          }),
+          input.tofDevice.connect(),
+        ])
+      },
+    ),
+
+    /** Actor thực thi ngắt kết nối cả InBody và ToF */
+    disconnectActor: fromPromise(
+      async ({
+        input,
+      }: {
+        input: {
+          client: InBodyMachineContext['client']
+          tofDevice: InBodyMachineContext['tofDevice']
+        }
+      }) => {
+        await Promise.allSettled([input.client.disconnect(), input.tofDevice.disconnect()])
+      },
+    ),
+
+    /** Actor lắng nghe luồng kết quả đo Chiều cao từ Cảm biến ToF */
+    tofHeightActor: fromCallback(
+      ({
+        sendBack,
+        input,
+      }: {
+        sendBack: (event: InBodyMachineEvent) => void
+        input: { tofDevice: InBodyMachineContext['tofDevice'] }
+      }) => {
+        const unsubscribe = input.tofDevice.onHeightResult((result) => {
+          sendBack({
+            type: 'TOF_UPDATE',
+            result,
+          })
+          if (result.state === 'LOCKED') {
+            const lockedHeight = result.result?.heightCm ?? result.measuredHeightCm
+            if (lockedHeight && lockedHeight > 0) {
+              sendBack({
+                type: 'TOF_LOCKED',
+                heightCm: lockedHeight,
+              })
+            }
+          }
         })
+
+        return () => {
+          unsubscribe()
+        }
       },
     ),
 
@@ -161,10 +211,14 @@ export const inbodySessionMachine = setup({
   initial: 'disconnected',
   context: ({ input }) => ({
     client: input.client,
+    tofDevice: input.tofDevice,
     getDeviceKey: input.getDeviceKey,
     baudRate: input.baudRate ?? 19200,
     patientInfo: null,
     result: null,
+    tofHeightCm: null,
+    tofState: 'IDLE',
+    tofProgress: 0,
     consecutiveNoEtxCount: 0,
     progress: 0,
     lastErrorCode: null,
@@ -181,6 +235,7 @@ export const inbodySessionMachine = setup({
         src: 'connectActor',
         input: ({ context }) => ({
           client: context.client,
+          tofDevice: context.tofDevice,
           getDeviceKey: context.getDeviceKey,
           baudRate: context.baudRate,
         }),
@@ -223,6 +278,9 @@ export const inbodySessionMachine = setup({
             patientInfo: ({ event }) => (event.type === 'START' ? event.patientInfo : null),
             progress: 0,
             lastErrorCode: null,
+            tofHeightCm: null,
+            tofState: 'IDLE',
+            tofProgress: 0,
           }),
         },
         DISCONNECT: 'disconnecting',
@@ -230,15 +288,52 @@ export const inbodySessionMachine = setup({
     },
 
     waitingForWeight: {
-      invoke: {
-        src: 'statusPoller',
-        input: ({ context }) => ({ client: context.client }),
-      },
+      invoke: [
+        {
+          src: 'statusPoller',
+          input: ({ context }) => ({ client: context.client }),
+        },
+        {
+          src: 'tofHeightActor',
+          input: ({ context }) => ({ tofDevice: context.tofDevice }),
+        },
+      ],
       on: {
+        TOF_UPDATE: {
+          actions: assign({
+            tofHeightCm: ({ event }) =>
+              event.type === 'TOF_UPDATE' ? event.result.measuredHeightCm : null,
+            tofState: ({ event }) => (event.type === 'TOF_UPDATE' ? event.result.state : 'IDLE'),
+            tofProgress: ({ event }) => (event.type === 'TOF_UPDATE' ? event.result.progress : 0),
+          }),
+        },
+        TOF_LOCKED: {
+          actions: assign({
+            tofHeightCm: ({ event }) => (event.type === 'TOF_LOCKED' ? event.heightCm : null),
+            tofState: () => 'LOCKED',
+            tofProgress: () => 100,
+          }),
+        },
         STATUS_UPDATE: [
           {
-            guard: ({ event }) => event.status === STATUS_CODE.WEIGHT_DONE_INPUT_INFO,
+            guard: ({ event, context }) =>
+              event.status === STATUS_CODE.WEIGHT_DONE_INPUT_INFO &&
+              context.tofState === 'LOCKED' &&
+              Boolean(context.tofHeightCm && context.tofHeightCm > 50),
             target: 'sendingInfo',
+            actions: assign({
+              patientInfo: ({ context }) => {
+                if (!context.patientInfo || !context.tofHeightCm) return null
+                return {
+                  ...context.patientInfo,
+                  heightCm: Number(context.tofHeightCm.toFixed(1)),
+                }
+              },
+            }),
+          },
+          {
+            guard: ({ event }) => event.status === STATUS_CODE.WEIGHT_DONE_INPUT_INFO,
+            target: 'waitingForTofLock',
           },
           {
             guard: ({ event }) => event.status === STATUS_CODE.MEASURING,
@@ -255,6 +350,62 @@ export const inbodySessionMachine = setup({
           },
         ],
         TRANSPORT_TIMEOUT: 'transportTimeout',
+        DISCONNECT: 'lockingThenDisconnect',
+      },
+    },
+
+    waitingForTofLock: {
+      invoke: {
+        src: 'tofHeightActor',
+        input: ({ context }) => ({ tofDevice: context.tofDevice }),
+      },
+      after: {
+        3000: [
+          {
+            guard: ({ context }) => Boolean(context.tofHeightCm && context.tofHeightCm > 100),
+            target: 'sendingInfo',
+            actions: assign({
+              patientInfo: ({ context }) => {
+                if (!context.patientInfo || !context.tofHeightCm) return null
+                return {
+                  ...context.patientInfo,
+                  heightCm: Number(context.tofHeightCm.toFixed(1)),
+                }
+              },
+            }),
+          },
+          {
+            // Quá thời gian chờ mà ToF vẫn không đo được chiều cao hợp lệ -> Báo lỗi tư thế / cảm biến
+            target: 'deviceError',
+            actions: [assign({ lastErrorCode: () => 'HEIGHT_ERROR' as const }), 'onDeviceError'],
+          },
+        ],
+      },
+      on: {
+        TOF_UPDATE: {
+          actions: assign({
+            tofHeightCm: ({ event }) =>
+              event.type === 'TOF_UPDATE' ? event.result.measuredHeightCm : null,
+            tofState: ({ event }) => (event.type === 'TOF_UPDATE' ? event.result.state : 'IDLE'),
+            tofProgress: ({ event }) => (event.type === 'TOF_UPDATE' ? event.result.progress : 0),
+          }),
+        },
+        TOF_LOCKED: {
+          target: 'sendingInfo',
+          actions: assign({
+            tofHeightCm: ({ event }) => (event.type === 'TOF_LOCKED' ? event.heightCm : null),
+            tofState: () => 'LOCKED',
+            tofProgress: () => 100,
+            patientInfo: ({ context, event }) => {
+              if (!context.patientInfo) return null
+              const height = event.type === 'TOF_LOCKED' ? event.heightCm : 0
+              return {
+                ...context.patientInfo,
+                heightCm: Number(height.toFixed(1)),
+              }
+            },
+          }),
+        },
         DISCONNECT: 'lockingThenDisconnect',
       },
     },
@@ -308,7 +459,13 @@ export const inbodySessionMachine = setup({
         onDone: {
           target: 'verifyingCompletion',
           actions: assign({
-            result: ({ event }) => event.output,
+            result: ({ event, context }) => {
+              const res = event.output
+              return {
+                ...res,
+                height: res.height ?? context.patientInfo?.heightCm ?? null,
+              }
+            },
             progress: 100,
           }),
         },
@@ -382,12 +539,8 @@ export const inbodySessionMachine = setup({
 
     disconnecting: {
       invoke: {
-        src: fromPromise(
-          async ({ input }: { input: { client: InBodyMachineContext['client'] } }) => {
-            await input.client.disconnect()
-          },
-        ),
-        input: ({ context }) => ({ client: context.client }),
+        src: 'disconnectActor',
+        input: ({ context }) => ({ client: context.client, tofDevice: context.tofDevice }),
         onDone: 'disconnected',
         onError: 'disconnected',
       },

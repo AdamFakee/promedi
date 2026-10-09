@@ -19,6 +19,9 @@ describe('Verification with Real Kiosk Recording Logs', () => {
 
     const engine = new HeightMeasurementEngine({
       expectedFloorMm: 2457,
+      stabilityMinHoldMs: 1000,
+      stabilityRangeMm: 15,
+      minSamples: 8,
       calibration: {
         floorZ: new Array(64).fill(2457),
         floorOk: new Array(64).fill(true),
@@ -78,6 +81,9 @@ describe('Verification with Real Kiosk Recording Logs', () => {
     // Replay with HeightMeasurementEngine
     const engine = new HeightMeasurementEngine({
       expectedFloorMm: 2457,
+      stabilityMinHoldMs: 1000,
+      stabilityRangeMm: 15,
+      minSamples: 8,
       calibration: {
         floorZ: new Array(64).fill(2457),
         floorOk: new Array(64).fill(true),

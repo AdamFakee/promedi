@@ -7,7 +7,6 @@ export interface CustomerData {
   identityCode: string
   sessionId?: string
   age: number
-  heightCm: number
   gender: 'M' | 'F'
 }
 

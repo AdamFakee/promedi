@@ -114,7 +114,7 @@ describe('ToF Distance Sensor Hardware Module (VL53L5CX)', () => {
   describe('HeightMeasurementEngine', () => {
     const engine = new HeightMeasurementEngine()
 
-    const generateFloorFrames = (count: number, expectedFloorMm = 2445): VL53L5CXFramePayload[] => {
+    const generateFloorFrames = (count: number, expectedFloorMm = 2460): VL53L5CXFramePayload[] => {
       const frames: VL53L5CXFramePayload[] = []
       for (let f = 0; f < count; f++) {
         frames.push({
@@ -131,13 +131,13 @@ describe('ToF Distance Sensor Hardware Module (VL53L5CX)', () => {
 
     it('should calculate height for a 170cm standing person', () => {
       engine.calibrateFloor(generateFloorFrames(20))
-      const distances = new Array(64).fill(2445)
+      const distances = new Array(64).fill(2460)
       const targetStatuses = new Array(64).fill(5)
 
-      // Center 4x4 zones have head distance ~745mm to ceiling (2445 - 1700 = 745mm)
+      // Center 4x4 zones have head distance ~760mm to ceiling (2460 - 1700 = 760mm)
       const centerIndices = [27, 28, 35, 36]
       centerIndices.forEach((idx) => {
-        distances[idx] = 745
+        distances[idx] = 760
       })
 
       const mockFrame: VL53L5CXFramePayload = {
@@ -242,8 +242,8 @@ describe('ToF Distance Sensor Hardware Module (VL53L5CX)', () => {
         }
       }
 
-      // Feed 15 frames normally
-      for (let i = 0; i < 15; i++) {
+      // Feed 5 frames normally (< 500ms)
+      for (let i = 0; i < 5; i++) {
         gapEngine.push(makeFrame(i + 1, (i + 1) * 66))
       }
 
@@ -260,12 +260,13 @@ describe('ToF Distance Sensor Hardware Module (VL53L5CX)', () => {
       const client = new ToFClient()
 
       // Calibrate floor baseline first so engine can measure mock data
+      const floorDist = client.getEngineConfig().expectedFloorMm
       const floorFrames: VL53L5CXFramePayload[] = []
       for (let f = 0; f < 20; f++) {
         floorFrames.push({
           frameId: f + 1,
           timestampMs: (f + 1) * 66,
-          distances: new Array(64).fill(2445), // matches default expectedFloorMm
+          distances: new Array(64).fill(floorDist), // matches engine expectedFloorMm
           targetStatuses: new Array(64).fill(5),
           zoneCount: 64,
           isValid: true,

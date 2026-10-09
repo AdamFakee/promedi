@@ -32,8 +32,8 @@ import struct
 # Đường dẫn thư mục đầu ra (cùng thư mục với script này)
 OUT = os.path.dirname(os.path.abspath(__file__))
 
-# Chiều cao lắp đặt cảm biến trần Kiosk chuẩn (mm)
-Z_SENSOR = 2457
+# Chiều cao lắp đặt cảm biến trần Kiosk chuẩn (mm): 210cm trần + 21cm bệ cân + 15cm giá = 2460mm
+Z_SENSOR = 2460
 
 # Góc quét từng zone trong ma trận 8x8 (45 độ / 8 zones = 5.625 độ / zone)
 STEP = math.radians(45 / 8)

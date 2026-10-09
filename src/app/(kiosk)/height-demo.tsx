@@ -29,7 +29,6 @@ import {
   CheckCircle,
   Crosshair,
   Gauge,
-  Hand,
   Play,
   RotateCcw,
   Sliders,
@@ -41,7 +40,6 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Modal, Text, TouchableOpacity, View } from 'react-native'
 import * as FileSystem from 'expo-file-system/legacy'
-import * as Sharing from 'expo-sharing'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function KioskHeightDemoRoute() {
@@ -51,9 +49,9 @@ export default function KioskHeightDemoRoute() {
   const tofDeviceRef = useRef<ToFDistanceDevice | null>(null)
   const engineRef = useRef<HeightMeasurementEngine>(
     new HeightMeasurementEngine({
-      expectedFloorMm: 2457,
+      expectedFloorMm: 2460,
       calibration: {
-        floorZ: new Array(64).fill(2457),
+        floorZ: new Array(64).fill(2460),
         floorOk: new Array(64).fill(true),
         refX0: 0,
         refY0: 0,
@@ -79,12 +77,12 @@ export default function KioskHeightDemoRoute() {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true)
   const lastGuidanceRef = useRef<string>('')
 
-  // Calibration Parameters State (Mặc định 2457mm = 244.5cm chiều cao gắn cảm biến setup)
-  const [expectedFloorMm, setCeilingHeightMm] = useState<number>(2457)
+  // Calibration Parameters State (Mặc định 2460mm = 246.0cm chiều cao gắn cảm biến setup: 210 + 21 + 15)
+  const [expectedFloorMm, setCeilingHeightMm] = useState<number>(2460)
   const [gainScale, setGainScale] = useState<number>(1.0)
   const [offsetMm, setOffsetMm] = useState<number>(0)
   const [calibrationData, setCalibrationData] = useState<FloorCalibrationData | null>({
-    floorZ: new Array(64).fill(2457),
+    floorZ: new Array(64).fill(2460),
     floorOk: new Array(64).fill(true),
     refX0: 0,
     refY0: 0,
@@ -817,21 +815,21 @@ export default function KioskHeightDemoRoute() {
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => {
-                    setCeilingHeightMm(2457)
-                    rebuildEngine(2457, gainScale, offsetMm)
+                    setCeilingHeightMm(2460)
+                    rebuildEngine(2460, gainScale, offsetMm)
                   }}
                   className={`flex-1 items-center rounded-xl border py-2 ${
-                    expectedFloorMm === 2457
+                    expectedFloorMm === 2460
                       ? 'border-cyan-400 bg-cyan-950'
                       : 'border-slate-700 bg-slate-800'
                   }`}
                 >
                   <Text
                     className={`font-bold text-xs ${
-                      expectedFloorMm === 2457 ? 'text-cyan-300' : 'text-slate-400'
+                      expectedFloorMm === 2460 ? 'text-cyan-300' : 'text-slate-400'
                     }`}
                   >
-                    Setup (244.5 cm)
+                    Setup (246.0 cm)
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity

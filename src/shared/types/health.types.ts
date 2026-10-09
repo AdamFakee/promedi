@@ -3,9 +3,8 @@ export type IdentityType = 'PHONE' | 'CCCD'
 export interface CustomerIdentification {
   identityNumber: string
   identityType: IdentityType
-  fullName?: string
+  fullName: string
   gender: 'MALE' | 'FEMALE'
-  heightCm: number
   age: number
 }
 

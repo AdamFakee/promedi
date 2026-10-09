@@ -48,11 +48,11 @@ int main() {
     std::cout << "       -> Số gói tin giải mã hợp lệ & khớp CRC16: " << validCount << std::endl;
 
     // Khẳng định 100% số gói tin đọc được đều hợp lệ
-    assert(packetCount == 115);
-    assert(validCount == 115);
+    assert(packetCount == 570);
+    assert(validCount == 570);
 
     std::cout << "==========================================================" << std::endl;
-    std::cout << "   ✅ 100% (115/115) PACKETS BINARY ĐÃ ĐƯỢC GIẢI MÃ ĐÚNG! " << std::endl;
+    std::cout << "   ✅ 100% (570/570) PACKETS BINARY ĐÃ ĐƯỢC GIẢI MÃ ĐÚNG! " << std::endl;
     std::cout << "==========================================================" << std::endl;
 
     return 0;

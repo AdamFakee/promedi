@@ -140,6 +140,9 @@ export default function KioskMeasureRoute() {
                 status={inbodyState.status}
                 progress={inbodyState.progress}
                 errorCode={inbodyState.errorCode}
+                tofHeightCm={inbodyState.tofHeightCm}
+                tofState={inbodyState.tofState}
+                tofProgress={inbodyState.tofProgress}
               />
             ) : (
               <ResultSummary />

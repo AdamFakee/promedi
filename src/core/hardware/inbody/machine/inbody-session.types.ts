@@ -3,6 +3,7 @@
  * @module src/core/hardware/inbody/machine/inbody-session.types.ts
  */
 
+import type { ToFDistanceDevice, HeightCalculationResult } from '../../tof'
 import type { InBodyClient } from '../client/inbody-client'
 import type { InBodyErrorCode, InBodyResult, PatientInfo } from '../types/inbody.types'
 
@@ -10,6 +11,8 @@ import type { InBodyErrorCode, InBodyResult, PatientInfo } from '../types/inbody
 export interface InBodyMachineContext {
   /** Thể hiện của client InBody */
   client: InBodyClient
+  /** Thiết bị cảm biến ToF đo chiều cao (BẮT BUỘC) */
+  tofDevice: ToFDistanceDevice
   /** Hàm resolve deviceKey từ BindingStore lúc runtime */
   getDeviceKey: () => Promise<string | undefined>
   /** Baudrate kết nối USB Serial */
@@ -18,6 +21,12 @@ export interface InBodyMachineContext {
   patientInfo: PatientInfo | null
   /** Kết quả đo BIA thu thập được */
   result: InBodyResult | null
+  /** Chiều cao đo được từ ToF (cm) */
+  tofHeightCm: number | null
+  /** Trạng thái đo của cảm biến ToF */
+  tofState: string
+  /** Tiến độ đo của ToF (0 - 100%) */
+  tofProgress: number
   /** Số lần retry không nhận được ETX liên tiếp */
   consecutiveNoEtxCount: number
   /** Tiến độ đo giả lập trên UI (0 - 100%) */
@@ -31,6 +40,8 @@ export type InBodyMachineEvent =
   | { type: 'CONNECT' }
   | { type: 'START'; patientInfo: PatientInfo }
   | { type: 'STATUS_UPDATE'; status: string; errorCode?: string }
+  | { type: 'TOF_UPDATE'; result: HeightCalculationResult }
+  | { type: 'TOF_LOCKED'; heightCm: number }
   | { type: 'RESULT_RECEIVED'; result: InBodyResult }
   | { type: 'TRANSPORT_TIMEOUT' }
   | { type: 'RESET' }
