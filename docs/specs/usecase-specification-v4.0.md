@@ -137,7 +137,7 @@ graph TD
    - Số CCCD phải đúng 12 chữ số.
 4. Khách hàng bấm **"Bắt đầu kiểm tra sức khỏe"**.
 5. Hệ thống tra cứu thông tin khách hàng từ Backend DB / Cache:
-   - Nếu là khách mới $\rightarrow$ Mở Quick Popup cho khách chọn Chiều cao (cm) và Giới tính (Nam/Nữ) rồi nhấn Lưu.
+   - Nếu là khách mới $\rightarrow$ Mở Quick Popup cho khách xác nhận Tuổi và Giới tính (Nam/Nữ) rồi nhấn Lưu. **BỎ HOÀN TOÀN trường Chiều cao** ở bước định danh, chiều cao được đo tự động 100% bằng cảm biến ToF trong lúc cân InBody.
 6. Hệ thống chuyển sang **Màn hình 3 (Chọn dịch vụ cần đo)**.
 
 #### Luồng ngoại lệ (Exception Flows):
@@ -204,6 +204,8 @@ graph TD
 
 - **A04.1 - Khách bấm "Bỏ qua" (Skip)**:
   - Nếu khách bấm nút "Bỏ qua" $\rightarrow$ Bỏ qua bước đo Huyết áp, chuyển sang dịch vụ tiếp theo hoặc Tổng hợp kết quả.
+- **A04.2 - Chế độ Giả lập Tự động Hoàn thành (Auto-Complete Mock Mode)**:
+  - Áp dụng khi chưa cắm máy đo huyết áp BPBIO vật lý: Kiosk tự động hoàn tất bước đo sau 1.5s - 2s với chỉ số sinh hiệu chuẩn ($SYS=120\text{ mmHg}, DIA=80\text{ mmHg}, Pulse=72\text{ bpm}$), phát âm thanh `BP_COMPLETE` và tự động chuyển bước sang InBody mà không kết nối cổng USB Serial, ngăn chặn kích hoạt lỗi `CONNECTION_ERROR` gián đoạn quy trình.
 - **E04.1 - Lỗi cùi chỏ / Cử động (`BP_ELBOW_OFF` / `BP_MOTION`)**:
   - Nhấp nháy cảnh báo đỏ trên màn hình.
   - _Voice prompt_: **"Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến. Quý khách vui lòng đẩy tay sâu hơn và ngồi yên."**
@@ -214,29 +216,31 @@ graph TD
 
 ---
 
-### UC-05: THỰC HIỆN PHÂN TÍCH THÀNH PHẦN CƠ THỂ (INBODY 270 / 380)
+### UC-05: THỰC HIỆN PHÂN TÍCH THÀNH PHẦN CƠ THỂ (INBODY 260S) & ĐO CHIỀU CAO TỰ ĐỘNG (TOF VL53L5CX)
 
 - **Mã Use Case**: `UC-05`
-- **Tên Use Case**: Phân tích trở kháng điện sinh học BIA InBody
+- **Tên Use Case**: Phân tích trở kháng điện sinh học InBody 260S kết hợp cảm biến đo chiều cao quang học ToF
 - **Tác nhân chính**: Khách hàng / Người khám
-- **Tác nhân phụ**: Máy InBody 270/380 (Hardware Module)
-- **Mô tả**: Hướng dẫn tháo giày, đứng tấm kim loại, cầm thanh nắm điện cực. Thu thập dữ liệu Cơ, Mỡ, Water, BMR, InBody Score.
+- **Tác nhân phụ**: Máy InBody 260S + Cảm biến Time-of-Flight VL53L5CX/VL53L8CX
+- **Mô tả**: Hướng dẫn tháo giày, đứng tấm kim loại, cầm thanh nắm điện cực. Thu thập dữ liệu Cơ, Mỡ, Nước, BMR kết hợp tự động đo và chốt khóa chiều cao bằng cảm biến ToF.
 - **Điều kiện tiền đề**: Dịch vụ "InBody" hoặc "Chọn tất cả" được kích hoạt tại Màn 3.
-- **Điều kiện hậu đề**: Lưu dữ liệu chỉ số InBody vào phiên khám.
+- **Điều kiện hậu đề**: Lưu dữ liệu chỉ số InBody và Chiều cao ToF vào phiên khám.
 
 #### Luồng sự kiện chính (Basic Flow - Auto-pilot Protocol):
 
-1. Hệ thống tự động thiết lập kết nối USB Serial/TCP Socket tới máy InBody, gửi lệnh **Dọn dẹp (SKIP)** để ép máy thoát khỏi các màn hình lỗi cũ (nếu có), sau đó gửi lệnh **Mở khóa (UNLOCK '2')** để cảm biến cân nhận diện người bước lên.
-2. Màn hình dọc Kiosk hiển thị giao diện đo InBody:
+1. Hệ thống tự động thiết lập kết nối song song: Cổng USB Serial InBody 260S (19200 baud) và Cổng USB Serial Cảm biến ToF (460800 baud). Mốc tham chiếu trần/sàn của cảm biến ToF được cấu hình chuẩn: **$2460\text{ mm}$** ($210\text{ cm} + 21\text{ cm} + 15\text{ cm}$).
+2. Kiosk gửi lệnh **Dọn dẹp (SKIP)** để InBody thoát khỏi màn hình cũ (nếu có), sau đó gửi lệnh **Mở khóa (UNLOCK '2')** để cảm biến cân nhận diện người bước lên.
+3. Màn hình dọc Kiosk hiển thị giao diện đo InBody & Badge nhận diện chiều cao thời gian thực:
    - **Header Top**: Icon các bước đo (InBody đang active sáng đèn).
    - **Khung Video & Chữ hướng dẫn**: Video đứng InBody + Chữ lưu ý gọn: _"Lưu ý: Tháo giày/vớ, đứng khớp điện cực chân, cầm 2 tay nắm dang 15 độ, giữ thả lỏng."_
-3. Hệ thống phát giọng nói hướng dẫn (`INBODY_START`):
-   - _Voice prompt_: **"Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày, đứng lên máy InBody và cầm hai tay nắm."**
-4. Kiosk liên tục **Polling trạng thái tuần tự bất đồng bộ (Sequential Async Polling)** ngầm. Khi khách bước lên cân, InBody chốt cân nặng (Status `1`), Kiosk lập tức **tự động đẩy gói Thông tin Định danh (INFO)** xuống máy mà không cần khách thao tác.
-5. InBody tiến hành quét BIA (Status `2`). Kiosk tự động **ngắt mọi âm thanh hướng dẫn trước đó** để không đè âm báo tít tít của máy vật lý, UI hiển thị progress "Đang đo...".
-6. InBody báo đo xong (Status `3`), Kiosk tự động gửi lệnh **Rút dữ liệu (RESULT)**. UI nhảy 100% progress.
-7. Màn hình hiển thị tóm tắt chỉ số InBody Score, Cơ, Mỡ.
-8. Kiosk thực hiện **Resend Status** (Chờ InBody trả về Status `0` - Ready) để đảm bảo InBody đã dọn dẹp màn hình, sau đó hệ thống tự động gọi Voice (`INBODY_COMPLETE`) và chuyển sang Bước 5 (hoặc **UC-06**).
+   - **Realtime Height Badge**: Hiển thị chiều cao đo thời gian thực từ cảm biến ToF (`tofHeightCm`, thanh progress chốt ổn định và trạng thái `LOCKED`).
+4. Hệ thống phát giọng nói hướng dẫn (`INBODY_START`):
+   - _Voice prompt_: **"Phân tích chỉ số cơ thể và chiều cao. Quý khách vui lòng tháo giày, đứng thẳng người trên máy InBody, mắt nhìn phía trước và cầm hai tay nắm."**
+5. Cảm biến ToF liên tục quét ở tần số 15Hz để lọc nhiễu MAD và chốt chiều cao (`tofHeightActor`). Khi khách đứng yên trên bàn cân, InBody chốt cân nặng (Status `1`), Kiosk lập tức **tự động lấy giá trị chiều cao ToF chốt khóa (`tofHeightCm`)** nạp vào gói **Thông tin Định danh (INFO)** để đẩy xuống máy mà không cần khách thao tác.
+6. InBody tiến hành quét BIA (Status `2`). Kiosk tự động **ngắt mọi âm thanh hướng dẫn trước đó** để không đè âm báo tít tít của máy vật lý, UI hiển thị progress "Đang đo...".
+7. InBody báo đo xong (Status `3`), Kiosk tự động gửi lệnh **Rút dữ liệu (RESULT)**. UI nhảy 100% progress.
+8. Màn hình hiển thị tóm tắt chỉ số InBody Score, Cơ, Mỡ và Chiều cao.
+9. Kiosk thực hiện **Resend Status** (Chờ InBody trả về Status `0` - Ready) để đảm bảo InBody đã dọn dẹp màn hình, sau đó hệ thống tự động gọi Voice (`INBODY_COMPLETE`) và chuyển sang Bước 5 (hoặc **UC-06**).
 
 #### Luồng ngoại lệ (Exception Flows):
 

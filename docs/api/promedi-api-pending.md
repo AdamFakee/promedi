@@ -187,7 +187,7 @@ Tệp này chứa các API đang ở trạng thái: **Đề xuất**, **Đã ch�
 
 ### 2.1 `[POST] /kiosk/sessions`
 
-- **Mục đích**: Tạo phiên từ form nhập tay.
+- **Mục đích**: Tạo phiên từ form nhập tay / đọc CCCD (chiều cao không còn nhập tay ở bước này mà tự động đo bằng cảm biến ToF ở Màn InBody).
 - **Auth**: `Authorization: Bearer <accessToken>`
 - **Header**: Yêu cầu `X-Idempotency-Key`
 - **Request**:
@@ -195,7 +195,6 @@ Tệp này chứa các API đang ở trạng thái: **Đề xuất**, **Đã ch�
   {
     "fullName": "Nguyễn Văn A",
     "cccd": "012345678912",
-    "height": 170.5,
     "gender": "MALE",
     "age": 30
   }
@@ -210,7 +209,6 @@ Tệp này chứa các API đang ở trạng thái: **Đề xuất**, **Đã ch�
         "id": "cus_112233",
         "fullName": "Nguyễn Văn A",
         "cccd": "012345678912",
-        "height": 170.5,
         "gender": "MALE",
         "age": 30,
         "isNew": true
@@ -241,7 +239,6 @@ Tệp này chứa các API đang ở trạng thái: **Đề xuất**, **Đã ch�
         "id": "cus_112233",
         "fullName": "Nguyễn Văn A",
         "cccd": "012345678912",
-        "height": 170.5,
         "gender": "MALE",
         "age": 30,
         "isNew": true
@@ -259,6 +256,7 @@ Tệp này chứa các API đang ở trạng thái: **Đề xuất**, **Đã ch�
   ```json
   {
     "inBody": {
+      "height": 173.5,
       "weight": 65.5,
       "protein": 11.2,
       "minerals": 3.4,
@@ -367,6 +365,7 @@ Tệp này chứa các API đang ở trạng thái: **Đề xuất**, **Đã ch�
     "peripherals": {
       "bpDevice": "CONNECTED",
       "inBodyDevice": "CONNECTED",
+      "tofDevice": "CONNECTED",
       "network": "ONLINE"
     }
   }
@@ -429,11 +428,14 @@ Tệp này chứa các API đang ở trạng thái: **Đề xuất**, **Đã ch�
 
 #### 🏥 Thiết bị Y tế (Medical Hardware)
 
-| `type`                  |  Severity  | Khi nào phát sinh                                         | `metadata` chính                                         |
-| :---------------------- | :--------: | :-------------------------------------------------------- | :------------------------------------------------------- |
-| `HARDWARE_DISCONNECTED` | `CRITICAL` | Adapter gọi device mà không thể kết nối USB/Serial/BLE    | `{ deviceType, usbDevice, errorMessage }`                |
-| `HARDWARE_RECONNECTED`  |   `INFO`   | Device adapter kết nối lại thành công                     | `{ deviceType, usbDevice, disconnectedDurationSeconds }` |
-| `HARDWARE_TIMEOUT`      | `WARNING`  | Device connected nhưng không phản hồi trong thời gian chờ | `{ deviceType, timeoutMs, command }`                     |
+> **`deviceType` hỗ trợ**: `'BPBIO_750'`, `'INBODY_260S'`, `'TOF_VL53L5CX'`.
+
+| `type`                   |  Severity  | Khi nào phát sinh                                                     | `metadata` chính                                                       |
+| :----------------------- | :--------: | :-------------------------------------------------------------------- | :--------------------------------------------------------------------- |
+| `HARDWARE_DISCONNECTED`  | `CRITICAL` | Adapter gọi device mà không thể kết nối USB/Serial/BLE                | `{ deviceType, usbDevice, errorMessage }`                              |
+| `HARDWARE_RECONNECTED`   |   `INFO`   | Device adapter kết nối lại thành công                                 | `{ deviceType, usbDevice, disconnectedDurationSeconds }`               |
+| `HARDWARE_TIMEOUT`       | `WARNING`  | Device connected nhưng không phản hồi trong thời gian chờ             | `{ deviceType, timeoutMs, command }`                                   |
+| `HEIGHT_MEASURE_TIMEOUT` | `WARNING`  | Quá thời gian 15s cảm biến ToF không thể khóa chiều cao do lắc lư/lỗi | `{ deviceType: 'TOF_VL53L5CX', timeoutMs: 15000, lastDetectedHeight }` |
 
 #### 🖨️ Ngoại vi Kiosk (Kiosk Peripherals)
 

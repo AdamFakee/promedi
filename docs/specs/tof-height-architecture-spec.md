@@ -1,8 +1,8 @@
 # Đặc Tả Kiến Trúc & Lý Giải Kỹ Thuật Đo Chiều Cao Cảm Biến ToF VL53L5CX/VL53L8CX (Architecture Spec & ADR)
 
-- **Mã Tài Liệu**: `SPEC-PROMEDI-TOF-HEIGHT-V6.1`
-- **Phiên Bản**: **V6.1 Production (Real-World Calibrated & Multi-Status Verified Edition)**
-- **Cập Nhật Lần Cuối**: 2026-10-08 (GMT+7)
+- **Mã Tài Liệu**: `SPEC-PROMEDI-TOF-HEIGHT-V6.3`
+- **Phiên Bản**: **V6.3 Production (Fast-Lock 0.5s & Strict Anti-Premature InBody Handshake Edition)**
+- **Cập Nhật Lần Cuối**: 2026-10-09 (GMT+7)
 - **Trạng Thái**: CHÍNH THỨC / ĐÃ TRIỂN KHAI VÀ NGHIỆM THU TRÊN MÁY THẬT
 - **Phân Lớp Kiến Trúc**: Layer 2 Core Hardware Engine (`src/core/hardware/tof/`)
 - **Tài Liệu Tham Chiếu**:
@@ -32,9 +32,10 @@
    - **Bước 2 (Tách đối tượng)**: Tách đối tượng người so với sàn ($h_i = \text{floorZ}_i - z_i$, ngưỡng $80\text{cm}$).
    - **Bước 3 (Nhận diện chóp đỉnh đầu đa trạng thái)**: Tìm chóp đỉnh đầu bằng thuật toán Band Zones (tìm top K điểm cao nhất). Mở rộng bộ lọc `targetStatus` chấp nhận các mã phản xạ hợp lệ: **5, 6, 9, 10, 12, 13** (đặc biệt mã **10 - SNR Low** và **9 - 50% Valid** do tóc đen/sẫm màu hấp thụ quang học hồng ngoại mạnh); kiên quyết loại bỏ mã **7, 8** (Wrap-around) và **255** (No target).
    - **Bước 4 (FSM & Guidance)**: Điều phối trạng thái FSM (`IDLE` $\rightarrow$ `MEASURING` $\rightarrow$ `LOCKED` / `TIMEOUT`) và kích hoạt ma trận hướng dẫn giọng nói Tiếng Việt.
-   - **Bước 5 (Ổn định chuỗi thời gian MAD)**: Cửa sổ trượt ổn định $1500\text{ms}$ sử dụng bộ lọc Median Absolute Deviation (MAD), dải dao động $\le 15\text{mm}$, độ dốc $\le 8\text{mm/s}$, ân hạn 3 frames nhiễu.
-   - **Bước 6 (Chốt chiều cao)**: Chốt chiều cao bằng Trimmed Mean 10% và áp dụng hệ số hiệu chuẩn thực nghiệm (`gainScale`, `offsetMm`).
-   - **Bước 7 (Giám sát trôi sàn)**: Tự động phát hiện trôi sàn khi sàn trống (`needsRecalibration`).
+   - **Bước 5 (Ổn định chuỗi thời gian & Khóa nhanh 0.5s)**: Cửa sổ trượt ổn định $1500\text{ms}$ sử dụng bộ lọc Median Absolute Deviation (MAD), yêu cầu giữ yên bất động tối thiểu **$500\text{ms}$ (0.5 giây)** với dải rung lắc cho phép $\le 10\text{mm}$, độ dốc $\le 8\text{mm/s}$, ân hạn 3 frames nhiễu.
+   - **Bước 6 (Chốt chiều cao chuẩn xác)**: Chốt chiều cao bằng Trimmed Mean 10% (loại bỏ biên tóc xù/cử động) và áp dụng hệ số hiệu chuẩn thực nghiệm (`gainScale`, `offsetMm`).
+   - **Bước 7 (Cơ chế bắt tay nghiêm ngặt chống chốt vội với InBody)**: Tuyệt đối không lấy số đo tức thời khi chưa đạt cờ `LOCKED`. Khi InBody cân xong tải trọng, FSM chỉ chuyển bước tiếp theo khi ToF đã phát tín hiệu `TOF_LOCKED`.
+   - **Bước 8 (Giám sát trôi sàn)**: Tự động phát hiện trôi sàn khi sàn trống (`needsRecalibration`).
 
 3. **Cung cấp API, Trực quan hóa & Công cụ Ghi Log Thao trường (Field Diagnosis)**:
    - Cập nhật tham số trần động: `updateConfig({ expectedFloorMm, gainScale, offsetMm, calibration })`.
@@ -52,12 +53,12 @@
 
 ## 📐 Bảng Tham Số Độ Cao Lắp Đặt Cảm Biến Thực Tế (Elevation Presets)
 
-| Mốc Độ Cao                | Giá Trị (`expectedFloorMm`) | Đặc Điểm Vị Trí Lắp Đặt                                       | Ứng Dụng                                        |
-| :------------------------ | :-------------------------: | :------------------------------------------------------------ | :---------------------------------------------- |
-| **Setup Thực Nghiệm Mới** |  **`2457 mm` (245.7 cm)**   | Mốc chiều cao thực tế Kiosk đo được                           | **Mặc định hiện tại trên Kiosk & Firmware C++** |
-| Mốc Thử Nghiệm Cũ         |    `2445 mm` (244.5 cm)     | Giá đỡ trung gian                                             | Lưu làm preset so sánh                          |
-| Mốc Kiosk Cột Mini        |    `1847 mm` (184.7 cm)     | Gắn trên đỉnh cột Sunmi K2 Mini (168cm thân + 16.7cm bracket) | Kiosk không có trần treo                        |
-| Mốc Trần Tiêu Chuẩn       |    `2200 mm` (220.0 cm)     | Trần phòng khám tiêu chuẩn                                    | Bộ Test Fixture cũ                              |
+| Mốc Độ Cao                | Giá Trị (`expectedFloorMm`) | Đặc Điểm Vị Trí Lắp Đặt                                                        | Ứng Dụng                                             |
+| :------------------------ | :-------------------------: | :----------------------------------------------------------------------------- | :--------------------------------------------------- |
+| **Setup Chuẩn Kiosk Mới** |  **`2460 mm` (246.0 cm)**   | $210\text{cm}$ (cột/trần) + $21\text{cm}$ (bệ InBody) + $15\text{cm}$ (giá đỡ) | **Mặc định chuẩn trên Kiosk, Engine & Firmware C++** |
+| Mốc Thử Nghiệm Đo Đạc     |    `2457 mm` (245.7 cm)     | Dữ liệu log thực nghiệm cũ                                                     | Dùng đối soát fixture test log                       |
+| Mốc Kiosk Cột Mini        |    `1847 mm` (184.7 cm)     | Gắn trên đỉnh cột Sunmi K2 Mini (168cm thân + 16.7cm bracket)                  | Kiosk không có trần treo                             |
+| Mốc Trần Tiêu Chuẩn       |    `2200 mm` (220.0 cm)     | Trần phòng khám tiêu chuẩn                                                     | Bộ Test Fixture cũ                                   |
 
 ---
 
@@ -72,10 +73,10 @@ stateDiagram-v2
     state MEASURING {
         [*] --> HOLD_STILL: Nhận diện đỉnh đầu (TargetStatus 5/6/9/10/12/13)
         HOLD_STILL --> STABILIZING: Lọc nhiễu chuỗi thời gian (MAD, Median)
-        STABILIZING --> HOLD_STILL: Không đạt điều kiện (Range > 15mm, Slope > 8mm/s)
+        STABILIZING --> HOLD_STILL: Không đạt điều kiện (Range > 10mm, Slope > 8mm/s)
     }
 
-    MEASURING --> LOCKED: Giữ yên đủ 1000ms trong cửa sổ 1500ms
+    MEASURING --> LOCKED: Giữ yên đủ 500ms (0.5s), rung lắc <= 10mm, tối thiểu 4 mẫu
     MEASURING --> TIMEOUT: Quá 15000ms không ổn định
     TIMEOUT --> IDLE: Reset phiên đo
     LOCKED --> IDLE: Rời thảm / Reset
@@ -116,18 +117,34 @@ stateDiagram-v2
   - **OUT_OF_RANGE**: Chiều cao chóp nằm ngoài vùng hợp lệ ($80\text{cm} - 230\text{cm}$).
   - **JUMP**: Biến thiên chiều cao tức thời giữa 2 frames quá lớn ($> 60\text{mm}$).
 
-### Bước 4: Lọc Nhiễu Chuỗi Thời Gian MAD & Ổn Định
+### Bước 4: Lọc Nhiễu Chuỗi Thời Gian MAD & Ổn Định (Khóa Nhanh 0.5 Giây)
 
 - **Median Absolute Deviation (MAD)**: Loại bỏ các frames bất thường trong chuỗi lịch sử $1500\text{ms}$ dựa trên trung vị (Median) và dung sai $\text{madFactor} = 3$. Đảm bảo bộ dữ liệu "sạch" không bị kéo lệch bởi outlier.
-- **Tiêu Chí Khóa Kết Quả**:
-  - Thời gian giữ yên: $\ge 1000\text{ms}$
-  - Dải dao động: $\le 15\text{mm}$
-  - Độ dốc xu hướng (Slope): $\le 8.0\text{ mm/s}$
+- **Tiêu Chí Khóa Kết Quả (Fast-Lock V6.3)**:
+  - Thời gian giữ yên bất động: $\ge \mathbf{500\text{ms}}$ **(0.5 giây)** (rút ngắn từ 1000ms giúp người đo không phải đứng nín thở quá lâu).
+  - Dải dao động rung lắc tối đa: $\le \mathbf{10\text{mm}}$ (Max - Min $\le 1\text{cm}$).
+  - Số lượng mẫu hợp lệ tối thiểu: $\ge \mathbf{4\text{ mẫu}}$ trong cửa sổ trượt.
+  - Độ dốc xu hướng (Slope): $\le 8.0\text{ mm/s}$ (ngăn chặn tình trạng đang ngồi xuống hoặc nhổm lên).
 
 ### Bước 5: Chốt Kết Quả & Hiệu Chỉnh
 
-- Cắt bỏ (Trim) $10\%$ giá trị đầu/cuối của chuỗi $1000\text{ms}$ để ra Trimmed Mean ($H_{\text{raw}}$).
-- Áp dụng hệ số: $H_{\text{final}} = (H_{\text{raw}} \times \text{gainScale}) + \text{offsetMm}$.
+- Cắt bỏ (Trim) $10\%$ giá trị đầu/cuối của chuỗi các mẫu ổn định để tính Trimmed Mean ($H_{\text{raw}}$).
+- Áp dụng hệ số hiệu chuẩn thực nghiệm: $H_{\text{final}} = (H_{\text{raw}} \times \text{gainScale}) + \text{offsetMm}$.
+- Làm tròn tới $0.1\text{cm}$ và bắn sự kiện `TOF_LOCKED` (`state = 'LOCKED'`).
+
+### Bước 6: Cơ Chế Bắt Tay Chống "Chốt Vội" Với Máy InBody (Anti-Premature Handshake ADR)
+
+- **Vấn đề thực tế (Problem Statement)**:
+  - Khi khách bước lên cân InBody 260S, máy cân trọng lượng rất nhanh (chỉ mất 2–3 giây) và lập tức báo `STATUS 10 (WEIGHT_DONE_INPUT_INFO)` yêu cầu Kiosk gửi chiều cao.
+  - Lúc này, người khám thường chưa kịp đứng thẳng, đầu có thể đang cúi nhìn bàn chân hoặc nhún gối. Cảm biến ToF bắn ra các frame tức thời (instant height) dao động (ví dụ: 158cm trong khi người cao 170cm).
+  - Nếu State Machine có guard lỏng lẻo dạng `(tofState === 'LOCKED' || tofHeightCm > 100)`, hệ thống sẽ lập tức bốc con số tức thời 158cm gửi sang InBody $\rightarrow$ **Gây sai lệch nghiêm trọng toàn bộ chỉ số BIA (BMI, mỡ, cơ)**.
+- **Giải pháp Kiến trúc V6.3**:
+  1. **Quy tắc Bắt buộc**: State Machine InBody **TUYỆT ĐỐI KHÔNG ĐƯỢC CHỐT** nếu `tofState !== 'LOCKED'`.
+  2. **Trạng thái Chờ `waitingForTofLock`**:
+     - Nếu InBody cân xong mà ToF vẫn đang `MEASURING`, FSM chuyển sang `waitingForTofLock`.
+     - ToF engine tiếp tục quét ở 15Hz và hiển thị thanh tiến trình trực quan trên giao diện Kiosk.
+     - Ngay khi người dùng đứng yên $\ge 0.5$s và rung lắc $\le 10$mm, ToF phát tín hiệu `TOF_LOCKED`, State Machine mới nạp chiều cao chuẩn xác vào bản tin `M (sendInfo)` gửi sang InBody.
+     - Sau thời gian timeout an toàn **3.0 giây**, nếu người dùng vẫn lắc lư liên tục không thể khóa, hệ thống mới kích hoạt cơ chế fallback lấy số đo trung bình hoặc báo lỗi `HEIGHT_ERROR`.
 
 ---
 
@@ -153,25 +170,33 @@ Trên Android, dữ liệu USB Serial được truyền dưới dạng chunk r�
 
 ### 4.1 Cấu Hình `HeightEngineConfig`
 
+### 4.1 Cấu Hình `HeightEngineConfig` & Giá Trị Chuẩn Production
+
 ```typescript
 export interface HeightEngineConfig {
-  expectedFloorMm: number // Độ cao cảm biến chuẩn (2457 mm)
-  roiRowStart: number // 1
-  roiRowEnd: number // 6
-  roiColStart: number // 1
-  roiColEnd: number // 6
-  minPersonMm: number // 800 mm
-  presentFrames: number // 3 frames
-  absentFrames: number // 15 frames
+  expectedFloorMm: number // Độ cao cảm biến chuẩn (mặc định 2460 mm)
+  roiRowStart: number // 1 (bỏ hàng biên 0)
+  roiRowEnd: number // 6 (bỏ hàng biên 7)
+  roiColStart: number // 1 (bỏ cột biên 0)
+  roiColEnd: number // 6 (bỏ cột biên 7)
+  minPersonMm: number // 800 mm (dưới 80cm coi là sàn trống)
+  presentFrames: number // 3 frames (xác nhận có người đứng)
+  absentFrames: number // 15 frames (xác nhận người rời đi để reset)
+  headBandMm: number // 80 mm (vòm đỉnh đầu)
+  topK: number // 3 (lấy 3 zone cao nhất)
+  minBandZones: number // 2 (chống tia nhiễu spike 1 zone)
   validHeightMinMm: number // 800 mm
   validHeightMaxMm: number // 2300 mm
-  stabilityWindowMs: number // 1500 ms
-  stabilityMinHoldMs: number // 1000 ms
-  stabilityRangeMm: number // 15 mm
-  stabilityMaxSlopeMmPerSec: number // 8.0 mm/s
+  maxJumpMm: number // 60 mm/frame (chống nhảy vọt do nhiễu quang học)
+  stabilityWindowMs: number // 1500 ms (cửa sổ trượt)
+  stabilityMinHoldMs: number // 500 ms (đứng yên tối thiểu 0.5s để chốt)
+  minSamples: number // 4 mẫu hợp lệ trong cửa sổ 0.5s
+  stabilityRangeMm: number // 10 mm (biên độ rung lắc tối đa cho phép)
+  stabilityMaxSlopeMmPerSec: number // 8.0 mm/s (độ dốc đứng thẳng)
   glitchGrace: number // 3 frames
-  gainScale: number // 1.0
-  offsetMm: number // 0.0
+  timeoutMs: number // 15000 ms (15s tối đa)
+  gainScale: number // 1.0 (hệ số tỉ lệ)
+  offsetMm: number // 0.0 mm (bù trừ cộng/trừ)
   calibration?: FloorCalibrationData // Dữ liệu baseline sàn đã hiệu chuẩn
 }
 ```
@@ -235,9 +260,10 @@ npx tsc --noEmit
 ## 7. Lịch Sử Phiên Bản
 
 | Phiên Bản      |    Ngày    | Nội Dung Cải Tiến Chính                                                                                                                                                                                                                                                                                                                                                                                             |
-| :------------- | :--------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| :------------- | :--------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------------------------------------------------------------------------------------------------- |
 | **V5.0 - 5.1** | 2026-10-06 | Khởi tạo mô-đun ToF, giải mã CRC16-Modbus, chống trôi bù trừ offset. Bổ sung bộ lọc cử chỉ và phân tách người.                                                                                                                                                                                                                                                                                                      |
 | **V5.2**       | 2026-10-07 | Tối ưu hóa Stream Framer, Voice Matrix tiếng Việt.                                                                                                                                                                                                                                                                                                                                                                  |
 | **V6.0**       | 2026-10-08 | **Simplified Height-Only Edition**: Loại bỏ hoàn toàn tracking cử chỉ giơ tay và nhiều người để đơn giản hoá hệ thống. Cập nhật độ cao cảm biến chuẩn thành `2457 mm`. Tích hợp bộ giả lập Test Fixture Ray-Tracing quang học (570 frames, 19 cases).                                                                                                                                                               |
 | **V6.1**       | 2026-10-08 | **Real-World Calibrated & Multi-Status Edition**: Nới lỏng hiệu chuẩn sàn (`stdDev <= 80mm`, $\ge 4$ zones). Bổ sung nạp baseline `config.calibration`. Mở rộng bộ lọc `targetStatus` (chấp nhận 5, 6, 9, 10, 12, 13 khắc phục triệt để hiện tượng tóc người hấp thụ tia IR). Bổ sung bộ ghi log JSONL dung lượng nhẹ và nghiệm thu thành công trên máy thật Kiosk Sunmi K2 mini (263 frames, khóa chuẩn 177.9 cm). |
 | **V6.2**       | 2026-10-08 | **Multi-Session Field Verification**: Nghiệm thu tệp log đa phiên 3,847 frames, đối soát 7 lần đo liên tục so với người thử 178.3 cm (đạt độ chính xác 99.75%, sai số trung bình 4.4mm). Lập báo cáo nghiệm thu [tof-real-verification-report.md](./tof-real-verification-report.md) và bộ test Jest kiểm thử tự động.                                                                                              |
+| **V6.3**       | 2026-10-09 | **Fast-Lock 0.5s & Anti-Premature InBody Handshake Edition**: Tinh chỉnh thời gian giữ yên tối thiểu xuống **`500 ms` (0.5 giây)**, giới hạn rung lắc $\le \mathbf{10\text{ mm}}$, số mẫu tối thiểu $\ge 4$. Triệt tiêu hoàn toàn lỗi chốt vội ở InBody State Machine: loại bỏ rẽ nhánh `                                                                                                                           |     | heightCm > 100`, bắt buộc phải có cờ `TOF_LOCKED` mới nạp kết quả chiều cao sang máy InBody 260S. |
