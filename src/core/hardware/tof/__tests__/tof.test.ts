@@ -253,6 +253,53 @@ describe('ToF Distance Sensor Hardware Module (VL53L5CX)', () => {
       expect(afterGapOutput.isStable).toBe(false)
       expect(afterGapOutput.state).not.toBe('LOCKED')
     })
+
+    it('should correctly subtract platformHeightMm (9.6cm) when user stands on InBody footplate', () => {
+      // 1. Engine đo dưới sàn (platformHeightMm = 0)
+      const floorEngine = new HeightMeasurementEngine({
+        expectedFloorMm: 2220,
+        platformHeightMm: 0,
+      })
+      // 2. Engine đo trên bệ InBody (platformHeightMm = 96mm = 9.6cm)
+      const inbodyEngine = new HeightMeasurementEngine({
+        expectedFloorMm: 2220,
+        platformHeightMm: 96,
+      })
+
+      // Giả lập khung hình đỉnh đầu ở các zone trung tâm cách cảm biến 520mm
+      const testDistances = new Array(64).fill(2220)
+      const centerZones = [27, 28, 35, 36]
+      centerZones.forEach((idx) => {
+        testDistances[idx] = 520
+      })
+
+      const testFrame: VL53L5CXFramePayload = {
+        frameId: 1,
+        timestampMs: 66,
+        distances: testDistances,
+        targetStatuses: new Array(64).fill(5),
+        zoneCount: 64,
+        isValid: true,
+      }
+
+      // Đẩy 3 frames để thỏa mãn presentFrames (chuyển sang MEASURING)
+      floorEngine.calculateHeight(testFrame)
+      floorEngine.calculateHeight(testFrame)
+      const floorResult = floorEngine.calculateHeight(testFrame)
+
+      inbodyEngine.calculateHeight(testFrame)
+      inbodyEngine.calculateHeight(testFrame)
+      const inbodyResult = inbodyEngine.calculateHeight(testFrame)
+
+      // Kiểm tra: Chiều cao khi đứng trên bệ InBody phải thấp hơn đứng sàn đúng 9.6cm (96mm)
+      expect(floorResult.measuredHeightCm).toBeGreaterThan(0)
+      expect(inbodyResult.measuredHeightCm).toBeGreaterThan(0)
+      const heightDiffMm = Math.round(
+        (floorResult.measuredHeightCm - inbodyResult.measuredHeightCm) * 10,
+      )
+      expect(heightDiffMm).toBe(96) // Đúng chuẩn 96mm = 9.6cm!
+      expect(inbodyResult.platformHeightMm).toBe(96)
+    })
   })
 
   describe('ToFClient', () => {

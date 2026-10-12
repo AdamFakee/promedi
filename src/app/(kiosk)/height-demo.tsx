@@ -49,9 +49,10 @@ export default function KioskHeightDemoRoute() {
   const tofDeviceRef = useRef<ToFDistanceDevice | null>(null)
   const engineRef = useRef<HeightMeasurementEngine>(
     new HeightMeasurementEngine({
-      expectedFloorMm: 2460,
+      expectedFloorMm: 2220,
+      platformHeightMm: 96,
       calibration: {
-        floorZ: new Array(64).fill(2460),
+        floorZ: new Array(64).fill(2220),
         floorOk: new Array(64).fill(true),
         refX0: 0,
         refY0: 0,
@@ -77,12 +78,13 @@ export default function KioskHeightDemoRoute() {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true)
   const lastGuidanceRef = useRef<string>('')
 
-  // Calibration Parameters State (Mặc định 2460mm = 246.0cm chiều cao gắn cảm biến setup: 210 + 21 + 15)
-  const [expectedFloorMm, setCeilingHeightMm] = useState<number>(2460)
+  // Calibration Parameters State (Mặc định 2220mm = 222.0cm chiều cao từ cảm biến xuống sàn, bệ InBody 96mm = 9.6cm)
+  const [expectedFloorMm, setCeilingHeightMm] = useState<number>(2220)
+  const [platformHeightMm, setPlatformHeightMm] = useState<number>(96)
   const [gainScale, setGainScale] = useState<number>(1.0)
   const [offsetMm, setOffsetMm] = useState<number>(0)
   const [calibrationData, setCalibrationData] = useState<FloorCalibrationData | null>({
-    floorZ: new Array(64).fill(2460),
+    floorZ: new Array(64).fill(2220),
     floorOk: new Array(64).fill(true),
     refX0: 0,
     refY0: 0,
@@ -104,7 +106,14 @@ export default function KioskHeightDemoRoute() {
 
   // Khởi tạo lại Engine khi tham số hiệu chỉnh thay đổi
   const rebuildEngine = useCallback(
-    (newCeiling: number, newGain: number, newOffset: number, newCalib?: FloorCalibrationData) => {
+    (
+      newCeiling: number,
+      newGain: number,
+      newOffset: number,
+      newPlatform?: number,
+      newCalib?: FloorCalibrationData,
+    ) => {
+      const activePlatform = newPlatform !== undefined ? newPlatform : platformHeightMm
       const activeCalib = newCalib ??
         calibrationData ?? {
           floorZ: new Array(64).fill(newCeiling),
@@ -116,6 +125,7 @@ export default function KioskHeightDemoRoute() {
 
       engineRef.current = new HeightMeasurementEngine({
         expectedFloorMm: newCeiling,
+        platformHeightMm: activePlatform,
         gainScale: newGain,
         offsetMm: newOffset,
         calibration: activeCalib,
@@ -123,13 +133,14 @@ export default function KioskHeightDemoRoute() {
       if (tofDeviceRef.current) {
         tofDeviceRef.current.updateEngineConfig({
           expectedFloorMm: newCeiling,
+          platformHeightMm: activePlatform,
           gainScale: newGain,
           offsetMm: newOffset,
           calibration: activeCalib,
         })
       }
     },
-    [calibrationData],
+    [calibrationData, platformHeightMm],
   )
 
   // Dọn dẹp tài nguyên khi unmount
@@ -264,7 +275,7 @@ export default function KioskHeightDemoRoute() {
     try {
       setErrorMessage(null)
       if (!tofDeviceRef.current) {
-        tofDeviceRef.current = new ToFDistanceDevice({ expectedFloorMm })
+        tofDeviceRef.current = new ToFDistanceDevice({ expectedFloorMm, platformHeightMm })
       }
       const dev = tofDeviceRef.current
 
@@ -388,7 +399,7 @@ export default function KioskHeightDemoRoute() {
           Math.pow(Math.tan((r - 3.5) * 0.09817), 2),
       )
     const z = rawDist * cosVal
-    const h = Math.max(0, expectedFloorMm - z)
+    const h = Math.max(0, expectedFloorMm - platformHeightMm - z)
 
     // Nếu nằm trong cụm đỉnh đầu
     if (engineResult?.instantHeightMm && Math.abs(h - engineResult.instantHeightMm) <= 80) {
@@ -653,6 +664,12 @@ export default function KioskHeightDemoRoute() {
               <Text className="text-xs text-slate-400">Khoảng cách trần:</Text>
               <Text className="font-mono text-xs text-slate-200">{expectedFloorMm} mm</Text>
             </View>
+            <View className="flex-row justify-between border-b border-slate-800 py-1">
+              <Text className="text-xs text-slate-400">Bệ cân InBody:</Text>
+              <Text className="font-mono text-xs text-amber-300">
+                {platformHeightMm} mm ({(platformHeightMm / 10).toFixed(1)} cm)
+              </Text>
+            </View>
             <View className="flex-row justify-between py-1">
               <Text className="text-xs text-slate-400">Số người đứng:</Text>
               <Text className="font-mono text-xs text-slate-200">
@@ -815,21 +832,21 @@ export default function KioskHeightDemoRoute() {
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => {
-                    setCeilingHeightMm(2460)
-                    rebuildEngine(2460, gainScale, offsetMm)
+                    setCeilingHeightMm(2220)
+                    rebuildEngine(2220, gainScale, offsetMm)
                   }}
                   className={`flex-1 items-center rounded-xl border py-2 ${
-                    expectedFloorMm === 2460
+                    expectedFloorMm === 2220
                       ? 'border-cyan-400 bg-cyan-950'
                       : 'border-slate-700 bg-slate-800'
                   }`}
                 >
                   <Text
                     className={`font-bold text-xs ${
-                      expectedFloorMm === 2460 ? 'text-cyan-300' : 'text-slate-400'
+                      expectedFloorMm === 2220 ? 'text-cyan-300' : 'text-slate-400'
                     }`}
                   >
-                    Setup (246.0 cm)
+                    Setup (222.0 cm)
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -890,6 +907,56 @@ export default function KioskHeightDemoRoute() {
                     }`}
                   >
                     Trần (220.0 cm)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Platform Height (InBody Footplate) Adjustment */}
+            <View className="mb-4">
+              <Text className="mb-1 font-semibold text-xs text-slate-300">
+                Độ dày bệ cân InBody (Platform Height): {platformHeightMm} mm (
+                {(platformHeightMm / 10).toFixed(1)} cm)
+              </Text>
+              <View className="mt-1 flex-row gap-2">
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setPlatformHeightMm(96)
+                    rebuildEngine(expectedFloorMm, gainScale, offsetMm, 96)
+                  }}
+                  className={`flex-1 items-center rounded-xl border py-2.5 ${
+                    platformHeightMm === 96
+                      ? 'border-amber-400 bg-amber-950'
+                      : 'border-slate-700 bg-slate-800'
+                  }`}
+                >
+                  <Text
+                    className={`font-bold text-xs ${
+                      platformHeightMm === 96 ? 'text-amber-300' : 'text-slate-400'
+                    }`}
+                  >
+                    InBody 260S (9.6 cm)
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setPlatformHeightMm(0)
+                    rebuildEngine(expectedFloorMm, gainScale, offsetMm, 0)
+                  }}
+                  className={`flex-1 items-center rounded-xl border py-2.5 ${
+                    platformHeightMm === 0
+                      ? 'border-cyan-400 bg-cyan-950'
+                      : 'border-slate-700 bg-slate-800'
+                  }`}
+                >
+                  <Text
+                    className={`font-bold text-xs ${
+                      platformHeightMm === 0 ? 'text-cyan-300' : 'text-slate-400'
+                    }`}
+                  >
+                    Đứng sàn (0 cm)
                   </Text>
                 </TouchableOpacity>
               </View>

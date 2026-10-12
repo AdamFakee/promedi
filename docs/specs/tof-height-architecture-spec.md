@@ -53,12 +53,12 @@
 
 ## 📐 Bảng Tham Số Độ Cao Lắp Đặt Cảm Biến Thực Tế (Elevation Presets)
 
-| Mốc Độ Cao                | Giá Trị (`expectedFloorMm`) | Đặc Điểm Vị Trí Lắp Đặt                                                        | Ứng Dụng                                             |
-| :------------------------ | :-------------------------: | :----------------------------------------------------------------------------- | :--------------------------------------------------- |
-| **Setup Chuẩn Kiosk Mới** |  **`2460 mm` (246.0 cm)**   | $210\text{cm}$ (cột/trần) + $21\text{cm}$ (bệ InBody) + $15\text{cm}$ (giá đỡ) | **Mặc định chuẩn trên Kiosk, Engine & Firmware C++** |
-| Mốc Thử Nghiệm Đo Đạc     |    `2457 mm` (245.7 cm)     | Dữ liệu log thực nghiệm cũ                                                     | Dùng đối soát fixture test log                       |
-| Mốc Kiosk Cột Mini        |    `1847 mm` (184.7 cm)     | Gắn trên đỉnh cột Sunmi K2 Mini (168cm thân + 16.7cm bracket)                  | Kiosk không có trần treo                             |
-| Mốc Trần Tiêu Chuẩn       |    `2200 mm` (220.0 cm)     | Trần phòng khám tiêu chuẩn                                                     | Bộ Test Fixture cũ                                   |
+| Mốc Độ Cao                | Giá Trị (`expectedFloorMm`) | Đặc Điểm Vị Trí Lắp Đặt                                       | Ứng Dụng                                             |
+| :------------------------ | :-------------------------: | :------------------------------------------------------------ | :--------------------------------------------------- |
+| **Setup Chuẩn Kiosk Mới** |  **`2220 mm` (222.0 cm)**   | Chiều cao từ cảm biến xuống mặt sàn: $222\text{cm}$           | **Mặc định chuẩn trên Kiosk, Engine & Firmware C++** |
+| Mốc Thử Nghiệm Đo Đạc     |    `2457 mm` (245.7 cm)     | Dữ liệu log thực nghiệm cũ                                    | Dùng đối soát fixture test log                       |
+| Mốc Kiosk Cột Mini        |    `1847 mm` (184.7 cm)     | Gắn trên đỉnh cột Sunmi K2 Mini (168cm thân + 16.7cm bracket) | Kiosk không có trần treo                             |
+| Mốc Trần Tiêu Chuẩn       |    `2200 mm` (220.0 cm)     | Trần phòng khám tiêu chuẩn                                    | Bộ Test Fixture cũ                                   |
 
 ---
 
@@ -99,9 +99,11 @@ stateDiagram-v2
 - Tính chiều cao thực $z$ bằng cách nhân khoảng cách xiên $d$ với hệ số $\cos\varphi$.
 - **Tối ưu Hiệu năng**: Engine tiền tính toán bảng tra cứu (Pre-compute LUT) `cosLUT[8][8]` khi khởi tạo.
 
-### Bước 2: Tách Đối Tượng Người và Mặt Sàn
+### Bước 2: Tách Đối Tượng Người và Mặt Sàn (Bù Trừ Bệ Cân InBody)
 
-- Tính $h_i = \text{floorZ}[i] - z_i$.
+- Tính chiều cao tương đối từng zone: $h_i = \max(0, \text{floorZ}[i] - z_i - \text{platformHeightMm})$.
+  - `expectedFloorMm`: Mốc khoảng cách từ cảm biến tới mặt sàn thực tế ($2220\text{mm} = 222\text{cm}$).
+  - `platformHeightMm`: Độ dày bệ đứng InBody ($96\text{mm} = 9.6\text{cm}$ với InBody 260S, hoặc $0\text{mm}$ khi đứng sàn). Chiều cao đỉnh đầu được tính chuẩn xác từ mặt bàn đạp InBody thay vì mặt đất.
 - Loại bỏ các vùng nằm ở viền (chỉ giữ `roiRows 1..6`, `roiCols 1..6`).
 - Lọc nhiễu mặt sàn: $h_i < \text{minPersonMm}$ ($80\text{cm}$) bị loại bỏ.
 
@@ -174,7 +176,8 @@ Trên Android, dữ liệu USB Serial được truyền dưới dạng chunk r�
 
 ```typescript
 export interface HeightEngineConfig {
-  expectedFloorMm: number // Độ cao cảm biến chuẩn (mặc định 2460 mm)
+  expectedFloorMm: number // Độ cao cảm biến chuẩn (mặc định 2220 mm)
+  platformHeightMm?: number // Độ dày bệ cân InBody bước lên (mặc định 0 mm, InBody 260S: 96 mm = 9.6 cm)
   roiRowStart: number // 1 (bỏ hàng biên 0)
   roiRowEnd: number // 6 (bỏ hàng biên 7)
   roiColStart: number // 1 (bỏ cột biên 0)

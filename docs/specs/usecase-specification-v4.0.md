@@ -228,7 +228,7 @@ graph TD
 
 #### Luồng sự kiện chính (Basic Flow - Auto-pilot Protocol):
 
-1. Hệ thống tự động thiết lập kết nối song song: Cổng USB Serial InBody 260S (19200 baud) và Cổng USB Serial Cảm biến ToF (460800 baud). Mốc tham chiếu trần/sàn của cảm biến ToF được cấu hình chuẩn: **$2460\text{ mm}$** ($210\text{ cm} + 21\text{ cm} + 15\text{ cm}$).
+1. Hệ thống tự động thiết lập kết nối song song: Cổng USB Serial InBody 260S (19200 baud) và Cổng USB Serial Cảm biến ToF (460800 baud). Mốc tham chiếu trần/sàn của cảm biến ToF được cấu hình chuẩn: **$2220\text{ mm}$** ($222\text{ cm}$), tự động trừ chiều cao bệ cân InBody 260S **$96\text{ mm}$** ($9.6\text{ cm}$) qua `platformHeightMm`.
 2. Kiosk gửi lệnh **Dọn dẹp (SKIP)** để InBody thoát khỏi màn hình cũ (nếu có), sau đó gửi lệnh **Mở khóa (UNLOCK '2')** để cảm biến cân nhận diện người bước lên.
 3. Màn hình dọc Kiosk hiển thị giao diện đo InBody & Badge nhận diện chiều cao thời gian thực:
    - **Header Top**: Icon các bước đo (InBody đang active sáng đèn).

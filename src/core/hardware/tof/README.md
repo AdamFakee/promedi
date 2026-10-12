@@ -38,8 +38,8 @@
 
 ## 2. Các quyết định đã chốt & Lý giải kỹ thuật (HOW & WHY)
 
-1. **Độ cao lắp đặt thực tế `2460 mm` (246.0 cm) & Bảng Presets**:
-   - Mặc định khởi tạo tại `2460 mm` (setup Kiosk thực tế: 210cm trần + 21cm bệ InBody + 15cm giá đỡ). Hỗ trợ các mốc preset `245.7 cm`, `210.0 cm`, `184.7 cm` (cột Kiosk K2 mini), và `220.0 cm` (trần tiêu chuẩn).
+1. **Độ cao lắp đặt thực tế `2220 mm` (222.0 cm), Độ dày bệ cân `96 mm` (9.6 cm) & Bảng Presets**:
+   - Mặc định khởi tạo tại `2220 mm` (setup thực tế từ cảm biến xuống sàn: 222cm), hỗ trợ tham số trừ bệ cân `platformHeightMm: 96` (InBody 260S cao 9.6cm). Hỗ trợ các mốc preset `246.0 cm`, `245.7 cm`, `210.0 cm`, `184.7 cm` (cột Kiosk K2 mini), và `220.0 cm` (trần tiêu chuẩn).
 2. **Hiệu chuẩn sàn theo từng zone (`floorZ[64]` baseline) & Nạp sẵn Baseline**:
    - Triệt tiêu độ nghiêng vật lý của cảm biến và mấp mô sàn. Hỗ trợ truyền `config.calibration` trực tiếp hoặc tự đo 30 frames sàn trống với điều kiện thích ứng thực tế (`stdDev <= 80mm`, $\ge 4$ zones hợp lệ).
 3. **Mở rộng lọc `targetStatus` (Đặc biệt kháng hấp thụ tia IR của tóc người - Status 10)**:

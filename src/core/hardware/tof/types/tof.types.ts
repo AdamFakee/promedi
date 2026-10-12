@@ -119,8 +119,10 @@ export interface AxisMapConfig {
  * Cau hinh toan dien cho HeightMeasurementEngine (InBody-Centered Mode V5.2)
  */
 export interface HeightEngineConfig {
-  /** Chieu cao mat san mong doi (mm, mac dinh 2445mm) */
+  /** Chieu cao mat san mong doi (mm, mac dinh 2220mm) */
   expectedFloorMm?: number
+  /** Do cao be can / ban dung InBody so voi mat san (mm, vi du InBody 260S = 96mm, mac dinh 0) */
+  platformHeightMm?: number
 
   // -- Vung do ROI -----------------------------------------------------------
   /** Hang dau tien trong ROI (inclusive, 0-indexed, mac dinh 1) */
@@ -277,6 +279,8 @@ export interface HeightCalculationResult extends HeightEngineOutput {
   headDistanceMm: number
   /** Khoang cach chuan toi mat san / ban can (don vi: mm) */
   floorDistanceMm: number
+  /** Do cao be can / ban dung so voi mat san duoc bu tru (don vi: mm) */
+  platformHeightMm?: number
   /** Do tin cay tinh toan (tu 0.0 den 1.0) */
   confidence: number
 }

@@ -29,7 +29,7 @@ VL53L5CXDriver::VL53L5CXDriver()
     : m_state(VL53L5CX_STATE_UNINITIALIZED),
       m_mockMode(false),
       m_frameCounter(0),
-      m_ceilingHeightMm(VL53L5CX_BASE_HEIGHT_MM) { // 2460mm = 246.0cm (210cm trần + 21cm bệ + 15cm giá đỡ)
+      m_ceilingHeightMm(VL53L5CX_BASE_HEIGHT_MM) { // 2220mm = 222.0cm (chiều cao từ cảm biến xuống sàn)
 }
 
 VL53L5CXDriver::~VL53L5CXDriver() {
@@ -146,7 +146,7 @@ VL53L5CXFrame VL53L5CXDriver::generateMockFrame(uint32_t frameId, uint32_t times
     frame.zoneCount = VL53L5CX_ZONES;
     frame.isValid = true;
 
-    // Khoảng cách dự kiến từ cảm biến trần (2200mm) tới đỉnh đầu người
+    // Khoảng cách dự kiến từ cảm biến trần (2220mm) tới đỉnh đầu người
     uint16_t headDistanceMm = (m_ceilingHeightMm > personHeightMm) ? (m_ceilingHeightMm - personHeightMm) : 450;
 
     for (int r = 0; r < 8; r++) {
@@ -312,7 +312,7 @@ void VL53L5CXDriver::printFrameLog(const VL53L5CXFrame& frame, uint16_t refHeigh
         if (frame.distances[i] > maxDist) maxDist = frame.distances[i];
     }
 
-    // Chiều cao ước tính người đứng: Chênh lệch từ mốc cảm biến (184.7cm) xuống đỉnh đầu
+    // Chiều cao ước tính người đứng: Chênh lệch từ mốc cảm biến (222.0cm) xuống đỉnh đầu
     float estPersonHeightCm = 0.0f;
     if (refHeightMm > minDist && minDist > 30) {
         estPersonHeightCm = (refHeightMm - minDist) / 10.0f;
@@ -321,7 +321,7 @@ void VL53L5CXDriver::printFrameLog(const VL53L5CXFrame& frame, uint16_t refHeigh
     Serial.println(F("\n================= [VL53L5CX DATA LOG] ================="));
     Serial.printf("Frame ID: %u | Timestamp: %ums | Valid: %s\n", 
                   frame.frameId, frame.timestampMs, frame.isValid ? "YES" : "NO");
-    Serial.printf("Base Sensor: %.1fcm (210 + 21 + 15cm) | Est Person Height: %.1fcm\n", 
+    Serial.printf("Base Sensor: %.1fcm (Cam bien xuong san) | Est Person Height: %.1fcm\n", 
                   refHeightMm / 10.0f, estPersonHeightCm);
     Serial.printf("Min Dist: %umm | Max Dist: %umm | Center Dist: %umm\n", 
                   minDist, maxDist, centerDist);

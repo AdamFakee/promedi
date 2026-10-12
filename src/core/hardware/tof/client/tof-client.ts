@@ -147,9 +147,11 @@ export class ToFClient {
 
   /** Sinh frame giả lập ma trận 8x8 với chiều cao người đứng chỉ định */
   private generateSyntheticFrame(frameId: number, personHeightCm: number): VL53L5CXFramePayload {
-    const expectedFloorMm = this.engine.getConfig().expectedFloorMm
+    const config = this.engine.getConfig()
+    const expectedFloorMm = config.expectedFloorMm
+    const platformHeightMm = config.platformHeightMm ?? 0
     const targetHeadHeightMm = personHeightCm * 10
-    const verticalHeadDepthMm = expectedFloorMm - targetHeadHeightMm
+    const verticalHeadDepthMm = expectedFloorMm - platformHeightMm - targetHeadHeightMm
 
     const distances: number[] = new Array(64)
     const targetStatuses: ToFTargetStatus[] = new Array(64)

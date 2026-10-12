@@ -15,8 +15,11 @@ export const DEFAULT_HEIGHT_ENGINE_CONFIG = {
   // ==========================================================================
   // 1. MỐC VẬT LÝ & VÙNG QUAN TÂM (PHYSICAL BASELINE & ROI)
   // ==========================================================================
-  /** Mốc chiều cao lắp đặt cảm biến chiếu xuống mặt sàn (210cm trần + 21cm bệ cân + 15cm giá đỡ = 2460mm) */
-  expectedFloorMm: 2460,
+  /** Mốc chiều cao lắp đặt cảm biến chiếu xuống mặt sàn (222cm = 2220mm) */
+  expectedFloorMm: 2220,
+
+  /** Độ cao bệ cân/bàn đạp so với mặt sàn (mm, ví dụ InBody 260S = 96mm / 9.6cm, mặc định 0mm) */
+  platformHeightMm: 0,
 
   /** Vùng quan tâm ROI: Hàng bắt đầu (chỉ lấy hàng 1..6 trong ma trận 8x8, bỏ viền 0 và 7 để tránh tán xạ tường) */
   roiRowStart: 1,
@@ -582,10 +585,11 @@ export class HeightMeasurementEngine {
   public calculateHeight(frame: VL53L5CXFramePayload): HeightCalculationResult {
     const output = this.push(frame)
     const measuredHeightCm = output.result?.heightCm ?? output.instantHeightCm ?? 0
+    const standingSurfaceMm = this.cfg.expectedFloorMm - this.cfg.platformHeightMm
     const headDistanceMm =
       output.instantHeightMm !== null
-        ? Math.max(0, this.cfg.expectedFloorMm - output.instantHeightMm)
-        : this.cfg.expectedFloorMm
+        ? Math.max(0, standingSurfaceMm - output.instantHeightMm)
+        : standingSurfaceMm
     const confidence = output.result?.confidence ?? (output.instantHeightCm ? 0.95 : 0.0)
 
     return {
@@ -593,6 +597,7 @@ export class HeightMeasurementEngine {
       measuredHeightCm,
       headDistanceMm,
       floorDistanceMm: this.cfg.expectedFloorMm,
+      platformHeightMm: this.cfg.platformHeightMm,
       confidence,
     }
   }
@@ -622,7 +627,7 @@ export class HeightMeasurementEngine {
         const d = frame.distances[i]
         if (d <= 50 || d >= 3900) continue
         const z = d * this.cosLUT[r][c]
-        const h = Math.max(0, baseline.floorZ[i] - z)
+        const h = Math.max(0, baseline.floorZ[i] - z - this.cfg.platformHeightMm)
         result.push({ h, status: st, i })
       }
     }

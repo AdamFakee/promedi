@@ -19,9 +19,12 @@ export function useInBodyMeasurement(isActive: boolean) {
     return new InBodyClient(transport)
   }, [])
 
-  // Khởi tạo ToFDistanceDevice kết nối cảm biến đo chiều cao ToF VL53L5CX (Mốc lắp đặt: 210cm + 21cm + 15cm = 2460mm)
+  // Khởi tạo ToFDistanceDevice kết nối cảm biến đo chiều cao ToF VL53L5CX (Trần xuống sàn: 2220mm, trừ bệ InBody: 96mm = 9.6cm)
   const tofDevice = useMemo(() => {
-    return new ToFDistanceDevice({ expectedFloorMm: 2460 })
+    return new ToFDistanceDevice({
+      expectedFloorMm: 2220,
+      platformHeightMm: 96,
+    })
   }, [])
 
   const [state, send] = useMachine(
