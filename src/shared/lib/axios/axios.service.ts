@@ -1,3 +1,4 @@
+import { ENV } from '@/shared/configs'
 import { API_CONSTANT } from '@/shared/constants'
 import { AxiosInstance, AxiosRequestConfig, create } from 'axios'
 import { setupInterceptorsTo } from './axios.interceptor'
@@ -5,13 +6,13 @@ import { setupInterceptorsTo } from './axios.interceptor'
 export class AxiosService {
   private static instance: AxiosService
   private axiosInstance: AxiosInstance
-  readonly baseUrl: string = 'https://api-wms-dev.aidx.vn'
+  readonly baseUrl: string = ENV.apiBaseUrl
 
   constructor() {
     this.axiosInstance = setupInterceptorsTo(
       create({
         baseURL: this.baseUrl,
-        timeout: API_CONSTANT.TIME_DEFAULT.TIMEOUT_REQUEST * 1000,
+        timeout: ENV.apiTimeout || API_CONSTANT.TIME_DEFAULT.TIMEOUT_REQUEST * 1000,
         headers: {
           'Content-Type': 'application/json',
         },
