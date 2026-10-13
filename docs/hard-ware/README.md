@@ -26,6 +26,51 @@ Thư mục này chứa toàn bộ các đặc tả kỹ thuật, chuẩn giao th
 
 ---
 
+## 🤖 HƯỚNG DẪN BẮT BUỘC CHO AI AGENT KHI SETUP & LÀM VIỆC VỚI SUNMI K2 SDK
+
+> [!IMPORTANT]
+> **Quy tắc Tối Thượng**: Khi thực hiện bất kỳ task nào liên quan đến **Sunmi K2 Kiosk** (Setup K2 SDK, Máy in nhiệt 80mm, Đầu đọc NFC/CCCD, Barcode/QR Scanner, Cấu hình Kiosk Lockdown, Quản lý toàn màn hình Fullscreen, Quyền truy cập cổng USB ngoại vi), AI Agent **BẮT BUỘC PHẢI ĐỌC CÁC TÀI LIỆU TẠI THƯ MỤC [`docs/hard-ware/docs/`](file:///d:/promedi/docs/hard-ware/docs/)** trước khi viết hoặc sửa code!
+
+### 🗺️ Bản Đồ Tài Liệu Sunmi K2 SDK (Tra cứu theo bài toán):
+
+| Bài toán / Nhiệm vụ K2                             | Tài liệu Spec bắt buộc phải đọc                                                                                                                                        | Nội dung cốt lõi cần chú ý                                                                                                      |
+| :------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------ |
+| **Setup & Onboarding SDK**                         | [`docs/2-sunmi-developer-onboarding-and-setup-spec.md`](file:///d:/promedi/docs/hard-ware/docs/2-sunmi-developer-onboarding-and-setup-spec.md)                         | Gradle dependency (`com.sunmi:printerlibrary`), cơ chế bất đồng bộ `InnerPrinterCallback`, null-safety check, seam bind service |
+| **Tổng quan Hệ sinh thái Sunmi**                   | [`docs/1-sunmi-ecosystem-integration-spec.md`](file:///d:/promedi/docs/hard-ware/docs/1-sunmi-ecosystem-integration-spec.md)                                           | Kiến trúc tổng thể SUNMI OS, phân vùng Partner Platform, quy chuẩn tương thích thiết bị Kiosk                                   |
+| **Lấy Serial Number & Định danh máy**              | [`docs/3-sunmi-device-sn-and-identifier-acquisition-spec.md`](file:///d:/promedi/docs/hard-ware/docs/3-sunmi-device-sn-and-identifier-acquisition-spec.md)             | Lấy SN thiết bị qua Sunmi System Service, kiểm tra quyền truy cập và fallback định danh                                         |
+| **Toàn màn hình & Khóa System UI (Kiosk)**         | [`docs/4-sunmi-fullscreen-and-system-ui-management-spec.md`](file:///d:/promedi/docs/hard-ware/docs/4-sunmi-fullscreen-and-system-ui-management-spec.md)               | Ẩn thanh điều hướng (Navigation Bar), trạng thái Immersive Sticky Mode, vô hiệu hóa vuốt mở thanh thông báo                     |
+| **Duy trì quyền USB vĩnh viễn (Không bị hỏi lại)** | [`docs/5-sunmi-usb-peripheral-permission-persistence-spec.md`](file:///d:/promedi/docs/hard-ware/docs/5-sunmi-usb-peripheral-permission-persistence-spec.md)           | Cấp quyền tự động cho thiết bị USB (InBody, Máy đo huyết áp, ESP32) mà không hiện popup hỏi người dùng Kiosk                    |
+| **Chống xóa dữ liệu ứng dụng (Security)**          | [`docs/6-sunmi-prevent-app-data-clearing-spec.md`](file:///d:/promedi/docs/hard-ware/docs/6-sunmi-prevent-app-data-clearing-spec.md)                                   | Chính sách Device Owner / Kiosk Lock, bảo vệ dữ liệu SQLite và bộ đếm offline                                                   |
+| **Chống giật/chớp màn hình khi cắm rút USB**       | [`docs/7-sunmi-prevent-usb-flicker-config-changes-spec.md`](file:///d:/promedi/docs/hard-ware/docs/7-sunmi-prevent-usb-flicker-config-changes-spec.md)                 | Cấu hình `android:configChanges` trong AndroidManifest tránh tái tạo lại Activity khi USB reconnect                             |
+| **Chống xung đột Scanner với Bàn phím ảo**         | [`docs/8-sunmi-prevent-scanner-ime-corruption-spec.md`](file:///d:/promedi/docs/hard-ware/docs/8-sunmi-prevent-scanner-ime-corruption-spec.md)                         | Ngăn đầu đọc mã vạch / QR Code kích hoạt bàn phím ảo IME làm che khuất giao diện Kiosk                                          |
+| **Tùy biến phím âm lượng làm phím tắt**            | [`docs/9-sunmi-customize-volume-keys-shortcut-spec.md`](file:///d:/promedi/docs/hard-ware/docs/9-sunmi-customize-volume-keys-shortcut-spec.md)                         | Chặn phím vật lý hoặc ánh xạ thành shortcut bảo trì kỹ thuật cho Kiosk                                                          |
+| **Xử lý sự cố & Troubleshooting SUNMI OS**         | [`docs/10-sunmi-faq-platform-security-and-troubleshooting-spec.md`](file:///d:/promedi/docs/hard-ware/docs/10-sunmi-faq-platform-security-and-troubleshooting-spec.md) | Bảng mã lỗi thường gặp, cách phân tích log ADB trên phần cứng thật Sunmi K2                                                     |
+
+---
+
+### 🖨️ Tài Liệu Máy In Nhiệt Sunmi K2 (Thư mục [`docs/hard-ware/docs/printer/`](file:///d:/promedi/docs/hard-ware/docs/printer/))
+
+Khi làm việc với máy in nhiệt 80mm trên Kiosk Sunmi K2, Agent **bắt buộc tra cứu các tài liệu chuyên sâu**:
+
+1. **Tổng quan & Cài đặt**: [`1-sunmi-printer-sdk-overview-spec.md`](file:///d:/promedi/docs/hard-ware/docs/printer/1-sunmi-printer-sdk-overview-spec.md) — Kiến trúc máy in, AIDL service, kết nối.
+2. **Nâng cấp SDK**: [`2-sunmi-printer-sdk-upgrade-guide-spec.md`](file:///d:/promedi/docs/hard-ware/docs/printer/2-sunmi-printer-sdk-upgrade-guide-spec.md) — Hướng dẫn chuyển đổi giữa các phiên bản SDK.
+3. **PrinterX SDK**: [`3-sunmi-printerx-sdk-overview-spec.md`](file:///d:/promedi/docs/hard-ware/docs/printer/3-sunmi-printerx-sdk-overview-spec.md) — Thế hệ SDK in ấn mới hỗ trợ đa nền tảng.
+4. **In hóa đơn/phiếu khám dạng dòng**: [`5-sunmi-printerx-line-api-thermal-receipts-spec.md`](file:///d:/promedi/docs/hard-ware/docs/printer/5-sunmi-printerx-line-api-thermal-receipts-spec.md) — In văn bản, bảng cột chỉ số y tế, căn chỉnh lề, cắt giấy tự động.
+5. **In đồ họa & Biểu đồ y tế (Canvas API)**: [`6-sunmi-printerx-canvas-api-label-printing-spec.md`](file:///d:/promedi/docs/hard-ware/docs/printer/6-sunmi-printerx-canvas-api-label-printing-spec.md) — Vẽ đồ họa trực tiếp, nhị phân hóa ảnh nhiệt (Image Binarization) in QR Code / Logo / Biểu đồ InBody.
+6. **Truy vấn trạng thái máy in (Query API)**: [`8-sunmi-printerx-query-api-status-and-info-spec.md`](file:///d:/promedi/docs/hard-ware/docs/printer/8-sunmi-printerx-query-api-status-and-info-spec.md) — Kiểm tra hết giấy, kẹt giấy, mở nắp máy in, quá nhiệt đầu in.
+7. **Lệnh thô ESC/POS & TSPL**: [`9-sunmi-printerx-command-api-escpos-and-tspl-spec.md`](file:///d:/promedi/docs/hard-ware/docs/printer/9-sunmi-printerx-command-api-escpos-and-tspl-spec.md) — Gửi lệnh byte trực tiếp khi cần tùy biến sâu.
+
+---
+
+### 📋 Checklist 4 Bước Dành Cho Agent Khi Làm Việc Với K2 SDK:
+
+- [ ] **Bước 1**: Đọc tài liệu spec tương ứng trong `docs/hard-ware/docs/` trước khi chạm vào code.
+- [ ] **Bước 2**: Đối chiếu với Expo Native Module hiện tại tại [`modules/expo-sunmi-k2/`](file:///d:/promedi/modules/expo-sunmi-k2/).
+- [ ] **Bước 3**: Tuyệt đối không gọi trực tiếp API Android SDK trong React component; phải tuân thủ kiến trúc HAL qua Interface Contract tại `src/core/hardware/`.
+- [ ] **Bước 4**: Luôn kiểm tra cơ chế Asynchronous Service Binding (`InnerPrinterCallback`) và xử lý đầy đủ các trạng thái lỗi/mất kết nối (Safe Null Checks & Try-Catch).
+
+---
+
 ## 🛠️ Mã Nguồn Cài Đặt Tương Ứng (Source Code References)
 
 - **Native Module Sunmi K2**: [`modules/expo-sunmi-k2/`](file:///d:/promedi/modules/expo-sunmi-k2/)
