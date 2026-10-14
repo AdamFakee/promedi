@@ -22,6 +22,7 @@ import {
 } from '@/core/hardware/tof'
 import { voicePlayerService, type VoicePromptKey } from '@/core/voice-engine'
 import { useAppNavigation } from '@/shared/hooks'
+import * as FileSystem from 'expo-file-system/legacy'
 import {
   Activity,
   AlertTriangle,
@@ -39,7 +40,6 @@ import {
 } from 'lucide-react-native'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Modal, Text, TouchableOpacity, View } from 'react-native'
-import * as FileSystem from 'expo-file-system/legacy'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function KioskHeightDemoRoute() {
@@ -50,7 +50,7 @@ export default function KioskHeightDemoRoute() {
   const engineRef = useRef<HeightMeasurementEngine>(
     new HeightMeasurementEngine({
       expectedFloorMm: 2220,
-      platformHeightMm: 96,
+      platformHeightMm: 0,
       calibration: {
         floorZ: new Array(64).fill(2220),
         floorOk: new Array(64).fill(true),

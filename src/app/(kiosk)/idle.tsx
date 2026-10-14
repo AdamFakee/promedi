@@ -5,13 +5,15 @@ import {
   type IdentificationModalRef,
 } from '@/features/identification'
 import { HardwareTestModal } from '@/shared/components/common'
-import { useAppNavigation } from '@/shared/hooks'
+import { useAppNavigation, useKioskAdminGesture } from '@/shared/hooks'
 import { useIsFocused } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import { addNFCScanListener } from 'modules/expo-sunmi-k2'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
+import { runOnJS } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 const videoSource = require('@/assets/video-intro.mp4')
@@ -22,6 +24,29 @@ export default function KioskIdleRoute() {
   const { startSession, submitIdentification, resetSession } = useHealthSession()
   const { navigateTo } = useAppNavigation()
   const [testModalVisible, setTestModalVisible] = useState(false)
+
+  const handleStartSession = useCallback(() => {
+    startSession()
+    identModalRef.current?.open()
+  }, [startSession])
+
+  // Cử chỉ chạm 3 ngón tay 3 lần liên tiếp -> Chuyển sang màn hình Cài đặt Kỹ thuật
+  const adminGesture = useKioskAdminGesture(() => {
+    identModalRef.current?.close()
+    navigateTo('KIOSK_SETTINGS')
+  })
+
+  // Cử chỉ chạm 1 ngón tay vào màn hình -> Bắt đầu phiên khám
+  const singleTapGesture = useMemo(() => {
+    return Gesture.Tap().onEnd(() => {
+      runOnJS(handleStartSession)()
+    })
+  }, [handleStartSession])
+
+  // Ghép cử chỉ: Ưu tiên adminGesture trước. Nếu chạm 3 ngón tay thì KHÔNG kích hoạt singleTap
+  const kioskGesture = useMemo(() => {
+    return Gesture.Exclusive(adminGesture, singleTapGesture)
+  }, [adminGesture, singleTapGesture])
 
   const player = useVideoPlayer(videoSource, (p) => {
     p.loop = true
@@ -70,11 +95,6 @@ export default function KioskIdleRoute() {
     }
   }, [isFocused, navigateTo, startSession, submitIdentification])
 
-  const handleStartSession = () => {
-    startSession()
-    identModalRef.current?.open()
-  }
-
   const handleIdentificationSubmit = (data: IdentificationFormData) => {
     identModalRef.current?.close()
     submitIdentification({
@@ -89,92 +109,117 @@ export default function KioskIdleRoute() {
   }
 
   return (
-    <View className="flex-1 bg-black">
-      {/* Fullscreen Looping Video Background (Only rendered when screen is focused) */}
-      {isFocused && (
-        <VideoView
-          player={player}
-          style={StyleSheet.absoluteFillObject}
-          contentFit="cover"
-          nativeControls={false}
-          allowsFullscreen={false}
-          surfaceType="textureView"
-          useExoShutter={false}
+    <GestureDetector gesture={kioskGesture}>
+      <View className="flex-1 bg-black">
+        {/* Fullscreen Looping Video Background (Only rendered when screen is focused) */}
+        {isFocused && (
+          <VideoView
+            player={player}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+            nativeControls={false}
+            allowsFullscreen={false}
+            surfaceType="textureView"
+            useExoShutter={false}
+          />
+        )}
+
+        {/* Vignette Gradient Overlay */}
+        <LinearGradient
+          colors={['rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.3)', 'rgba(0, 0, 0, 0.6)']}
+          locations={[0, 0.5, 1]}
+          className="absolute inset-0"
         />
-      )}
 
-      {/* Vignette Gradient Overlay */}
-      <LinearGradient
-        colors={['rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.3)', 'rgba(0, 0, 0, 0.6)']}
-        locations={[0, 0.5, 1]}
-        className="absolute inset-0"
-      />
+        {/* Floating Dev Buttons Container on Idle Screen */}
+        <View style={styles.floatingDevContainer}>
+          <Pressable
+            onPress={() => navigateTo('KIOSK_SETTINGS')}
+            style={styles.floatingSettingsBtn}
+            hitSlop={10}
+          >
+            <Text style={styles.floatingSettingsBtnText}>⚙️ KỸ THUẬT (3 NGÓN x3)</Text>
+          </Pressable>
 
-      {/* Floating Dev Buttons Container on Idle Screen */}
-      <View style={styles.floatingDevContainer}>
-        <Pressable
-          onPress={() => navigateTo('KIOSK_HEIGHT_DEMO')}
-          style={styles.floatingHeightDemoBtn}
-          hitSlop={10}
-        >
-          <Text style={styles.floatingHeightDemoBtnText}>📏 DEMO ĐO CHIỀU CAO (TOF)</Text>
-        </Pressable>
+          <Pressable
+            onPress={() => navigateTo('KIOSK_HEIGHT_DEMO')}
+            style={styles.floatingHeightDemoBtn}
+            hitSlop={10}
+          >
+            <Text style={styles.floatingHeightDemoBtnText}>📏 DEMO TOF</Text>
+          </Pressable>
 
-        <Pressable
-          onPress={() => setTestModalVisible(true)}
-          style={styles.floatingDevBtn}
-          hitSlop={10}
-        >
-          <Text style={styles.floatingDevBtnText}>🛠 TEST HARDWARE (15 UCs)</Text>
-        </Pressable>
-      </View>
-
-      {/* Fullscreen Touchable Backdrop to start session on tap anywhere */}
-      <Pressable className="absolute inset-0" onPress={handleStartSession} />
-
-      {/* Bottom Action Bar - Light Frosted Glassmorphism (20% Larger) */}
-      <SafeAreaView edges={['bottom']} className="pointer-events-box-none flex-1 justify-end">
-        <View className="pointer-events-auto w-full bg-white/20 px-12 py-11 backdrop-blur-3xl">
-          <View className="flex-row items-center justify-between">
-            {/* Title & Subtitle on Left */}
-            <View className="flex-1 pr-10">
-              <Text className="text-5xl font-extrabold tracking-wide text-white drop-shadow-lg">
-                ProMedi
-              </Text>
-              <Text className="mt-3 font-semibold text-xl leading-relaxed text-white/95 drop-shadow-md">
-                Giải pháp kiểm tra sức khỏe tự động toàn diện
-              </Text>
-            </View>
-
-            {/* Pill Button 'Bắt đầu' on Right - 20% Larger */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={handleStartSession}
-              className="rounded-full bg-primary px-16 py-6 shadow-2xl shadow-pink-600/60"
-            >
-              <Text className="text-3xl font-black tracking-wider text-white">Bắt đầu</Text>
-            </TouchableOpacity>
-          </View>
+          <Pressable
+            onPress={() => setTestModalVisible(true)}
+            style={styles.floatingDevBtn}
+            hitSlop={10}
+          >
+            <Text style={styles.floatingDevBtnText}>🛠 15 UCs</Text>
+          </Pressable>
         </View>
-      </SafeAreaView>
 
-      {/* Imperative Ref-controlled Identification Popup Modal */}
-      <IdentificationModal ref={identModalRef} onSubmit={handleIdentificationSubmit} />
+        {/* Bottom Action Bar - Light Frosted Glassmorphism (20% Larger) */}
+        <SafeAreaView edges={['bottom']} className="pointer-events-box-none flex-1 justify-end">
+          <View className="pointer-events-auto w-full bg-white/20 px-12 py-11 backdrop-blur-3xl">
+            <View className="flex-row items-center justify-between">
+              {/* Title & Subtitle on Left */}
+              <View className="flex-1 pr-10">
+                <Text className="text-5xl font-extrabold tracking-wide text-white drop-shadow-lg">
+                  ProMedi
+                </Text>
+                <Text className="mt-3 font-semibold text-xl leading-relaxed text-white/95 drop-shadow-md">
+                  Giải pháp kiểm tra sức khỏe tự động toàn diện
+                </Text>
+              </View>
 
-      {/* Detailed Hardware & Network Usecase Test Modal */}
-      <HardwareTestModal visible={testModalVisible} onClose={() => setTestModalVisible(false)} />
-    </View>
+              {/* Pill Button 'Bắt đầu' on Right - 20% Larger */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleStartSession}
+                className="rounded-full bg-primary px-16 py-6 shadow-2xl shadow-pink-600/60"
+              >
+                <Text className="text-3xl font-black tracking-wider text-white">Bắt đầu</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+
+        {/* Imperative Ref-controlled Identification Popup Modal */}
+        <IdentificationModal ref={identModalRef} onSubmit={handleIdentificationSubmit} />
+
+        {/* Detailed Hardware & Network Usecase Test Modal */}
+        <HardwareTestModal visible={testModalVisible} onClose={() => setTestModalVisible(false)} />
+      </View>
+    </GestureDetector>
   )
 }
 
 const styles = StyleSheet.create({
   floatingDevContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     position: 'absolute',
     right: 24,
     top: 24,
     zIndex: 999,
+  },
+  floatingSettingsBtn: {
+    backgroundColor: '#0F172A',
+    borderColor: '#F43F5E',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    elevation: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  floatingSettingsBtnText: {
+    color: '#FDA4AF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   floatingHeightDemoBtn: {
     backgroundColor: '#0F172A',

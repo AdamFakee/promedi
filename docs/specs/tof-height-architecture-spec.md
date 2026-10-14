@@ -146,7 +146,7 @@ stateDiagram-v2
      - Nếu InBody cân xong mà ToF vẫn đang `MEASURING`, FSM chuyển sang `waitingForTofLock`.
      - ToF engine tiếp tục quét ở 15Hz và hiển thị thanh tiến trình trực quan trên giao diện Kiosk.
      - Ngay khi người dùng đứng yên $\ge 0.5$s và rung lắc $\le 10$mm, ToF phát tín hiệu `TOF_LOCKED`, State Machine mới nạp chiều cao chuẩn xác vào bản tin `M (sendInfo)` gửi sang InBody.
-     - Sau thời gian timeout an toàn **3.0 giây**, nếu người dùng vẫn lắc lư liên tục không thể khóa, hệ thống mới kích hoạt cơ chế fallback lấy số đo trung bình hoặc báo lỗi `HEIGHT_ERROR`.
+     - Sau thời gian timeout an toàn **5.0 giây**, nếu người dùng vẫn lắc lư liên tục không thể khóa, hệ thống mới kích hoạt cơ chế fallback lấy số đo trung bình hoặc báo lỗi `HEIGHT_ERROR`.
 
 ---
 

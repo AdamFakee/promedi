@@ -7,6 +7,7 @@ export default function KioskLayout() {
       <Stack.Screen name="idle" />
       <Stack.Screen name="measure" />
       <Stack.Screen name="height-demo" />
+      <Stack.Screen name="settings" />
     </Stack>
   )
 }

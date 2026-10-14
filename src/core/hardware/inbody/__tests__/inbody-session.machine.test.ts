@@ -1,6 +1,6 @@
 import { createActor } from 'xstate'
-import { inbodySessionMachine } from '../machine/inbody-session.machine'
 import type { InBodyClient } from '../client/inbody-client'
+import { inbodySessionMachine } from '../machine/inbody-session.machine'
 import type { InBodyResult } from '../types/inbody.types'
 
 describe('inbodySessionMachine (XState v5 FSM)', () => {

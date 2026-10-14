@@ -8,7 +8,7 @@ import { useMachine } from '@xstate/react'
 import { useEffect, useMemo, useState } from 'react'
 
 /** Cờ bật chế độ Mock Auto-Complete đo Huyết áp (không cần cắm máy BPBIO thật) */
-const MOCK_BP_AUTO_COMPLETE = true
+const MOCK_BP_AUTO_COMPLETE = false
 
 export function useBpMeasurement(isActive: boolean) {
   const { completeBp, resetSession } = useHealthSession()
@@ -25,7 +25,7 @@ export function useBpMeasurement(isActive: boolean) {
     bpbioSessionMachine.provide({
       actions: {
         onMeasuringStart: () => {
-          voicePlayerService.stop()
+          voicePlayerService.speak('BP_MEASURING')
         },
         onMeasurementCompleted: ({ context }) => {
           voicePlayerService.speak('BP_COMPLETE')
@@ -39,10 +39,8 @@ export function useBpMeasurement(isActive: boolean) {
             }
           }, 3000)
         },
-        onErrorAlert: ({ event }) => {
-          if (event.type === 'BP_EVENT' && event.payload.type === 'DEVICE_ERROR') {
-            voicePlayerService.speak('BP_ELBOW_OFF')
-          }
+        onErrorAlert: () => {
+          voicePlayerService.speak('BP_ERROR')
         },
         onConnectionError: ({ context }) => {
           if (MOCK_BP_AUTO_COMPLETE) return

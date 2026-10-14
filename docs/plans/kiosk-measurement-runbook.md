@@ -48,7 +48,7 @@ Hướng dẫn từng bước nghiệm thu giao diện quy trình khám 3 bướ
 - **Thao tác**: Chuyển sang Bước 2 (Đo Chỉ Số Cơ Thể).
 - **Tiêu chí đạt (Acceptance Criteria)**:
   - Ảnh hướng dẫn tư thế `inbody_guide_male.webp` hiển thị sắc nét.
-  - Giọng nói Kiosk tự động ngắt câu thoại cũ và phát: _"Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày, đứng lên máy InBody và cầm hai tay nắm."_
+  - Giọng nói Kiosk tự động ngắt câu thoại cũ và phát: _"Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày dép, mũ và vật nặng trong túi, sau đó bước lên máy InBody và làm theo hướng dẫn."_
 
 ### Bước 4: Xem Kết Quả & Quét Mã QR
 

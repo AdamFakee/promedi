@@ -16,6 +16,9 @@ function parseErrorCode(code?: string): InBodyErrorCode {
   return 'UNKNOWN_ERROR'
 }
 
+/** Thời gian chờ ToF chốt khóa chiều cao sau khi InBody cân xong (5 giây) */
+const TOF_LOCK_TIMEOUT_MS = 5000
+
 export const inbodySessionMachine = setup({
   types: {} as {
     context: InBodyMachineContext
@@ -360,7 +363,7 @@ export const inbodySessionMachine = setup({
         input: ({ context }) => ({ tofDevice: context.tofDevice }),
       },
       after: {
-        3000: [
+        [TOF_LOCK_TIMEOUT_MS]: [
           {
             guard: ({ context }) => Boolean(context.tofHeightCm && context.tofHeightCm > 100),
             target: 'sendingInfo',

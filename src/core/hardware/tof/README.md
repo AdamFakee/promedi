@@ -49,7 +49,7 @@
 5. **Ổn định Chuỗi Thời Gian & Khóa Nhanh 0.5 Giây (Fast-Lock V6.3)**:
    - Sử dụng cửa sổ $\ge 1500\text{ms}$ theo `timestampMs`, yêu cầu giữ yên $\ge \mathbf{500\text{ms}}$ (0.5 giây), biên độ rung lắc $\text{Range} \le \mathbf{10\text{mm}}$, tối thiểu 4 mẫu hợp lệ, $|\text{Slope}| \le 8\text{mm/s}$ và chốt kết quả bằng Trimmed Mean 10%.
 6. **Cơ chế Bắt tay Chống "Chốt Vội" Với Máy InBody**:
-   - Khi máy InBody cân xong tải trọng (`STATUS 10`), FSM tuyệt đối không lấy số đo tức thời khi chưa khóa. FSM bắt buộc đợi ToF bắn sự kiện `TOF_LOCKED` (đã đứng yên đủ 0.5s và rung lắc $\le 10$mm) mới nạp chiều cao sang InBody. Có bộ đếm timeout 3.0s an toàn.
+   - Khi máy InBody cân xong tải trọng (`STATUS 10`), FSM tuyệt đối không lấy số đo tức thời khi chưa khóa. FSM bắt buộc đợi ToF bắn sự kiện `TOF_LOCKED` (đã đứng yên đủ 0.5s và rung lắc $\le 10$mm) mới nạp chiều cao sang InBody. Có bộ đếm timeout 5.0s an toàn.
 7. **Bộ Ghi Log Thao Trường Trực Tiếp (Direct JSONL Recording)**:
    - Ghi dữ liệu 64 zones + Target Status + Engine State vào tệp `.jsonl` cục bộ (`FileSystem.writeAsStringAsync` Append mode), tránh giật lag UI và phục vụ phân tích chuyên sâu qua ADB mà không cần mở modal chia sẻ.
 8. **Log Frame Hoàn Chỉnh & Hướng Dẫn Giọng Nói Tiếng Việt**:

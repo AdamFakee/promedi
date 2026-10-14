@@ -15,16 +15,41 @@ async function activateDeviceFetcher(data: ActivateDeviceRequest): Promise<Activ
   } catch (error: any) {
     // If backend is unavailable during dev/testing, fallback to generated mock session
     if (!error.response || error.code === 'ERR_NETWORK') {
-      const mockDeviceCode = data.deviceCode || 'PROMEDI-K2-01'
+      const mockDeviceCode = data.deviceCode || 'SUNMI-K2-9999'
       return {
         device: {
           id: `dev-${Date.now()}`,
           deviceCode: mockDeviceCode,
-          deviceName: `Kiosk Sumi Mini K2 (${mockDeviceCode})`,
+          deviceSerial: mockDeviceCode,
+          deviceName: `Kiosk Tầng 1 - Sảnh A`,
+          deviceModel: 'Sunmi K2 mini',
+          location: 'Sảnh A - Tầng 1',
           warehouseId: 'wh-main-01',
           departmentId: 'dept-khoa-01',
           departmentName: 'Khoa Khám Bệnh - Phòng Kiosk',
-          isActive: true,
+          facility: {
+            id: 'fac_001',
+            name: 'Phòng Khám Đa Khoa ProMedi',
+            address: '123 Đường Nguyễn Trãi, Q.1',
+          },
+          config: {
+            configVersion: 12,
+            voiceGuidanceEnabled: true,
+            printerEnabled: true,
+            timeouts: {
+              measureInbodySeconds: 120,
+              measureBpSeconds: 120,
+              summarySeconds: 60,
+            },
+            retries: {
+              measureInbodyMax: 3,
+              measureBpMax: 3,
+            },
+            monitoring: {
+              heartbeatIntervalSeconds: 60,
+            },
+          },
+          isActive: false,
         },
         accessToken: `mock-access-token-${Date.now()}`,
         refreshToken: `mock-refresh-token-${Date.now()}`,

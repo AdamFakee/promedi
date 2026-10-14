@@ -190,6 +190,7 @@ export class ToFClient {
   /** Reset giải phóng bộ đệm và dừng mock stream */
   public reset(): void {
     this.framer.reset()
+    this.engine.reset()
     this.stopMockStream()
     this.mockFrameCounter = 0
   }

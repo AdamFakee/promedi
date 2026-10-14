@@ -1,6 +1,8 @@
 export type VoicePromptKey =
   | 'SERVICE_SELECTION'
   | 'BP_START'
+  | 'BP_MEASURING'
+  | 'BP_ERROR'
   | 'BP_ELBOW_OFF'
   | 'BP_COMPLETE'
   | 'INBODY_START'
@@ -25,12 +27,16 @@ export type VoicePromptKey =
 export const VOICE_PROMPTS: Record<VoicePromptKey, string> = {
   SERVICE_SELECTION: 'Mời quý khách chọn các dịch vụ cần đo và nhấn Bắt đầu đo.',
   BP_START:
-    'Đo huyết áp và nhịp tim. Quý khách vui lòng luồn tay vào vòng đo, tỳ cùi chỏ vào cảm biến và giữ yên.',
+    'Đo huyết áp và nhịp tim. Quý khách vui lòng ngồi thẳng lưng, luồn cánh tay qua vòng đo sao cho khuỷu tay tỳ sát vào điểm đệm cảm biến. Sau đó, nhấn nút START màu xanh trên máy để bắt đầu đo.',
+  BP_MEASURING:
+    'Máy đang tiến hành đo huyết áp. Quý khách vui lòng thả lỏng toàn thân, giữ yên cánh tay, thở đều và không nói chuyện cho đến khi đo xong.',
+  BP_ERROR:
+    'Quá trình đo huyết áp chưa thành công. Quý khách vui lòng ngồi thẳng lưng, luồn tay sâu vào vòng đo, tỳ sát cùi chỏ và nhấn nút START trên máy để thực hiện đo lại.',
   BP_ELBOW_OFF:
-    'Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến. Quý khách vui lòng đẩy tay sâu hơn và ngồi yên.',
+    'Cảnh báo: Khuỷu tay chưa chạm điểm cảm biến hoặc phát hiện cử động. Quý khách vui lòng đẩy tay sâu hơn, tỳ sát cùi chỏ và nhấn lại nút START trên máy.',
   BP_COMPLETE: 'Đã đo xong huyết áp.',
   INBODY_START:
-    'Phân tích chỉ số cơ thể và chiều cao. Quý khách vui lòng tháo giày, đứng thẳng người trên máy InBody, mắt nhìn phía trước và cầm hai tay nắm.',
+    'Phân tích chỉ số cơ thể. Quý khách vui lòng tháo giày dép, mũ và vật nặng trong túi, sau đó bước lên máy InBody và làm theo hướng dẫn.',
   INBODY_CONTACT_ERROR:
     'Cảnh báo: Chưa nhận đủ tiếp xúc điện cực. Quý khách vui lòng cầm chắc thanh nắm và đứng yên.',
   INBODY_COMPLETE: 'Đã phân tích xong chỉ số cơ thể.',

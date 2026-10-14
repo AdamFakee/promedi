@@ -33,11 +33,11 @@ export const DEFAULT_HEIGHT_ENGINE_CONFIG = {
   // ==========================================================================
   // 2. NHẬN DIỆN NGƯỜI BƯỚC VÀO / RỜI ĐI (PERSON DETECTION)
   // ==========================================================================
-  /** Chiều cao tối thiểu để nhận diện có người đứng vào bàn cân (800mm = 80cm; dưới 80cm coi như sàn trống) */
-  minPersonMm: 800,
+  /** Chiều cao tối thiểu để nhận diện có người đứng vào bàn cân (900mm = 90cm; dưới 90cm coi như sàn trống / vật thể tĩnh) */
+  minPersonMm: 900,
 
-  /** Số frame liên tiếp phát hiện có người để chuyển từ IDLE sang MEASURING (3 frames @ 15Hz ~ 200ms) */
-  presentFrames: 3,
+  /** Số frame liên tiếp phát hiện có người để chuyển từ IDLE sang MEASURING (6 frames @ 15Hz ~ 400ms chống nhiễu lướt qua) */
+  presentFrames: 6,
 
   /** Số frame liên tiếp KHÔNG thấy người để xác nhận người đã bước ra và reset phiên đo (15 frames ~ 1 giây) */
   absentFrames: 15,
@@ -72,20 +72,20 @@ export const DEFAULT_HEIGHT_ENGINE_CONFIG = {
   // ==========================================================================
   // 4. TIÊU CHÍ ĐỨNG YÊN ĐỂ CHỐT KHÓA CHIỀU CAO (STABILITY & LOCK CRITERIA)
   // ==========================================================================
-  /** Cửa sổ thời gian trượt (Sliding Window) để gom các mẫu đánh giá độ ổn định (1500ms = 1.5 giây) */
-  stabilityWindowMs: 1500,
+  /** Cửa sổ thời gian trượt (Sliding Window) để gom các mẫu đánh giá độ ổn định (2000ms = 2.0 giây) */
+  stabilityWindowMs: 2000,
 
-  /** Thời gian tối thiểu người dùng phải đứng yên bất động để được phép chốt khóa (500ms = 0.5 giây) */
-  stabilityMinHoldMs: 500,
+  /** Thời gian tối thiểu người dùng phải đứng yên bất động để được phép chốt khóa (1000ms = 1.0 giây) */
+  stabilityMinHoldMs: 1000,
 
-  /** Số lượng mẫu (frame) hợp lệ tối thiểu trong khoảng thời gian đứng yên (4 mẫu) */
-  minSamples: 4,
+  /** Số lượng mẫu (frame) hợp lệ tối thiểu trong khoảng thời gian đứng yên (8 mẫu @ 15Hz ~ 530ms) */
+  minSamples: 8,
 
   /** Biên độ rung lắc tối đa cho phép (Max - Min) trong lúc đứng yên (10mm = 1cm). Dao động > 10mm coi như đang lắc lư */
   stabilityRangeMm: 10,
 
-  /** Tốc độ dịch chuyển tối đa theo phương thẳng đứng (8.0 mm/s). Nếu người đang từ từ ngồi xuống/nhổm lên thì chưa khóa */
-  stabilityMaxSlopeMmPerSec: 8.0,
+  /** Tốc độ dịch chuyển tối đa theo phương thẳng đứng (6.0 mm/s). Nếu người đang từ từ ngồi xuống/nhổm lên thì chưa khóa */
+  stabilityMaxSlopeMmPerSec: 6.0,
 
   /** Thời gian chờ tối đa cho 1 phiên đo nếu người đứng cựa quậy quá lâu không khóa được (15000ms = 15 giây) */
   timeoutMs: 15000,
