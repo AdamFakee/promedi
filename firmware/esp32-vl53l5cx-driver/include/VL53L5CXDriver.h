@@ -141,7 +141,7 @@ public:
      * @param personHeightMm Chiều cao mô phỏng của người (mm, mặc định 1700mm)
      * @return Dữ liệu VL53L5CXFrame đã được điền 64 zones.
      */
-    VL53L5CXFrame generateMockFrame(uint32_t frameId, uint32_t timestampMs, uint16_t personHeightMm = 1700);
+    VL53L5CXFrame generateMockFrame(uint32_t frameId, uint32_t timestampMs, uint16_t personHeightMm = 1700, uint16_t platformHeightMm = 0);
 
     /**
      * In log ma trận khoảng cách 8x8 trực quan ra cổng Serial (Human-readable ASCII Grid).

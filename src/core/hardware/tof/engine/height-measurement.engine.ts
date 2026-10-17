@@ -36,8 +36,8 @@ export const DEFAULT_HEIGHT_ENGINE_CONFIG = {
   /** Chiều cao tối thiểu để nhận diện có người đứng vào bàn cân (900mm = 90cm; dưới 90cm coi như sàn trống / vật thể tĩnh) */
   minPersonMm: 900,
 
-  /** Số frame liên tiếp phát hiện có người để chuyển từ IDLE sang MEASURING (6 frames @ 15Hz ~ 400ms chống nhiễu lướt qua) */
-  presentFrames: 6,
+  /** Số frame liên tiếp phát hiện có người để chuyển từ IDLE sang MEASURING (3 frames @ 15Hz ~ 200ms) */
+  presentFrames: 3,
 
   /** Số frame liên tiếp KHÔNG thấy người để xác nhận người đã bước ra và reset phiên đo (15 frames ~ 1 giây) */
   absentFrames: 15,

@@ -2,13 +2,16 @@
  * @file tof.device.ts
  * @brief Device Adapter ToFDistanceDevice implement IMeasurementDevice kết nối USB Serial transport.
  * @module src/core/hardware/tof/device/tof.device.ts
+ *
+ * Đóng vai trò là Hardware Abstraction Layer (HAL) giao tiếp với Vi điều khiển ESP32
+ * qua cổng USB Serial 460800 baud theo Giao thức Đo Chiều Cao Nhị Phân 16 Bytes.
  */
 
-import type { DeviceStatus } from '../../types/measurement-device.interface'
+import { listCandidateDevices, requestUsbPermission } from '../../resolver/list-candidate-devices'
 import type { TransportConfig } from '../../transport/transport.interface'
 import { TransportError } from '../../transport/transport.interface'
-import { listCandidateDevices, requestUsbPermission } from '../../resolver/list-candidate-devices'
 import { UsbSerialTransport } from '../../transport/usb-serial-transport'
+import type { DeviceStatus } from '../../types/measurement-device.interface'
 import { ToFClient } from '../client/tof-client'
 import type {
   HeightCalculationResult,
@@ -38,9 +41,11 @@ export class ToFDistanceDevice implements IToFDistanceDevice {
     })
   }
 
-  /** Cập nhật cấu hình tham số cho Engine (độ cao trần, gain, offset, calibration) */
+  /** Cập nhật cấu hình tham số cho Module và đồng bộ trực tiếp xuống ESP32 qua Serial */
   public updateEngineConfig(config: Partial<HeightEngineConfig>): void {
-    this.client.updateEngineConfig(config)
+    this.client.updateEngineConfig(config).catch((err) => {
+      console.warn('[ToFDevice] Khong the gui config xuong ESP32:', err)
+    })
   }
 
   /**
@@ -60,7 +65,7 @@ export class ToFDistanceDevice implements IToFDistanceDevice {
     this.updateStatus('connecting')
 
     if (this.mockMode) {
-      this.client.startMockStream(170.0)
+      this.client.startMockStream(172.5)
       this.updateStatus('connected')
       return
     }
@@ -98,6 +103,14 @@ export class ToFDistanceDevice implements IToFDistanceDevice {
         connectTimeoutMs: 3000,
       })
 
+      // Gắn writer cho Client để gửi lệnh điều khiển (PING, CONFIG, RESET)
+      this.client.setWriter(async (bytes: Uint8Array) => {
+        if (this.transport.isConnected()) {
+          await this.transport.write(bytes)
+        }
+      })
+
+      // Lắng nghe luồng dữ liệu byte nhận từ ESP32
       this.unsubscribeTransportData = this.transport.onData((chunk: Uint8Array) => {
         this.client.processChunk(chunk)
       })
@@ -109,6 +122,11 @@ export class ToFDistanceDevice implements IToFDistanceDevice {
       this.unsubscribeTransportError = this.transport.onError(() => {
         this.updateStatus('error')
       })
+
+      // Bắt tay PING và đồng bộ CONFIG xuống ESP32
+      await this.client.ping().catch(() => {})
+      const cfg = this.client.getEngineConfig()
+      await this.client.updateEngineConfig(cfg).catch(() => {})
 
       this.updateStatus('connected')
     } catch (error) {
@@ -146,6 +164,7 @@ export class ToFDistanceDevice implements IToFDistanceDevice {
   /** Bắt đầu chu kỳ đo chiều cao */
   public async startMeasurement(): Promise<void> {
     this.updateStatus('measuring')
+    await this.client.resetDevice().catch(() => {})
   }
 
   /**

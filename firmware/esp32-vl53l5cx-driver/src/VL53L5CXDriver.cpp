@@ -139,7 +139,7 @@ bool VL53L5CXDriver::readFrame(VL53L5CXFrame& frame) {
     return false;
 }
 
-VL53L5CXFrame VL53L5CXDriver::generateMockFrame(uint32_t frameId, uint32_t timestampMs, uint16_t personHeightMm) {
+VL53L5CXFrame VL53L5CXDriver::generateMockFrame(uint32_t frameId, uint32_t timestampMs, uint16_t personHeightMm, uint16_t platformHeightMm) {
     VL53L5CXFrame frame;
     frame.frameId = frameId;
     frame.timestampMs = timestampMs;
@@ -147,7 +147,9 @@ VL53L5CXFrame VL53L5CXDriver::generateMockFrame(uint32_t frameId, uint32_t times
     frame.isValid = true;
 
     // Khoảng cách dự kiến từ cảm biến trần (2220mm) tới đỉnh đầu người
-    uint16_t headDistanceMm = (m_ceilingHeightMm > personHeightMm) ? (m_ceilingHeightMm - personHeightMm) : 450;
+    // Người cao personHeightMm đứng trên bệ platformHeightMm -> Đỉnh đầu cách sàn = personHeightMm + platformHeightMm
+    uint32_t totalHeightMm = (uint32_t)personHeightMm + (uint32_t)platformHeightMm;
+    uint16_t headDistanceMm = (m_ceilingHeightMm > totalHeightMm) ? (uint16_t)(m_ceilingHeightMm - totalHeightMm) : 450;
 
     for (int r = 0; r < 8; r++) {
         for (int c = 0; c < 8; c++) {
@@ -156,10 +158,15 @@ VL53L5CXFrame VL53L5CXDriver::generateMockFrame(uint32_t frameId, uint32_t times
             // Tính khoảng cách từ tâm ma trận (3.5, 3.5)
             double distFromCenter = sqrt((r - 3.5) * (r - 3.5) + (c - 3.5) * (c - 3.5));
 
-            if (distFromCenter <= 1.8) {
-                // Vùng cụm đỉnh đầu trung tâm (gần cảm biến trần nhất ~500mm)
-                uint16_t variation = (idx * 7) % 25; // Tạo độ nhấp nhô nhẹ giữa các zone
-                frame.distances[idx] = headDistanceMm + (uint16_t)(distFromCenter * 60.0) + variation;
+            if (distFromCenter <= 1.0) {
+                // Vùng tâm vòm đỉnh đầu (gần trần nhất)
+                uint16_t variation = (idx * 3) % 10;
+                frame.distances[idx] = headDistanceMm + variation;
+                frame.targetStatuses[idx] = VL53L5CX_STATUS_VALID_100;
+            } else if (distFromCenter <= 1.8) {
+                // Vùng rìa vòm đầu
+                uint16_t variation = (idx * 5) % 15;
+                frame.distances[idx] = headDistanceMm + (uint16_t)(distFromCenter * 25.0) + variation;
                 frame.targetStatuses[idx] = VL53L5CX_STATUS_VALID_100;
             } else if (distFromCenter <= 2.8) {
                 // Vùng vai / phần thân trên (~800mm)

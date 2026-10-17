@@ -281,6 +281,25 @@ export default function KioskHeightDemoRoute() {
 
       dev.setMockMode(isMockMode)
 
+      dev.onHeightResult((res) => {
+        setEngineResult(res)
+        if (res.rawFrame) {
+          setCurrentFrame(res.rawFrame)
+        }
+        // Tính FPS
+        frameCounterRef.current++
+        const now = Date.now()
+        if (now - lastFrameTimeRef.current >= 1000) {
+          setFps(frameCounterRef.current)
+          frameCounterRef.current = 0
+          lastFrameTimeRef.current = now
+        }
+
+        const finalHeight =
+          res.result?.heightCm ?? (res.measuredHeightCm > 0 ? res.measuredHeightCm : undefined)
+        handleAutoVoice(res.guidance, finalHeight)
+      })
+
       dev.onFrame((frame) => {
         handleIncomingFrame(frame)
       })
@@ -324,6 +343,9 @@ export default function KioskHeightDemoRoute() {
 
   // Reset Engine & Phiên đo
   const handleResetSession = () => {
+    if (tofDeviceRef.current) {
+      tofDeviceRef.current.reset().catch(() => {})
+    }
     engineRef.current.reset()
     lastGuidanceRef.current = ''
     setEngineResult(null)

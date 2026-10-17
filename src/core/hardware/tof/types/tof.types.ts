@@ -37,6 +37,43 @@ export interface VL53L5CXFramePayload {
 }
 
 /**
+ * Cấu trúc gói tin kết quả đo chiều cao nhị phân 16 Bytes từ Firmware ESP32 (Height Packet).
+ * Được giải mã từ byte stream qua USB Serial 460800 baud.
+ */
+export interface HeightPacketPayload {
+  /** 0xAA */
+  header0: number
+  /** 0x55 */
+  header1: number
+  /** 'H' (0x48) */
+  packetType: number
+  /** Trạng thái FSM của vi điều khiển */
+  state: EngineState
+  /** Mã hướng dẫn tương tác */
+  guidance: EngineGuidance
+  /** Chiều cao chốt (mm, ví dụ 1725 = 172.5cm, 0 nếu chưa locked) */
+  lockedHeightMm: number
+  /** Chiều cao tức thời (mm) */
+  instantHeightMm: number
+  /** Tiến trình ổn định (0.0 -> 1.0) */
+  progress: number
+  /** Độ tin cậy tính toán (0.0 -> 1.0) */
+  confidence: number
+  /** Số lượng zone trong dải đỉnh đầu */
+  headZoneCount: number
+  /** Sự kiện đặc biệt từ firmware */
+  event: EngineEvent | 'NONE'
+  /** Cờ trạng thái ổn định */
+  isStable: boolean
+  /** Cờ phát hiện có người */
+  hasPerson: boolean
+  /** Cờ cảnh báo sàn bị trôi lệch */
+  needsRecalibration: boolean
+  /** Timestamp lúc nhận gói tin trên Kiosk (ms) */
+  timestampMs: number
+}
+
+/**
  * Trang thai tai cua ban can InBody - truyen vao Engine moi frame.
  * - `LOADED`: Ban can InBody xac nhan co tai trong nguoi that (>= minWeightKg).
  * - `EMPTY`: InBody bao RO RANG ban can dang trong (Status '0' sau khi da unlock).

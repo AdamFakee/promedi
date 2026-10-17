@@ -1,491 +1,284 @@
-# Đặc tả Kỹ thuật & Thuật toán Cảm biến Khoảng cách VL53L8CX / VL53L5CX (ToF Sensor) - Phiên bản V5.1 (Production Standard)
+# Đặc tả Kỹ thuật Cảm biến Khoảng cách STMicroelectronics VL53L8CX (ToF Height Sensor - SPI High-Speed) - Phiên bản V5.2
 
 ## 📌 Tổng quan & Mục đích
 
-Tài liệu này đặc tả thiết kế kiến trúc, mô hình dữ liệu và thuật toán xử lý dữ liệu cho cảm biến khoảng cách đa vùng **STMicroelectronics VL53L8CX / VL53L5CX (Time-of-Flight 8x8 Multizone Sensor)** lắp đặt tại trần nhà Kiosk ProMedi.
+Tài liệu này đặc tả thiết kế kỹ thuật, sơ đồ phần cứng, giao tiếp bus SPI tốc độ cao (10–20 MHz) và giao thức nhị phân siêu tinh gọn 16 Bytes cho cảm biến khoảng cách đa vùng **STMicroelectronics VL53L8CX (Time-of-Flight 8x8 Multizone Sensor)** kết hợp vi điều khiển **ESP32** đóng vai trò là một mô-đun đo chiều cao chuyên dụng (Dedicated Edge Height Measurement Engine) cho hệ thống Kiosk Y Tế Tự Động ProMedi.
 
-Cảm biến được sử dụng để:
+### 🌟 Điểm Vượt Trội của VL53L8CX so với VL53L5CX:
 
-1. **Phát hiện sự có mặt người dùng (Presence Detection)** tự động kích hoạt màn hình Kiosk.
-2. **Xác nhận vị trí đứng chuẩn (Position Alignment)** bên dưới sàn.
-3. **Phát hiện kịch bản ngoại lệ**: Có 2 người trong khung hình, dẫm sai vị trí, giơ tay làm nhiễu (`HAND_RAISED`), hoặc người dùng chưa đứng yên.
-4. **Tự động đo và chốt chỉ số chiều cao chính xác (Height Measurement)** phục vụ phiên khám sức khỏe.
-
----
-
-## 🎯 Scope & Boundaries (Ranh giới Trách nhiệm)
-
-### Mô-đun LÀM GÌ (In Scope):
-
-- Nhận ma trận khoảng cách $8 \times 8$ (64 zones) kèm mảng trạng thái `status` từ Hardware Serial HAL / Mock Adapter.
-- Hiệu chỉnh góc chéo $\cos\theta$ (Trụ sụt radial trigonometric correction) đưa về khoảng cách đứng $z_i$.
-- Trừ nền mặt sàn tự động (Background Subtraction) theo Baseline Floor $D_{\text{floor}}$ thu thập từ quy trình Floor Calibration.
-- Cắt ngưỡng 2 tầng (2-Tier Segmentation): `presenceThreshold` ($\approx 800\text{mm}$) và `headSegmentThreshold` động ($H_{\text{peak}} - 150\text{mm}$).
-- Phân tích Cụm liên thông (Connected Components / Blob) để phát hiện cụm Đỉnh đầu, lọc điểm nhọn giơ tay (`HAND_RAISED`) và phát hiện $\ge 2$ người qua độ sâu thung lũng (Valley depth $\ge 150\text{mm}$ với Bresenham line search).
-- Kiểm tra độ ổn định theo chuỗi thời gian (Rolling Median Window, Trend Slope & Glitch Grace Period) trước khi chốt chiều cao.
-
-### Mô-đun KHÔNG LÀM GÌ (Out of Scope):
-
-- **Không phát giọng nói hay UI trực tiếp**: Engine chỉ trả về Event Code/Domain Status (`WRONG_POSITION`, `HAND_RAISED`, `HOLD_STILL`, `MEASURED_SUCCESS`). Lớp UI & Voice Engine sẽ tự ánh xạ sang âm thanh & câu chữ.
-- **Không đụng I/O trong Engine**: `HeightMeasurementEngine` là Pure Class (100% testable trong Jest).
+| Tiêu chí kỹ thuật             | VL53L5CX (Bản Tiêu chuẩn)                                                               | VL53L8CX (Bản Nâng cấp Cao cấp)                                                         |
+| :---------------------------- | :-------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------- |
+| **Giao diện truyền thông**    | Chỉ hỗ trợ **I2C** (tối đa 1 MHz Fast Mode Plus)                                        | Hỗ trợ cả **SPI High-Speed (10–20 MHz)** và I2C                                         |
+| **Thời gian đọc 64 zones**    | $\approx 1.8\text{ ms} - 2.0\text{ ms}$ trên bus I2C                                    | **$< 0.15\text{ ms}$** qua bus SPI (nhanh hơn gấp 12 lần)                               |
+| **Tần số lấy mẫu thực tế**    | $11.2\text{ Hz} - 11.9\text{ Hz}$ (nghẽn I2C polling)                                   | **$15.0\text{ Hz} - 30.0\text{ Hz}$** vững chãi, zero jitter                            |
+| **Nguồn phát Laser VCSEL**    | VCSEL thế hệ cũ                                                                         | **VCSEL thế hệ mới** tăng cường độ phản xạ trên tóc đen                                 |
+| **Kháng ánh sáng môi trường** | $1\text{ klx} - 2\text{ klx}$                                                           | **$5\text{ klx}$** (chống nhiễu đèn trần phòng khám công suất lớn)                      |
+| **Khoảng cách đo tối đa**     | $\approx 3.5\text{m} - 4.0\text{m}$ (trong tối)                                         | **$4.0\text{m}$** ngay cả dưới ánh sáng mạnh                                            |
+| **Mã nguồn Firmware**         | [`firmware/esp32-vl53l5cx-driver/`](file:///d:/promedi/firmware/esp32-vl53l5cx-driver/) | [`firmware/esp32-vl53l8cx-driver/`](file:///d:/promedi/firmware/esp32-vl53l8cx-driver/) |
 
 ---
 
-## 📐 Thông số Hình học & Trigonometric Cosine Correction ($\cos\theta$)
-
-### 1. Phóng đại độ dài do góc chéo ToF
-
-Cảm biến phát các tia ToF tỏa ra theo dạng kim tự tháp với góc quét $45^\circ \times 45^\circ$. Tia ở góc mép/đường chéo đi dài hơn tia ở trung tâm.
-
-Mỗi zone $c$ ($0 \le c \le 7$) có góc nghiêng tâm zone so với trục đứng:
-
-$$\theta_x(c) = (c - 3.5) \cdot \frac{45^\circ}{8} = (c - 3.5) \cdot 5.625^\circ = (c - 3.5) \cdot \frac{\pi}{32}$$
-
-- Ở ô cột 5 (lệch $\theta_x = 1.5 \times 5.625^\circ = 8.44^\circ$), ở khoảng cách tới đầu $d \approx 600\text{mm}$, sai số khoảng $\approx 7\text{mm}$.
-- Ở 4 ô góc đường chéo mép ngoài ($\theta \approx 28^\circ$, $d \approx 700\text{mm}$), sai số chênh lệch lên tới **$40\text{mm} - 50\text{mm}$**. Việc bù $\cos\theta$ là bắt buộc để đạt độ chính xác chốt chiều cao $\pm 5\text{mm}$.
-
-### 2. Công thức bù $\cos\theta$ và Bảng Ma trận Tính sẵn (Lookup Table)
-
-Độ sâu đứng thẳng từ trần $z_i$ của zone $i = (r, c)$ được tính theo công thức:
-
-$$z_i = \text{Distance}_i \cdot \text{COS}_i$$
-
-$$\text{COS}[r, c] = \frac{1}{\sqrt{1 + \tan^2\theta_x(c) + \tan^2\theta_y(r)}}$$
-
-Chiều cao so với sàn sau khi trừ nền:
-
-$$h_i = \text{floorZ}_i - z_i$$
-
-#### 💡 Giải thích Trực quan: Độ sâu Thẳng đứng $z$ là gì?
-
-##### 1. Phân biệt Khoảng cách xiên ($d$) và Độ sâu thẳng đứng ($z$):
-
-- **Khoảng cách xiên/chếch ($d$)**: Là độ dài tia Laser phát ra từ cảm biến **chiếu chếch theo đường chéo** tới điểm nằm ở góc mép khung hình (vai hoặc đỉnh đầu). Trong tam giác vuông, đây chính là **CẠNH HUYỀN**.
-- **Độ sâu thẳng đứng ($z$)**: Là khoảng cách được thả **vuông góc $90^\circ$ từ mặt phẳng trần nhà xuống** mặt sàn/đỉnh đầu. Trong tam giác vuông, đây chính là **CẠNH GÓC VUÔNG THẲNG ĐỨNG**.
-
-##### 2. Sơ đồ Tam giác Vuông Minh họa:
+## 🎯 Scope & Boundaries (Kiến trúc Module Hóa V5.2)
 
 ```text
-       [CẢM BIẾN TRẦN]
-             O ─────── MẶT PHẲNG TRẦN NHÀ (0mm)
-             │ \
-             │  \
-             │   \   <-- Tia Laser bắn CHÉO (Distance d = 610mm)
-   ĐỘ SÂU    │    \      (CẠNH HUYỀN)
-   THẲNG ĐỨNG │     \
-   z = 600mm │      \
-  (CẠNH VUÔNG)│       \
-             │        \
-             └───────── P (Đỉnh đầu người đứng lệch mép)
+[ Cảm biến ST VL53L8CX (8x8 @ 15-30Hz) ]
+               │ SPI Bus 10MHz (SCK: 18, MISO: 19, MOSI: 23, CS: 5)
+               ▼
+[ Vi điều khiển ESP32 - HeightEngine C++ ]
+  - Bước 1: Thu nhận 64 zones & Đảo ngược lăng kính quang học Rx (180°)
+  - Bước 2: Bù góc cosθ Spatial Transform (LUT 8x8)
+  - Bước 3: Trừ Baseline sàn (2220mm) & bệ cân InBody (96mm)
+  - Bước 4: Nhận diện người (Core Zones hàng 2..5, cột 2..5 & h >= 900mm)
+  - Bước 5: Kẹp chống Spike quang học trên tóc đen (|Δ| > 15mm)
+  - Bước 6: Trích xuất đỉnh đầu trọng số vòm sọ (Crown Peak Weighted: 60/25/15%)
+  - Bước 7: Lọc Glitch (> 60mm/66ms) & Lọc ngoại lai MAD trong Sliding Window 2500ms
+  - Bước 8: Đánh giá ổn định (Range <= 12mm, |Slope| <= 6mm/s, Hold >= 2.0s) & Chốt 10%
+               │
+               ▼ Gói Nhị Phân Siêu Tinh Gọn 16 Bytes (USB Serial @ 460800 baud)
+[ Kiosk React Native - Hardware ToF HAL ]
+  - ToFDistanceDevice / ToFClient
+  - Giải mã gói tin 16B & Cắt khung HeightStreamFramer
+  - Điều khiển FSM inbodySessionMachine (bắt tay tải trọng InBody 260S)
+  - Đồng bộ cấu hình động (PING, CONFIG, RESET)
 ```
-
-##### 3. Ví dụ bằng con số thực tế:
-
-Giả sử Kiosk có trần nhà cao $2300\text{ mm}$ (2.3m), một người cao **1m70 ($1700\text{ mm}$)** đứng hơi lệch sang mép bàn cờ:
-
-- **Nếu KHÔNG quy đổi ra $z$ (Lấy nhầm khoảng cách chéo $d = 610\text{ mm}$)**:
-  $$\text{Chiều cao sai} = 2300 - 607 = \mathbf{1693\text{ mm}\text{ (1m693)}} \quad \rightarrow \text{Bị sai lệch 7mm!}$$
-- **Nếu CÓ quy đổi ra $z$ (Nhân $\cos(8.44^\circ) = 0.98917 \rightarrow z = 607 \cdot 0.98917 = 600\text{ mm}$)**:
-  $$\text{Chiều cao chuẩn} = 2300 - 600 = \mathbf{1700\text{ mm}\text{ (1m70 chuẩn xác!)}}$$
-
-### 3. Cơ chế Đảo Thấu kính Quang học (Lens Optical Inversion - Section 8.1.3 Datasheet)
-
-Theo Datasheet chính hãng STMicroelectronics (trang 24, Figure 23):
-
-- Thấu kính trên đầu thu (Rx Lens) làm **đảo ngược cả chiều ngang lẫn chiều dọc** của hình ảnh chiếu lên mảng SPAD.
-- Do đó, **Zone 0** (nằm ở góc bottom-left của mảng cảm biến) thực chất nhận ánh sáng từ góc **top-right** của khung cảnh thực tế dưới sàn.
-- **Zone 63** (nằm ở góc top-right) nhận ánh sáng từ góc **bottom-left**.
-- 👉 Đây là lý do vì sao cấu hình `axisMap { swapXY, flipX, flipY }` trong Engine là **rất quan trọng** để ánh xạ chính xác hướng di chuyển thực tế (Bước tới/lùi, bước trái/phải) của khách hàng với khung hình cảm biến.
-
-### 4. Cấu Hình Driver ST ULD Khuyên Dùng (ST Manual UM3109 Recommendations)
-
-Để đạt hiệu năng đo chiều cao tối ưu khi phát triển Firmware trên ESP32, cần cấu hình Driver ULD theo các khuyến nghị sau từ UM3109:
-
-1. **Thứ tự Mục tiêu Target Order (`vl53l8cx_set_target_order`)**:
-   - **Bắt buộc chọn `Closest`** (Mục tiêu gần nhất) thay vì `Strongest`.
-   - **Lý do**: Cảm biến lắp ở trần nhà rọi xuống, Đỉnh Đầu là vật thể nằm **gần trần nhất**. Chọn `Closest` giúp bắt đỉnh đầu cực kỳ nhạy, loại bỏ nhiễu phản hồi mạnh từ mặt sàn bên dưới.
-2. **Hiệu chỉnh Nhiễu Kính Che Kiosk (Cover Glass Xtalk Calibration - UM3109 Section 3.2 & 4.11)**:
-   - Khi lắp cảm biến đằng sau tấm kính bảo vệ của vỏ Kiosk, hiện tượng Xtalk có thể làm sai lệch mục tiêu ở khoảng cách $< 60\text{cm}$ (vùng người cao gần chạm trần).
-   - Thực hiện lệnh `vl53l8cx_calibrate_xtalk()` một lần duy nhất với bia xám 18% chuẩn ở khoảng cách $> 600\text{mm}$ (môi trường không IR nền) và lưu dữ liệu calibration vào Flash của ESP32.
-3. **Tự động Bù Nhiệt độ Định kỳ (`vl53l8cx_set_VHV_repeat_count`) (UM3109 Section 4.16)**:
-   - Đặt `repeat_count = 30` (Cứ mỗi 30 frames $\approx 2$ giây tự chạy bù nhiệt VHV 1 lần trong vài ms).
-   - Giúp duy trì độ trôi nhiệt $0.1\text{ mm}/^\circ\text{C}$ khi Kiosk vận hành liên tục 24/7.
-4. **Mức lọc Mép Sharpener Percent (`vl53l8cx_set_sharpener_percent`) (UM3109 Section 4.8)**:
-   - Cài đặt `sharpener_percent = 1%` (giá trị mặc định Rev 12) để triệt tiêu nhiễu tán xạ biên (veiling glare) giữa zone đỉnh đầu và vai.
 
 ---
 
-## 🏗️ 1. Sơ đồ Kiến trúc Engine & FSM 2 Lớp
+## 🔌 Sơ Đồ Đấu Nối Phần Cứng Chi Tiết (Hardware Schematics & Wiring)
+
+### 1. Sơ Đồ Chân Trực Quan ESP32 DevKit $\leftrightarrow$ Module VL53L8CX
+
+```text
+   +---------------------------------------+
+   |        ESP32 DEVKIT V1 (30/38 PINS)   |
+   |                                       |
+   | [3V3] ───────────────────────────────┐|
+   | [GND] ──────────────────────────────┐||
+   |                                     |||
+   | [GPIO 18] (VSPI CLK)  ─────────────┐|||
+   | [GPIO 19] (VSPI MISO) ────────────┐||||
+   | [GPIO 23] (VSPI MOSI) ───────────┐|||||
+   | [GPIO  5] (VSPI CS)   ──────────┐||||||
+   | [GPIO  4] (Control)   ─────────┐|||||||
+   | [GPIO 17] (Interrupt) ────────┐||||||||
+   +-------------------------------+||||||||
+                                   |||||||||
+                                   vvvvvvvvv
+                     +---------------------------+
+                     |    MODULE VL53L8CX        |
+                     |                           |
+                     |  1. VIN / VDD   (3.3V)    | <── 3V3 ESP32
+                     |  2. GND         (Mass)    | <── GND ESP32
+                     |  3. SCL / SCK   (Clock)   | <── GPIO 18
+                     |  4. SDO / MISO  (Data In) | <── GPIO 19
+                     |  5. SDA / MOSI  (Data Out)| <── GPIO 23
+                     |  6. NCS / CS    (Select)  | <── GPIO 5
+                     |  7. LPN / XSHUT (Enable)  | <── GPIO 4
+                     |  8. INT / GPIO1 (Ngắt)    | <── GPIO 17 (Tùy chọn)
+                     |  9. I2C_SPI_N   (Chế độ)  | <── Kéo lên 3V3 (SPI Mode)
+                     | 10. PWREN       (Nguồn)   | <── Kéo lên 3V3 (Enable)
+                     +---------------------------+
+```
+
+### 2. Bảng Đối Chiếu Chân Chi Tiết (Pinout Table)
+
+#### A. Cấu hình SPI Tốc độ cao (VSPI 10–20 MHz) — _Khuyên dùng cho Kiosk_:
+
+| Chân ESP32    | Tên Chân Module L8CX        | Mức Logic   | Chức năng kỹ thuật / Lưu ý                                                                      |
+| :------------ | :-------------------------- | :---------- | :---------------------------------------------------------------------------------------------- |
+| **`3V3`**     | **`VIN`** _(hoặc VDD/AVDD)_ | 3.3V DC     | Cung cấp nguồn 3.3V ổn định ($\ge 300\text{mA}$ peak khi VCSEL phát xung). ⚠️ **Không cắm 5V**. |
+| **`GND`**     | **`GND`**                   | 0V          | Nối đất chung toàn hệ thống.                                                                    |
+| **`GPIO 18`** | **`SCL / SCLK`**            | 3.3V Logic  | Tuyến xung nhịp SPI Master Clock (tần số 10 MHz).                                               |
+| **`GPIO 19`** | **`SDO / MISO`**            | 3.3V Logic  | Tuyến dữ liệu Master In Slave Out (ESP32 đọc frame 64 zones).                                   |
+| **`GPIO 23`** | **`SDA / MOSI`**            | 3.3V Logic  | Tuyến dữ liệu Master Out Slave In (ESP32 gửi lệnh/cấu hình).                                    |
+| **`GPIO 5`**  | **`NCS / CS`**              | Active LOW  | Chip Select: Kéo xuống LOW khi truyền nhận byte SPI, kéo HIGH khi nghỉ.                         |
+| **`GPIO 4`**  | **`LPn / XSHUT`**           | Active HIGH | Chân kích hoạt cảm biến. Kéo LOW để reset phần cứng chip, kéo HIGH để khởi động.                |
+| **`GPIO 17`** | **`INT / GPIO1`**           | Active LOW  | _(Tùy chọn)_ Ngắt Data Ready: Cảm biến kéo LOW khi có dữ liệu mới, giúp ESP32 zero polling.     |
+| **`3V3`**     | **`I2C_SPI_N`**             | 3.3V HIGH   | **Chân chọn giao tiếp**: Kéo lên HIGH/3V3 để chọn chế độ SPI (bắt buộc).                        |
+| **`3V3`**     | **`PWREN`**                 | 3.3V HIGH   | Kéo lên 3V3 để kích hoạt bộ chuyển đổi nguồn nội bộ của module.                                 |
+
+#### B. Cấu hình I2C Dự phòng (Fast Mode Plus 1 MHz):
+
+| Chân ESP32    | Tên Chân Module L8CX | Chức năng kỹ thuật                                                                    |
+| :------------ | :------------------- | :------------------------------------------------------------------------------------ |
+| **`GPIO 21`** | **`SDA`**            | Tuyến dữ liệu I2C Data (kèm trở kéo $4.7\text{k}\Omega$ lên 3.3V nếu module chưa có). |
+| **`GPIO 22`** | **`SCL`**            | Tuyến xung nhịp I2C Clock (tần số tối đa 1 MHz).                                      |
+| **`GPIO 4`**  | **`LPn`**            | Low Power Enable (kéo HIGH để bật chip).                                              |
+| **`GND`**     | **`I2C_SPI_N`**      | Kéo xuống LOW hoặc nối Mass để chọn chế độ I2C.                                       |
+
+---
+
+## 📐 Sơ Đồ Kết Nối Hệ Thống Kiosk Hoàn Chỉnh
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                          TRẦN NHÀ KIOSK                                │
+│                                                                        │
+│          [ ST VL53L8CX Time-of-Flight Multizone Sensor ]               │
+│                (Lắp rọi thẳng góc 90° xuống mặt sàn)                   │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Cáp bọc kim chống nhiễu (Shielded SPI Cable)
+                                    │ Chiều dài <= 1.5 mét
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                        HỘP ĐIỀU KHIỂN ESP32                            │
+│  [ ESP32 DevKit V1 ] ── Board xử lý HeightEngine C++ 8 bước           │
+│  - Chuyển đổi tọa độ thấu kính cosθ                                    │
+│  - Lọc nhiễu tóc đen, Glitch & Ngoại lai MAD                           │
+│  - Đánh giá độ ổn định và chốt khóa chiều cao                          │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Cáp USB Type-C / Micro-USB Serial
+                                    │ Tốc độ: 460800 baud (Chống giật lag)
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                    KIOSK SUNMI K2 / SUNMI K2 MINI                      │
+│  [ Cổng USB Host Kiosk ]                                              │
+│  - React Native Layer (ToFDistanceDevice / ToFClient)                  │
+│  - Giải mã gói 16 Bytes & Bắt tay FSM inbodySessionMachine             │
+│  - Phát âm thanh giọng nói (Voice Engine) & Hiển thị kết quả           │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🧠 Quét Lại Chi Tiết 8 Bước Thuật Toán (Exhaustive Algorithm Pipeline)
+
+Toàn bộ thuật toán được hiện thực hóa trong tệp [`firmware/esp32-vl53l8cx-driver/src/HeightEngine.cpp`](file:///d:/promedi/firmware/esp32-vl53l8cx-driver/src/HeightEngine.cpp), chạy ở chu kỳ $66\text{ms}$ ($15\text{Hz}$) với thời gian thực thi chỉ mất $\sim 18 - 20\mu s$:
 
 ```mermaid
 flowchart TD
-    RawStream[ESP32 / Mock Frame Stream] -->|TofFrame: mm, status, ts| TargetFilter[Target Status Filter: 5, 9, 6, 10]
-    TargetFilter -->|Valid Distances & Weights| CosCorrection[Cos Theta Radial Correction]
-    CosCorrection -->|Vertical Depth z_i| BackgroundSub[Floor Baseline Subtraction: h_i = floorZ_i - z_i]
-
-    BackgroundSub -->|Height Map 8x8| TierSeg[2-Tier Segmentation: Presence & Head Dynamic Threshold]
-    TierSeg -->|Head Candidates| ConnectedComp[Connected Components / Blob Analysis]
-    ConnectedComp -->|Find Head Cluster| PeakValleyDetector[Prominence Peak Check & Bresenham Valley >= 150mm]
-
-    PeakValleyDetector -->|>= 2 Blobs with Valley| MultiPeople[Status: MULTIPLE_PEOPLE]
-    PeakValleyDetector -->|1 Head Blob| HandFilter[Check Narrow Raised Cluster >= 50mm]
-
-    HandFilter -->|Hand Cluster Found| HandRaised[Status: HAND_RAISED]
-    HandFilter -->|Clean Head| SpatialPosition[Check Head Bounds & Spatial Offset]
-
-    SpatialPosition -->|Touches Edge or Out of Bounds| PositionErr[Status: WRONG_POSITION]
-    SpatialPosition -->|In Target Bounds| MedianWindow[Rolling Median Window, StdDev & Trend Slope Check]
-
-    MedianWindow -->|Range > Tolerance or Moving| Unstable[Status: UNSTABLE]
-    MedianWindow -->|Stable 15 Frames & Slope ~ 0| ReadyLock[Status: READY_TO_MEASURE & Linear Calibrated Height]
+    A["Raw Frame (64 Distances + Statuses)"] --> B["Bước 1 & 2: Đảo Lăng Kính & Bù Góc cosθ"]
+    B --> C["Bước 3: Trừ Baseline Sàn & Bệ InBody (96mm)"]
+    C --> D{"Bước 4: Có Người? (h >= 900mm & Core Zones)"}
+    D -- Không --> E["Tăng missCount -> Sau 1s Reset về IDLE"]
+    D -- Có --> F["Bước 5: Kẹp Khử Spike Tóc Đen (|Δ| > 15mm)"]
+    F --> G["Bước 6: Trích Xuất Đỉnh Đầu Trọng Số (60/25/15%)"]
+    G --> H{"Lọc Glitch: Nhảy > 60mm trong 66ms?"}
+    H -- Có --> I["Loại bỏ mẫu, yêu cầu đứng yên HOLD_STILL"]
+    H -- Không --> K["Bước 7: Đẩy Sliding Window 2500ms & Lọc MAD"]
+    K --> L{"Bước 8: Tiêu Chuẩn Ổn Định (Range <= 12mm & Hold >= 2.0s)"}
+    L -- Đang lắc --> M["Tăng tiến trình mượt theo thời gian (40% - 99%)"]
+    L -- Đạt chuẩn --> N["Chốt Khóa Trimmed Mean 10% -> Phát Gói 16B LOCKED"]
 ```
 
 ---
 
-## 📋 2. Cấu trúc Dữ liệu & TypeScript Types (Strict Output Contract)
+### Bước 1 & 2: Đảo Lăng Kính Quang Học & Bù Góc Không Gian $\cos\theta$
 
-```typescript
-/** Khung dữ liệu thô nhận từ Hardware/ESP32 qua USB Serial */
-export interface TofFrame {
-  mm: number[] // Mảng 64 phần tử khoảng cách (mm)
-  status: number[] // Mảng 64 phần tử mã trạng thái (5, 9, 6, 10)
-  timestamp: number // Thời gian đo từ ESP32 (ms)
-  sequence?: number // Số thứ tự gói chống mất frame
-}
-
-/** Cấu hình Engine & Vị trí lắp đặt */
-export interface VL53SensorConfig {
-  ceilingHeightMm: number // Độ cao trần nhà so với sàn (VD: 2300mm)
-  presenceThresholdMm: number // Ngưỡng lọc rác mặt sàn (VD: 800mm)
-  stabilityFrameCount: number // Số frame ổn định (VD: 15 frames @ 15Hz)
-  stabilityRangeMm: number // Độ chênh lệch max - min cho phép (VD: 15mm)
-  stabilityStdDevMm: number // Độ lệch chuẩn max cho phép (VD: 5mm)
-  glitchGraceFrames: number // Số frame lỗi liên tiếp cho phép giữ buffer (VD: 3)
-  handThresholdMm: number // Độ cao vật mảnh trên đầu báo giơ tay (VD: 50mm)
-  valleyDepthMm: number // Độ sâu thung lũng phân biệt 2 người (VD: 150mm)
-  axisMap: {
-    // Ánh xạ hướng gắn cảm biến
-    swapXY: boolean
-    flipX: boolean
-    flipY: boolean
-  }
-  offsetMm: number // Hằng số bù sai số cố định (VD: +15mm từ Linear Regression)
-  gainScale: number // Tỉ lệ scale thực nghiệm (VD: 1.002 từ Linear Regression)
-}
-
-/** Domain Event Status (Không phụ thuộc Voice/UI) */
-export type HeightEngineStatus =
-  | 'NO_PERSON' // Không có người
-  | 'MULTIPLE_PEOPLE' // Phát hiện >= 2 người đứng trong khung
-  | 'WRONG_POSITION' // Đỉnh đầu chạm viền khung hình / dẫm quá lệch
-  | 'HAND_RAISED' // Đang giơ tay / Có vật thể nhọn trên đầu
-  | 'UNSTABLE' // Đang cử động, đung đưa hoặc đứng lên
-  | 'READY_TO_MEASURE' // Đã ổn định, chốt kết quả
-
-/** Hướng điều chỉnh vị trí đứng */
-export type StepDirection =
-  | 'STEP_FORWARD'
-  | 'STEP_BACKWARD'
-  | 'STEP_LEFT'
-  | 'STEP_RIGHT'
-  | 'CENTERED'
-
-/** Hợp đồng đầu ra Engine */
-export interface HeightEngineResult {
-  status: HeightEngineStatus
-  estimatedHeightMm: number | null
-  stepDirection: StepDirection
-  detectedPeopleCount: number
-  confidence: number // Calculated dynamic confidence: 0.0 -> 1.0
-  heightMap: number[][] // Ma trận chiều cao 8x8 (mm) sau bù cosθ
-  headCentroidMm: { x: number; y: number } | null // Tọa độ thực (mm) của đỉnh đầu
-  source: 'sensor' | 'manual'
-  errorCode?: string
-}
-```
+1. **Đảo lăng kính Rx 180°**:
+   - Thấu kính thu quang học làm đảo ngược hình ảnh chiếu lên mảng SPAD. Hàm `flipLensOrientation` chuyển đổi zone $(r, c)$ thành $(7 - r, 7 - c)$.
+2. **Bù góc không gian kim tự tháp ToF $45^\circ \times 45^\circ$**:
+   - Cảm biến phát chùm tia nón tỏa ra, tia ở góc mép đi dài hơn tia trục giữa.
+   - Góc lệch trục: $\theta_x(c) = (c - 3.5) \cdot 5.625^\circ = (c - 3.5) \cdot \frac{\pi}{32}$.
+   - Hệ số $\cos\theta$ được tính trước vào mảng tĩnh Look-Up Table (LUT $8 \times 8$):
+     $$\text{COS}[r, c] = \frac{1}{\sqrt{1 + \tan^2\theta_x(c) + \tan^2\theta_y(r)}}$$
+   - Độ sâu đứng thẳng từ trần xuống đỉnh đầu:
+     $$z_i = \text{Distance}_i \cdot \text{COS}[r, c]$$
 
 ---
 
-## 🧠 3. Chi tiết Các Thuật toán Đã Khắc phục Lỗi (Corrected Core Algorithms)
+### Bước 3: Trừ Baseline Mặt Sàn & Độ Cao Bệ Cân
 
-### 3.1. Lọc Target Status & Đánh Giá Độ Tin Cậy (UM3109 Table 4)
+$$h_i = \text{expectedFloorMm} - z_i - \text{platformHeightMm}$$
 
-#### Bảng Mã Trạng Thái Target Status Chuẩn từ ST (UM3109 Table 4):
-
-|                  Code                  | Mô tả Kỹ thuật (ST UM3109)                                | Ý nghĩa Nghiệp vụ                                  | Trọng số Tin cậy (Weight) |
-| :------------------------------------: | :-------------------------------------------------------- | :------------------------------------------------- | :-----------------------: |
-|                **`5`**                 | **Range valid**                                           | 🟢 **Valid 100%** (Đo chuẩn xác tuyệt đối)         |          **1.0**          |
-|                **`9`**                 | **Range valid with large pulse (merged target)**          | 🟡 **Valid 50%** (Đo hợp lệ ở xung rộng)           |          **0.5**          |
-|                **`6`**                 | **Wrap around not performed (first range)**               | 🟡 **Presence Only** (Chỉ dùng nhận diện có người) | **0.5 (No Height Lock)**  |
-|                **`10`**                | **Range valid, but no target detected at previous range** | 🟡 **Presence Only** (Chỉ dùng nhận diện có người) | **0.5 (No Height Lock)**  |
-| `0, 1, 2, 3, 4, 7, 8, 11, 12, 13, 255` | Các lỗi tín hiệu yếu, nhiễu SPAD, bất nhất                | 🔴 **Invalid** (Gán `NaN`, loại bỏ)                |          **0.0**          |
-
-#### Quy tắc Tính Confidence Động của Frame:
-
-$$\text{Confidence} = \frac{\sum \text{Weight}_{\text{valid\_zones}}}{\text{Total\_Head\_Zones}} \times \left(1 - \frac{\text{Range}}{\text{stabilityRangeMm} \times 2}\right)$$
+- `expectedFloorMm`: Chiều cao từ cảm biến trần xuống sàn (mặc định $2220\text{mm}$).
+- `platformHeightMm`: Độ cao của bệ cân InBody 260S đặt trên sàn (mặc định $96\text{mm}$, hoặc $0\text{mm}$ nếu đo từ sàn).
+- Lọc bỏ các zone ngoài dải tin cậy: khoảng cách $d \le 50\text{mm}$, $d \ge 3900\text{mm}$, hoặc mã `status` không hợp lệ ($< 5$).
 
 ---
 
-### 3.2. Cắt Ngưỡng 2 Tầng (2-Tier Segmentation) & Prominence Peak Valley (A4)
+### Bước 4: Nhận Diện Người Đứng (Person Detection) & Vùng Lõi ROI
 
-1. **Tầng 1 - Presence Filter**: Loại bỏ zone có $h_i < \text{presenceThresholdMm}$ ($\approx 800\text{mm}$).
-2. **Tầng 2 - Head Segmentation Dynamic Filter**:
-   - Tìm peak chiều cao lớn nhất $H_{\text{max}}$.
-   - Cắt cụm Đỉnh Đầu theo ngưỡng động: $h_i \ge (H_{\text{max}} - 150\text{mm})$ để tách sạch Đỉnh Đầu khỏi Vai.
-3. **Phân biệt 2 Người bằng Bresenham Line Search**:
-   - Duyệt các cụm đỉnh local maxima có prominence.
-   - Tìm điểm thấp nhất dọc đường nối giữa 2 đỉnh bằng giải thuật Bresenham 2D grid.
-   - Nếu $\text{ValleyDepth} = \min(h(P_1), h(P_2)) - h_{\text{min\_line}} \ge 150\text{mm}$ $\rightarrow$ Xác nhận **`MULTIPLE_PEOPLE`**.
+- Tìm giá trị đỉnh cao nhất trong 64 ô: $\text{peakH} = \max(h_i)$.
+- Gom các ô nằm trong dải đỉnh đầu: $\text{bandZones} = \{h_i \mid h_i \ge \text{peakH} - 80\text{mm}\}$.
+- **Xác thực vùng lõi (Core Region)**: Đỉnh đầu bắt buộc phải có ít nhất 1 zone nằm trong vùng trung tâm bàn cân (hàng 2..5, cột 2..5).
+- Điều kiện người xuất hiện: $\text{peakH} \ge 900\text{mm}$ và $\text{hasCorePeak} == \text{true}$.
+- Sau 6 frames liên tiếp ($\approx 400\text{ms}$) xác nhận có người, FSM phát sự kiện `PERSON_PRESENT` và chuyển sang `MEASURING`.
 
 ---
 
-### 3.3. Lọc Giơ Tay / Vật Nhọn (`HAND_RAISED`) (A5)
+### Bước 5: Khử Gai Nhọn Quang Học Trên Tóc Đen (Anti-Spike Clamping)
 
-1. Xác định cụm Đỉnh Đầu chính (Cluster nằm gần vùng tâm target nhất).
-2. Kiểm tra nếu xuất hiện một cụm nhỏ/mảnh (1–3 zones) nối qua cổ hẹp hoặc tách rời, nằm cao hơn Đỉnh Đầu chính $\ge 50\text{mm}$ $\rightarrow$ Trạng thái lập tức chuyển sang **`HAND_RAISED`**.
-3. Engine từ chối đo và báo UI nhắc người dùng hạ tay xuống.
-
----
-
-### 3.4. Vị Trí Đứng & Ánh Xạ Hướng (`axisMap`) (A3 & A7)
-
-1. Tính tâm khối của **riêng cụm Đỉnh Đầu** $C = (X_{\text{mm}}, Y_{\text{mm}})$.
-2. Điều kiện hợp lệ:
-   - Cụm đỉnh đầu **KHÔNG được chạm các ô biên rìa** (hàng 0, 7 hoặc cột 0, 7).
-   - Tọa độ tâm $(X, Y)$ nằm trong dung sai $\pm 100\text{mm}$ so với điểm tâm chuẩn.
-3. Hướng di chuyển (`stepDirection`) được tính qua `axisMap` cấu hình phù hợp với hướng gắn phần cứng thực tế.
+- **Nguyên nhân vật lý**: Sợi tóc đen hấp thụ mạnh tia Laser $940\text{nm}$, độ phản xạ chỉ $\approx 5-10\%$, dễ gây hiện tượng 1 zone bị nhiễu photon nhảy vọt lên $\pm 20\text{mm}$.
+- **Thuật toán kẹp**: Sắp xếp mảng dải đỉnh đầu giảm dần ($h_0 \ge h_1 \ge h_2$). Nếu ô cao nhất vọt lên quá $15\text{mm}$ so với ô thứ hai:
+  $$h_0 = h_1 + 5.0\text{ mm}$$
 
 ---
 
-### 3.5. Kiểm Tra Ổn Định Chuỗi Thời Gian (Rolling Median Window, Slope & Grace Period) (A6)
+### Bước 6: Trích Xuất Đỉnh Đầu Trọng Số Vòm Sọ (Crown Peak-Weighted)
 
-1. Sử dụng cửa sổ Rolling Window 15 frames.
-2. Với mỗi frame, lấy **Median** của các ô đỉnh đầu để triệt tiêu nhiễu Spike.
-3. Cho phép **ân hạn tối đa 3 frames lỗi/giao thoa liên tiếp (`glitchGraceFrames = 3`)** trước khi reset bộ đệm.
-4. **Điều kiện chốt chiều cao**:
-   - `Range = Max(Window) - Min(Window) <= 15mm`.
-   - `StdDev(Window) <= 5mm`.
-   - `TrendSlope(Window) ≈ 0` (đảm bảo người dùng không đang từ từ đứng thẳng lên).
-5. Chiều cao chốt $H_{\text{final}} = \text{TrimmedMean}(\text{Window}) \cdot \text{gainScale} + \text{offsetMm}$.
+Thay vì lấy trung bình phẳng làm tụt kết quả khi đầu nằm giữa 2 ô hoặc ngã tư 4 ô:
+
+- **Zone 0** (đỉnh chóp): **60%** trọng số.
+- **Zone 1**: **25%** trọng số (chỉ lấy nếu cách đỉnh $h_0 - h_1 \le 25\text{mm}$).
+- **Zone 2**: **15%** trọng số (chỉ lấy nếu cách đỉnh $h_0 - h_2 \le 25\text{mm}$).
+  $$\text{instantH} = \frac{0.60 \cdot h_0 + 0.25 \cdot h_1 + 0.15 \cdot h_2}{0.60 + 0.25 + 0.15}$$
 
 ---
 
-### 3.6. Quy Trình Floor Baseline Calibration (Hệ Thống Sàn Trống)
+### Bước 7: Lọc Bước Nhảy Glitch & Lọc Ngoại Lai Thống Kê MAD Trong Cửa Sổ Trượt
 
-1. **Khởi tạo Calibration**: Khi Kiosk rảnh (Idle), gọi lệnh thu thập $N=30$ frames sàn trống.
-2. **Tính toán Baseline**:
-   - Lấy Median cho từng zone $i \in [0..63]$ để thu được mảng `floorZTable[64]`.
-   - Kiểm tra độ phẳng sàn: Độ lệch chuẩn giữa các zone sàn không vượt quá $30\text{mm}$.
-3. **Lưu trữ & Auto Drift Check**:
-   - Lưu `floorZTable` vào MMKV Storage local.
-   - Khi Kiosk ở trạng thái Idle, liên tục so sánh frame hiện tại với baseline. Nếu lệch bất thường $> 50\text{mm}$ kéo dài $\rightarrow$ Cảnh báo vật bỏ quên trên sàn hoặc cảm biến bị xê dịch.
-
----
-
-## 📝 4. Mã Giả Xử Lý Cốt Lõi V5.1 (Production-Ready Pseudocode)
-
-```typescript
-export class HeightMeasurementEngine {
-  private config: VL53SensorConfig
-  private cosTable: number[]
-  private floorZTable: number[]
-  private historyBuffer: number[] = []
-  private glitchCounter: number = 0
-
-  constructor(config: VL53SensorConfig, floorRawDistances: number[]) {
-    this.config = config
-    this.cosTable = this.buildCosTable()
-    // Bù cos-theta cho baseline sàn
-    this.floorZTable = floorRawDistances.map((d, i) => d * this.cosTable[i])
-  }
-
-  public processFrame(frame: TofFrame): HeightEngineResult {
-    // 1. Lọc status hợp lệ & Bù cos-theta
-    const heightMap8x8 = Array.from({ length: 8 }, () => Array(8).fill(0))
-    const validZones: { r: number; c: number; h: number; weight: number }[] = []
-
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        const idx = r * 8 + c
-        const st = frame.status[idx]
-        const weight = this.getStatusWeight(st)
-
-        if (weight > 0) {
-          const z = frame.mm[idx] * this.cosTable[idx]
-          const h = Math.max(0, this.floorZTable[idx] - z)
-          if (h >= this.config.presenceThresholdMm) {
-            heightMap8x8[r][c] = h
-            validZones.push({ r, c, h, weight })
-          }
-        }
-      }
-    }
-
-    // Nếu không có ô nào vượt ngưỡng presenceThreshold -> NO_PERSON
-    if (validZones.length === 0) {
-      this.handleGlitch()
-      return this.buildResult('NO_PERSON', null, 'CENTERED', 0, heightMap8x8, 0, null)
-    }
-
-    // 2. Gom cụm liên thông (Blobs) & Bresenham Valley Check 2 người
-    const blobs = this.findConnectedComponents(heightMap8x8)
-    if (this.detectMultiplePeople(blobs, heightMap8x8)) {
-      this.resetBuffer()
-      return this.buildResult(
-        'MULTIPLE_PEOPLE',
-        null,
-        'CENTERED',
-        blobs.length,
-        heightMap8x8,
-        0.4,
-        null,
-      )
-    }
-
-    // 3. Tìm cụm Đỉnh Đầu & Kiểm tra giơ tay HAND_RAISED
-    const headBlob = this.findHeadBlob(blobs, heightMap8x8)
-    if (this.checkHandRaised(blobs, headBlob)) {
-      this.resetBuffer()
-      return this.buildResult('HAND_RAISED', null, 'CENTERED', 1, heightMap8x8, 0.3, null)
-    }
-
-    // 4. Kiểm tra vị trí đứng (Head Centroid & Touch Edge)
-    const headCentroid = this.calculateHeadCentroidMm(headBlob, heightMap8x8)
-    if (this.touchesEdge(headBlob) || !this.isInBounds(headCentroid)) {
-      this.handleGlitch()
-      return this.buildResult(
-        'WRONG_POSITION',
-        null,
-        this.getCorrection(headCentroid),
-        1,
-        heightMap8x8,
-        0.5,
-        headCentroid,
-      )
-    }
-
-    // 5. Đỉnh đầu mượt (Head Peak Median)
-    const currentHeadHeight = this.getHeadPeakMedian(headBlob, heightMap8x8)
-
-    // 6. Rolling Median Window, Slope & Stability Check
-    this.historyBuffer.push(currentHeadHeight)
-    if (this.historyBuffer.length > this.config.stabilityFrameCount) {
-      this.historyBuffer.shift()
-    }
-    this.glitchCounter = 0 // Reset ân hạn khi frame hợp lệ
-
-    const range = Math.max(...this.historyBuffer) - Math.min(...this.historyBuffer)
-    const stdDev = this.calculateStdDev(this.historyBuffer)
-    const slope = this.calculateTrendSlope(this.historyBuffer)
-
-    const isStable =
-      this.historyBuffer.length >= this.config.stabilityFrameCount &&
-      range <= this.config.stabilityRangeMm &&
-      stdDev <= this.config.stabilityStdDevMm &&
-      Math.abs(slope) < 0.5
-
-    const dynamicConfidence = this.calculateDynamicConfidence(validZones, headBlob, range)
-
-    if (!isStable) {
-      return this.buildResult(
-        'UNSTABLE',
-        currentHeadHeight,
-        'CENTERED',
-        1,
-        heightMap8x8,
-        dynamicConfidence,
-        headCentroid,
-      )
-    }
-
-    // Chốt kết quả chiều cao bằng Hồi quy tuyến tính (Linear Regression Calibration)
-    const rawCalibrated = this.calculateTrimmedMean(this.historyBuffer)
-    const finalHeightMm = Math.round(rawCalibrated * this.config.gainScale + this.config.offsetMm)
-
-    return this.buildResult(
-      'READY_TO_MEASURE',
-      finalHeightMm,
-      'CENTERED',
-      1,
-      heightMap8x8,
-      0.98,
-      headCentroid,
-    )
-  }
-
-  private getStatusWeight(st: number): number {
-    if (st === 5) return 1.0
-    if (st === 9 || st === 6 || st === 10) return 0.5
-    return 0.0
-  }
-
-  private handleGlitch(): void {
-    this.glitchCounter++
-    if (this.glitchCounter > this.config.glitchGraceFrames) {
-      this.resetBuffer()
-    }
-  }
-
-  private resetBuffer(): void {
-    this.historyBuffer = []
-    this.glitchCounter = 0
-  }
-
-  private buildCosTable(): number[] {
-    // Sửa công thức góc chuẩn: theta_x(c) = (c - 3.5) * (PI / 32)
-    const table = new Array(64)
-    const angleStepRad = (45 * Math.PI) / 180 / 8 // 5.625 độ / zone
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        const angleX = (c - 3.5) * angleStepRad
-        const angleY = (r - 3.5) * angleStepRad
-        table[r * 8 + c] =
-          1 / Math.sqrt(1 + Math.pow(Math.tan(angleX), 2) + Math.pow(Math.tan(angleY), 2))
-      }
-    }
-    return table
-  }
-
-  private calculateDynamicConfidence(
-    validZones: { weight: number }[],
-    headBlob: any,
-    range: number,
-  ): number {
-    const validRatio =
-      validZones.reduce((sum, z) => sum + z.weight, 0) / Math.max(1, validZones.length)
-    const rangeFactor = Math.max(0, 1 - range / (this.config.stabilityRangeMm * 2))
-    return Math.min(1.0, Math.max(0.1, Number((validRatio * 0.6 + rangeFactor * 0.4).toFixed(2))))
-  }
-
-  private buildResult(
-    status: HeightEngineStatus,
-    height: number | null,
-    dir: StepDirection,
-    people: number,
-    map: number[][],
-    confidence: number,
-    centroid: { x: number; y: number } | null,
-  ): HeightEngineResult {
-    return {
-      status,
-      estimatedHeightMm: height,
-      stepDirection: dir,
-      detectedPeopleCount: people,
-      confidence,
-      heightMap: map,
-      headCentroidMm: centroid,
-      source: 'sensor',
-    }
-  }
-}
-```
+1. **Bộ lọc Glitch**:
+   - Nếu cụm đỉnh đầu $< 2$ zones $\rightarrow$ Tia nhiễu đơn lẻ.
+   - Nếu $\text{instantH} < 800\text{mm}$ hoặc $> 2300\text{mm}$ $\rightarrow$ Ngoài dải nhân trắc học.
+   - Nếu bước nhảy $|\text{instantH} - \text{prevH}| > 60\text{mm}$ ($6\text{cm}$) trong $66\text{ms}$ $\rightarrow$ Quơ tay hoặc bóng lướt qua.
+2. **Cửa sổ trượt Circular Buffer (2500ms)**:
+   - Lưu trữ lịch sử các mẫu trong 2.5 giây gần nhất.
+3. **Bộ lọc MAD (Median Absolute Deviation)**:
+   - Tính trung vị $\text{Med} = \text{median}(h)$.
+   - Tính độ lệch tuyệt đối so với trung vị: $\text{dev}_i = |h_i - \text{Med}|$.
+   - Tính $\text{MAD} = \text{median}(\text{dev}_i)$ với ngưỡng sàn $\text{MAD}_{\min} = 3.0\text{mm}$.
+   - Giữ lại các mẫu hợp lệ thỏa mãn:
+     $$|h_i - \text{Med}| \le 3.0 \times \text{MAD}$$
+   - Bắt buộc giữ lại $\ge 70\%$ mẫu trong cửa sổ trượt; nếu người cử động làm mất $> 30\%$ mẫu, hệ thống giữ FSM ở `HOLD_STILL` và đặt tiến trình ở 30%.
 
 ---
 
-## 📌 Hướng dẫn Nghiệm thu & Replay Testing
+### Bước 8: Tiêu Chuẩn Ổn Định Nhân Trắc Học & Chốt Khóa Trimmed Mean 10%
 
-- [ ] **Test 1: Lọc Zone lỗi**: Ép một số ô status = 0 hoặc 2 $\rightarrow$ Engine không bị tạo đỉnh giả $2300\text{mm}$.
-- [ ] **Test 2: Bù cos-theta**: Đứng ở zone trung tâm vs zone lệch mép cột 5 cùng 1 chiều cao $\rightarrow$ Sai số giữa 2 vị trí $< 3\text{mm}$.
-- [ ] **Test 3: Phát hiện 2 người qua thung lũng**: 2 người đứng gần nhau có thung lũng $\ge 150\text{mm}$ $\rightarrow$ Trả về `MULTIPLE_PEOPLE`.
-- [ ] **Test 4: Giơ tay**: Đưa bàn tay cao hơn đầu $\ge 50\text{mm}$ $\rightarrow$ Trả về `HAND_RAISED`.
-- [ ] **Test 5: Replay Dataset**: Chạy Replay 30 bộ Log Frame ghi từ thực tế qua Jest $\rightarrow$ Đạt 100% tỷ lệ chốt chiều cao chính xác.
+1. **Tiêu chuẩn ổn định thực tế (Bao dung nhịp thở lồng ngực)**:
+   - **Biên độ dao động**: $\text{Range} = \max(h) - \min(h) \le 12.0\text{mm}$ ($1.2\text{cm}$).
+   - **Vận tốc dịch chuyển**: Hồi quy tuyến tính $|\text{Slope}| \le 6.0\text{mm/s}$.
+   - **Thời gian giữ yên**: $t_{\text{hold}} \ge 2000\text{ms}$ (2.0 giây liên tục) với $\ge 16$ mẫu hợp lệ.
+2. **Tiến trình tăng mượt**:
+   - Khi người dùng đã vào dải ổn định $\le 12\text{mm}$, tiến trình tăng tuyến tính từ $40\% \to 99\%$ theo tỷ lệ thời gian giữ yên $t_{\text{hold}} / 2000\text{ms}$.
+3. **Chốt khóa Trimmed Mean 10%**:
+   - Sắp xếp tăng dần các mẫu đã ổn định.
+   - Cắt bỏ 10% biên dưới và 10% biên trên để triệt tiêu hoàn toàn nhiễu đuôi phân phối xác suất.
+   - Tính trung bình các mẫu còn lại: $\text{rawMm} = \text{mean}(h_{\text{trimmed}})$.
+   - Áp dụng hệ số hiệu chuẩn phần cứng:
+     $$\text{lockedHeightMm} = \text{round}(\text{rawMm} \times \text{gainScale} + \text{offsetMm})$$
+   - Phát sự kiện `HEIGHT_EVENT_LOCKED`, chuyển FSM sang `LOCKED`, tiến trình $100\%$, phát gói nhị phân 16 Bytes lên Kiosk.
+
+---
+
+## 📦 Cấu Trúc Gói Tin Nhị Phân 16 Bytes (`HeightPacketPayload`)
+
+| Byte Offset | Kiểu dữ liệu | Tên trường        | Ý nghĩa / Giá trị                                                              |
+| :---------: | :----------: | :---------------- | :----------------------------------------------------------------------------- |
+|   `0..1`    | `uint8_t[2]` | `header`          | Magic Header: `0xAA`, `0x55`                                                   |
+|     `2`     |  `uint8_t`   | `packetType`      | Mã loại gói: `0x48` (ASCII `'H'`)                                              |
+|     `3`     |  `uint8_t`   | `state`           | `0`=IDLE, `1`=MEASURING, `2`=HOLD_STILL, `3`=LOCKED, `4`=TIMEOUT, `5`=ERROR    |
+|     `4`     |  `uint8_t`   | `guidance`        | `0`=IDLE, `1`=STEP_ON, `2`=HOLD_STILL, `3`=MEASURING, `4`=LOCKED, `5`=TIMEOUT  |
+|   `5..6`    |  `uint16_t`  | `lockedHeightMm`  | Chiều cao chốt (Little-Endian, mm, VD: `1725` = 172.5 cm)                      |
+|   `7..8`    |  `uint16_t`  | `instantHeightMm` | Chiều cao tức thời (Little-Endian, mm)                                         |
+|     `9`     |  `uint8_t`   | `progress`        | Tiến trình ổn định (`0` đến `100%`)                                            |
+|    `10`     |  `uint8_t`   | `confidence`      | Độ tin cậy tính toán (`85%` đến `99%`)                                         |
+|    `11`     |  `uint8_t`   | `headZoneCount`   | Số lượng zone đỉnh đầu (1 đến 4 zones)                                         |
+|    `12`     |  `uint8_t`   | `eventCode`       | `0`=NONE, `1`=PERSON_PRESENT, `2`=LOCKED, `3`=PERSON_LEFT, `4`=TIMEOUT         |
+|    `13`     |  `uint8_t`   | `flags`           | Bitwise: `Bit 0` = isStable, `Bit 1` = hasPerson, `Bit 2` = needsRecalibration |
+|  `14..15`   |  `uint16_t`  | `checksumCrc16`   | Mã kiểm tra toàn vẹn CRC16-Modbus tính trên 14 bytes đầu                       |
+
+---
+
+## 🔄 Bộ Lệnh Điều Khiển Hai Chiều Kiosk $\leftrightarrow$ ESP32
+
+1. **Lệnh PING (`0xAA 0x55 0x50 0x47` / `"PG"`)**:
+   - ESP32 phản hồi ngay gói PONG (`0xAA 0x55 0x4F 0x4B` / `"OK"`). Dùng để dò cổng COM tự động khi Kiosk cắm vào.
+2. **Lệnh CONFIG (`0xAA 0x55 0x43 0x46` + 14 Bytes Payload)**:
+   - Truyền cấu hình: `expectedFloorMm` (uint16), `platformHeightMm` (uint16), `gainScale` (float 4B), `offsetMm` (float 4B) và CRC16 (2B).
+   - ESP32 xác thực CRC và phản hồi `CONFIG_OK` (`0xAA 0x55 0x43 0x4B` / `"CK"`).
+3. **Lệnh RESET (`0xAA 0x55 0x52 0x53` / `"RS"`)**:
+   - ESP32 hủy bỏ phiên đo hiện tại và reset FSM về trạng thái `IDLE` sẵn sàng cho người mới.
+4. **Lệnh DEBUG RAW (`0xAA 0x55 0x44 0x42 0x01` / `"DB 1"`)**:
+   - Bật/tắt chế độ truyền song song gói tin 204 Bytes ma trận thô 64 zones khi Kiosk mở màn hình kiểm định Heatmap.

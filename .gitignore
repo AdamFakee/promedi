@@ -47,10 +47,13 @@ yarn-error.*
 
 app-example
 
-# IDE
+# IDE & Tools
 .idea/
 .vscode/
+.claude/
+.pio/
 
 # Build executables
 *.exe
+
 

@@ -13,13 +13,23 @@ Thư mục này chứa toàn bộ các đặc tả kỹ thuật, chuẩn giao th
 
 2. **[Tài Liệu Giao Thức Tích Hợp Máy Đo Huyết Áp BPBIO320/750 (Protocol Spec)](file:///d:/promedi/docs/hard-ware/bpbio320-750-protocol-spec.md)**
    - **Tệp**: `bpbio320-750-protocol-spec.md`
-   - **Mô tả**: Tài liệu đặc tả giao thức kết nối Serial UART (9600 bps) cho các dòng máy đo huyết áp BPBIO320 / BPBIO750. Cấu trúc khung truyền 64 byte, 7 sự kiện phát sóng tự động, lệnh điều khiển chủ động Tx/Rx,Open Protocol rút dữ liệu áp suất thời gian thực & chỉ số lâm sàng (AX, IX).
+   - **Mô tả**: Tài liệu đặc tả giao thức kết nối Serial UART (9600 bps) cho các dòng máy đo huyết áp BPBIO320 / BPBIO750. Cấu trúc khung truyền 64 byte, 7 sự kiện phát sóng tự động, lệnh điều khiển chủ động Tx/Rx, Open Protocol rút dữ liệu áp suất thời gian thực & chỉ số lâm sàng (AX, IX).
 
-3. **[Đặc Tả Kiến Trúc SDK Phần Mềm InBody 260S (Architecture Spec & ADR)](file:///d:/promedi/docs/specs/inbody-sdk-architecture.md)**
+3. **[Đặc Tả Kỹ Thuật Cảm Biến Khoảng Cách VL53L5CX (ToF Height Sensor V5.2)](file:///d:/promedi/docs/hard-ware/vl53l5cx-distance-sensor-spec.md)**
+   - **Tệp**: `vl53l5cx-distance-sensor-spec.md`
+   - **Mô tả**: Đặc tả kỹ thuật cảm biến ST VL53L5CX (8x8 zones @ 15Hz qua I2C), firmware ESP32 C++ Edge Height Engine, gói nhị phân siêu tinh gọn 16 Bytes truyền lên Kiosk qua USB Serial 460800 baud.
+   - **Mã nguồn**: [`firmware/esp32-vl53l5cx-driver/`](file:///d:/promedi/firmware/esp32-vl53l5cx-driver/)
+
+4. **[Đặc Tả Kỹ Thuật Cảm Biến Khoảng Cách VL53L8CX (ToF Sensor V5.2 - SPI High-Speed)](file:///d:/promedi/docs/hard-ware/vl53l8cx-distance-sensor-spec.md)**
+   - **Tệp**: `vl53l8cx-distance-sensor-spec.md`
+   - **Mô tả**: Đặc tả kỹ thuật cảm biến ST VL53L8CX phiên bản cao cấp hỗ trợ giao tiếp **SPI 10–20 MHz** (giải phóng nghẽn bus, đạt 15–30 Hz ổn định), VCSEL thế hệ mới kháng ánh sáng môi trường 5 klx và firmware C++ chuyên dụng.
+   - **Mã nguồn**: [`firmware/esp32-vl53l8cx-driver/`](file:///d:/promedi/firmware/esp32-vl53l8cx-driver/)
+
+5. **[Đặc Tả Kiến Trúc SDK Phần Mềm InBody 260S (Architecture Spec & ADR)](file:///d:/promedi/docs/specs/inbody-sdk-architecture.md)**
    - **Tệp**: `docs/specs/inbody-sdk-architecture.md`
    - **Mô tả**: Đặc tả kiến trúc phần mềm 4 lớp của SDK điều khiển InBody 260S trên Kiosk ProMedi. Giải trình lý do thiết kế, quy tắc mã hóa `latin1`, xử lý chuỗi tiếng Việt `sanitizeAscii`, Half-Duplex Mutex Lock, XState v5 Session Machine và bảng đối chiếu mã nguồn.
 
-4. **[Đặc Tả Kỹ Thuật & Kiến Trúc Kiosk Sunmi K2 (Hardware Specification)](file:///d:/promedi/docs/hard-ware/sunmi-k2-kiosk-spec.md)**
+6. **[Đặc Tả Kỹ Thuật & Kiến Trúc Kiosk Sunmi K2 (Hardware Specification)](file:///d:/promedi/docs/hard-ware/sunmi-k2-kiosk-spec.md)**
    - **Tệp**: `sunmi-k2-kiosk-spec.md`
    - **Mô tả**: Tài liệu đặc tả tích hợp trọn bộ phần cứng Kiosk Sunmi K2 (Đầu đọc thẻ NFC kép qua AIDL & Android Foreground Dispatch, Máy in nhiệt 80mm qua PrinterSdk).
    - **Runbook Triển Khai**: [`docs/plans/sunmi-k2-kiosk-runbook.md`](file:///d:/promedi/docs/plans/sunmi-k2-kiosk-runbook.md).
